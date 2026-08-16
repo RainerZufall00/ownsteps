@@ -150,11 +150,19 @@ sparen will, setzt `KEEP_ORIGINALS=false` – dann bleiben nur die Web-Größen.
 ## Aktualisieren
 
 ```bash
-git pull
-docker compose up -d --build
+./deploy.sh
 ```
 
-Schema-Änderungen werden beim Start automatisch angewendet.
+Das Skript holt die Änderungen, baut das Image neu und wartet, bis der
+Container als gesund gemeldet wird; andernfalls gibt es die letzten Logzeilen
+aus. Von Hand geht es genauso:
+
+```bash
+git pull && docker compose up -d --build
+```
+
+Schema-Änderungen werden beim Start automatisch angewendet. `.env` und `data/`
+liegen nicht im Repository und bleiben bei einem Update unangetastet.
 
 ## Entwicklung
 
