@@ -12,7 +12,11 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 echo "› Änderungen holen"
-git pull --ff-only
+# Den Branch ausdrücklich benennen: Nach "git init" in einem bestehenden
+# Verzeichnis fehlt die Upstream-Verknüpfung, und ein blankes "git pull"
+# bricht dann mit "no tracking information" ab.
+branch="$(git rev-parse --abbrev-ref HEAD)"
+git pull --ff-only origin "$branch"
 
 # .env und data/ sind nicht im Repository und bleiben unangetastet.
 if [ ! -f .env ]; then
