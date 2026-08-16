@@ -56,7 +56,9 @@ src/
 │   └── globals.css       Farbtokens, Komponentenklassen, MapLibre-Anpassungen
 ├── components/           Client-Komponenten (Karte, Timeline, Lightbox …)
 ├── db/                   Schema und Verbindung samt Migrationen
-├── lib/                  Serverlogik, fast alles mit "server-only"
+├── lib/                  Serverlogik, fast alles mit "server-only".
+│                         Ohne "server-only" und damit auch im Browser
+│                         nutzbar: view-types.ts, format.ts, limits.ts
 ├── proxy.ts              Zugriffsprotokoll (in Next 16 der Nachfolger von
 │                         middleware.ts – die alte Datei ist abgekündigt)
 └── instrumentation.ts    Läuft einmal beim Serverstart
@@ -400,7 +402,84 @@ In `TripMap.tsx` gilt:
 
 ---
 
-## 8. Anmeldung
+## 8. Ansichten: Timeline, Raster, Vollbild
+
+`TripView` ist die **einzige** Leseansicht: Die angemeldete Reise-Seite und der
+Share-Link rendern dieselbe Komponente und unterscheiden sich nur in zwei
+Requisiten – `header` (die Seite steuert ihren Kopfbereich bei) und `editable`
+(blendet die Bearbeiten-Links ein). Was die Besucher sehen, ist damit
+zwangsläufig dasselbe wie im eingeloggten Blick; eine zweite Ansicht könnte
+auseinanderlaufen.
+
+Die Grenze zum Client zieht `toViewStep()` aus `src/lib/view-types.ts`. Es
+liefert bewusst nur, was gezeigt wird: IDs, Maße, Platzhalter,
+Bildunterschrift, Medientyp. **Storage-Keys, Dateinamen und Besitzer bleiben
+auf dem Server** – sonst stünden sie im HTML jedes geteilten Links.
+
+**Reihenfolge:** neuester Beitrag oben, siehe [E13]. Umgedreht wird nur die
+Anzeige.
+
+### Timeline
+
+Eine `<ol>` mit durchgehender Linie und einem Punkt je Station. Welcher Beitrag
+gerade gelesen wird, meldet ein `IntersectionObserver` mit dem Fenster
+`-15% 0px -60% 0px` – also das obere Drittel. Der aktive Beitrag färbt seinen
+Punkt und steuert zugleich die Karte.
+
+Nach einem Klick auf einen Marker oder einen Eintrag der Kartenleiste hält
+`suppressObserver` das Nachverfolgen für 800 ms still. Ohne das überschreibt
+das Scrollen zum Ziel unterwegs die gerade getroffene Wahl.
+
+Der Umschalter „Timeline / Karte" erscheint nur auf schmalen Bildschirmen und
+läuft **bewusst nicht mit** – eine mitscrollende Leiste über der Timeline wirkt
+unruhig. Ab `lg` stehen beide nebeneinander, die Karte klebt (`sticky`).
+
+### Raster (`PhotoGrid`)
+
+Die Anordnung hängt an der Anzahl: eines füllt die Breite, drei geben dem
+ersten die ganze obere Reihe, ab fünf zeigt das vierte Feld `+n`. Videos
+bekommen einen Abspielknopf und, sofern bekannt, ihre Länge eingeblendet.
+
+Angetippt wird die Vollbildansicht mit **allen** Medien geöffnet, nicht nur mit
+den vier sichtbaren – der Rest hinter `+n` ist sonst unerreichbar.
+
+`PhotoImg` legt den LQIP-Platzhalter als CSS-Hintergrund unter das `<img>`
+(siehe [E5]); ohne `next/image` gibt es keinen Optimierungsdienst, der die
+Bilder ein zweites Mal umrechnet.
+
+### Vollbildansicht (`Lightbox`)
+
+Alle Medien liegen nebeneinander in einer Reihe; verschoben wird die ganze
+Reihe per `translateX`. Dadurch zieht das Bild beim Wischen mit dem Finger mit,
+statt erst beim Loslassen zu springen. Ab 22 % der Bildschirmbreite rastet das
+nächste ein; am Anfang und am Ende folgt die Reihe nur zu 30 %, damit spürbar
+wird, dass dort nichts mehr kommt.
+
+| Geste | Foto | Video |
+| --- | --- | --- |
+| Tippen | links zurück, sonst weiter | nichts – gehört dem Abspielen |
+| Wischen | blättert | blättert (außer auf der Bedienleiste) |
+| Doppeltippen | Zoom auf 2,5× | – |
+| Zwei Finger | Zoom bis 4× | – |
+| Nach unten wischen | schließt | schließt |
+| Pfeile | ab `sm` sichtbar | immer sichtbar |
+
+Die **Bildunterschrift** steht unter dem Medium und gilt für Fotos wie Videos.
+Gibt der Browser das Video in seine eigene Vollbildansicht, zeigt er nur noch
+das Video – Unterschrift und Pfeile sind dann bis zum Verlassen weg.
+
+Die Falltüren dieser Ansicht – Seitenzoom, Bedienleiste, `100svh`,
+Videopositionen – stehen gesammelt in Abschnitt 12.
+
+### Kommentare
+
+`CommentSection` hängt unter jedem Beitrag. Geschrieben wird ohne Anmeldung,
+gelöscht nur mit (`editable`). Die Einzelheiten zum Missbrauchsschutz stehen in
+Abschnitt 5.
+
+---
+
+## 9. Anmeldung
 
 **Passwort** (`src/lib/auth.ts`): bcrypt mit Kostenfaktor 12. `verifyPassword`
 vergleicht auch dann gegen einen Dummy-Hash, wenn der Account gar kein
@@ -431,7 +510,7 @@ sperrt sich selbst, sobald ein Account existiert. Alternativ legen
 
 ---
 
-## 9. Migrationen
+## 10. Migrationen
 
 Es gibt **kein** `drizzle-kit generate` und keine Migrationsdateien. Stattdessen
 steht in `src/db/index.ts` das Array `MIGRATIONS` mit benanntem SQL. Beim Start
@@ -456,7 +535,7 @@ Build mehrere Worker, und beim Containerneustart überlappen alt und neu):
 
 ---
 
-## 10. Getroffene Entscheidungen
+## 11. Getroffene Entscheidungen
 
 ### [E1] SQLite statt PostgreSQL
 Zwei Nutzer, ein Container, ein Volume. Eine zweite Datenbank-Instanz würde den
@@ -548,9 +627,27 @@ die Kamera notiert hat. Für ein Reisetagebuch ist das die gewünschte Lesart �
 ein Foto vom Sonnenaufgang in Norwegen soll die dortige Uhrzeit zeigen. Wer den
 Container umzieht, sollte `TZ` stabil halten.
 
+### [E13] Timeline neueste zuerst, alles andere chronologisch
+
+Angezeigt wird die Timeline mit dem **neuesten Beitrag oben**: Wer mitliest,
+kommt wegen des Neuen wieder und soll nicht erst durch die halbe Reise
+scrollen. Umgedreht wird aber **nur die Anzeige** – `getSteps()` liefert
+weiterhin aufsteigend, und `TripView` dreht die Liste erst beim Rendern
+(`timelineSteps`).
+
+Der Grund steht in denselben Daten: Die Tageszählung („Tag 6") misst ab
+`steps[0]`, der Reisezeitraum im Kopf liest `steps[0]` und `steps.at(-1)`, und
+die Routenlinie auf der Karte verbindet die Punkte in genau der Reihenfolge des
+Arrays. Eine global umgedrehte Liste würde die Route rückwärts zeichnen und die
+Tageszählung an den Reiseschluss hängen. Aus demselben Grund bleibt die Leiste
+über der Karte chronologisch: Sie bildet den Weg ab, nicht den Nachrichtenlauf.
+
+Aktiv beim Öffnen ist deshalb `steps.at(-1)` – der oberste Beitrag der
+Timeline und der letzte Punkt der Route.
+
 ---
 
-## 11. Fallstricke
+## 12. Fallstricke
 
 **Seiten, die den Anmeldestand lesen, brauchen `export const dynamic = "force-dynamic"`.**
 Sonst rendert Next sie beim Build vor und backt den Zustand der *Bau*-Datenbank
@@ -635,6 +732,27 @@ Gerät weg. `h-[100svh]` rechnet mit sichtbarer Leiste und ist stabil, während
 bekommt zusätzlich `env(safe-area-inset-bottom)`, sonst liegt er beim iPhone
 unter dem Home-Indikator.
 
+**Der Seitenzoom des Browsers ist in einem Overlay eine Falle.** Zoomt der
+Browser selbst, verschiebt er den sichtbaren Ausschnitt – ein
+`position: fixed`-Overlay wandert dabei nicht mit, und es gibt keine API, mit
+der die Seite den Zoom zurücksetzen könnte. Wer beim Video versehentlich
+aufzieht, sitzt fest und kommt nur über das Neuladen wieder heraus. Beim Foto
+fällt es nicht auf, weil dessen Kachel `touch-action: none` trägt und die App
+den Zoom selbst führt.
+
+Die Vollbildansicht schließt deshalb beide Wege dorthin, ohne die Bedienleiste
+des Videos anzutasten:
+
+- ein `touchmove`-Lauscher am Dialog (**`passive: false`**, sonst wirkt
+  `preventDefault()` nicht) unterbindet Bewegungen ab dem zweiten Finger.
+  Einzelne Berührungen bleiben unberührt – sie gehören dem Spulen.
+- `gesturestart` und `gesturechange` fangen dasselbe auf iOS ab, wo Safari das
+  Aufziehen über eigene Ereignisse meldet.
+- die Video-Kachel bekommt `touch-action: manipulation`. Das nimmt ihr allein
+  den Doppeltipp-Zoom; `pan-x pan-y` oder `none` wären hier falsch, weil ein
+  Nachfahre nicht zurückholen kann, was ein Vorfahr verbietet – der
+  Fortschrittsbalken im Shadow-DOM würde unbedienbar.
+
 **Die Bedienleiste eines Videos gehört dem Browser.** In der Vollbildansicht
 hängen die Wischgesten am Rahmen der Kachel, nicht am Medium – und beim Video
 werden Gesten ignoriert, die in den untersten 64 Pixeln des Videos beginnen.
@@ -659,7 +777,7 @@ ohne Docker: `npm ci --ignore-scripts` in einem leeren Verzeichnis mit
 
 ---
 
-## 12. Stand der Prüfung
+## 13. Stand der Prüfung
 
 Verifiziert (Produktions-Build, echte HTTP-Anfragen):
 
@@ -684,6 +802,14 @@ Verifiziert (Produktions-Build, echte HTTP-Anfragen):
   pausiert, nicht das laufende; die Unterschrift wechselt bei Foto wie Video mit
 - Bildunterschriften von Videos: über das echte Formular gespeichert und in der
   Share-Ansicht wieder ausgeliefert
+- Zoom-Sperre der Vollbildansicht: `touchmove` mit zwei Fingern und
+  `gesturestart` werden unterbunden, eine einzelne Berührung nicht – die
+  Bedienleiste des Videos behält also ihre Gesten
+- Größenprüfung im Editor: eine 26-MB-Datei wird mit Klartextmeldung abgelehnt,
+  ohne dass eine einzige Anfrage an `/api/upload` hinausgeht
+- Timeline-Reihenfolge: vier Stationen erscheinen neueste zuerst, während
+  Tageszählung (`Tag 1` beim ältesten), Reisezeitraum im Kopf und die Leiste
+  über der Karte chronologisch bleiben
 
 Nicht verifiziert – hier ist beim Weiterbauen Vorsicht angebracht:
 
@@ -700,7 +826,7 @@ Nicht verifiziert – hier ist beim Weiterbauen Vorsicht angebracht:
 
 ---
 
-## 13. Naheliegende nächste Schritte
+## 14. Naheliegende nächste Schritte
 
 Nichts davon ist angefangen; die Liste ist eine Orientierung, keine Zusage.
 

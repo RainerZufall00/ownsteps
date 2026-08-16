@@ -103,8 +103,9 @@ Wichtig: `X-Forwarded-Proto` muss durchgereicht werden (Caddy und Traefik
 machen das von sich aus), damit Share-Links mit `https://` erzeugt werden.
 Alternativ `PUBLIC_URL` fest setzen – das hat immer Vorrang.
 
-Für große Fotos sollte der Proxy Uploads bis 25 MB erlauben (nginx:
-`client_max_body_size 25m;`).
+Der Proxy muss große Uploads durchlassen: 25 MB reichen für Fotos, für Videos
+sind es bis zu 400 MB (nginx: `client_max_body_size 400m;`). Sein Zeitlimit
+sollte ebenfalls großzügig sein – ein Video über eine Mobilfunkleitung dauert.
 
 ## Wie es sich bedient
 
@@ -130,7 +131,11 @@ Container-Log ab, liegt es fast immer an ihm.
 Wer den Link hat, kann **kommentieren** – Name eintippen, Text schreiben, ohne
 Account. Löschen können Kommentare nur angemeldete Autoren.
 
-In der Timeline steht der **Ort** als Überschrift; eine eigene Überschrift gibt
+In der Timeline steht der **neueste Beitrag oben**. Die Tageszählung („Tag 6")
+rechnet dabei weiter vom Reisebeginn an, und die Karte zeichnet die Route
+selbstverständlich in der gereisten Richtung.
+
+Als Überschrift dient der **Ort**; eine eigene Überschrift gibt
 es nicht. Pro Foto **und pro Video** lässt sich eine **Bildunterschrift**
 hinterlegen, die in der Vollbildansicht unter dem Medium erscheint. Dort
 blättert ein Tippen auf die rechte bzw. linke Seite weiter, ein Doppeltipp oder
@@ -139,7 +144,12 @@ zwei Finger zoomen.
 Bei einem **Video** gehört der Tipp dem Abspielen. Weiter geht es dort durch
 Wischen über das Bild oder über die Pfeile links und rechts, die bei Videos auf
 jedem Gerät eingeblendet werden. Gesten auf der Bedienleiste des Videos bleiben
-dem Spulen vorbehalten. Wird das Video über den Vollbildknopf in die Ansicht
+dem Spulen vorbehalten. **Zoomen gibt es beim Video nicht** – groß wird es über
+den Vollbildknopf des Browsers. Aufziehen mit zwei Fingern und Doppeltippen
+bleiben dort absichtlich wirkungslos: Sonst zoomt der Browser die ganze Seite,
+und aus diesem Zustand führt kein Weg außer dem Neuladen.
+
+Wird das Video über den Vollbildknopf in die Ansicht
 des Browsers übergeben, zeigt dieser nur das Video – Unterschrift und Pfeile
 sind dann erst nach dem Verlassen wieder da.
 

@@ -31,6 +31,7 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
   const [zoom, setZoom] = useState<Zoom>(OHNE_ZOOM);
   const [animiert, setAnimiert] = useState(true);
 
+  const dialog = useRef<HTMLDivElement>(null);
   const buehne = useRef<HTMLDivElement>(null);
   const zeiger = useRef(new Map<number, { x: number; y: number }>());
   const geste = useRef({
@@ -85,6 +86,37 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
       document.body.style.overflow = vorher;
     };
   }, [blaettern, onClose]);
+
+  /**
+   * Der Browser darf in der Vollbildansicht nicht selbst zoomen. Beim Foto
+   * erledigt das die App, beim Video wäre es eine Sackgasse: Der Seitenzoom
+   * liegt über einem `position: fixed`-Overlay, das nicht mitscrollt – man
+   * sitzt dann in einem vergrößerten Ausschnitt fest und kommt nur über das
+   * Neuladen der Seite wieder heraus.
+   *
+   * Zwei Wege führen dorthin, beide werden hier geschlossen: das Aufziehen mit
+   * zwei Fingern (auf iOS über eigene `gesture`-Ereignisse) und der
+   * Doppeltipp. Einzelne Berührungen bleiben unangetastet – sie gehören der
+   * Bedienleiste des Videos.
+   */
+  useEffect(() => {
+    const wurzel = dialog.current;
+    if (!wurzel) return;
+
+    const zweiFinger = (event: TouchEvent) => {
+      if (event.touches.length > 1) event.preventDefault();
+    };
+    const iosGeste = (event: Event) => event.preventDefault();
+
+    wurzel.addEventListener("touchmove", zweiFinger, { passive: false });
+    wurzel.addEventListener("gesturestart", iosGeste);
+    wurzel.addEventListener("gesturechange", iosGeste);
+    return () => {
+      wurzel.removeEventListener("touchmove", zweiFinger);
+      wurzel.removeEventListener("gesturestart", iosGeste);
+      wurzel.removeEventListener("gesturechange", iosGeste);
+    };
+  }, []);
 
   /**
    * Beim Wechsel läuft kein Video im Hintergrund weiter. Die Position im
@@ -273,6 +305,7 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
      * Bildunterschrift – lag dann hinter der Browserleiste.
      */
     <div
+      ref={dialog}
       className="ownsteps-lightbox fixed inset-x-0 top-0 z-[100] flex h-[100svh] flex-col bg-black/95 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
@@ -327,7 +360,12 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
               <div
                 key={eintrag.id}
                 className="flex h-full w-full shrink-0 items-center justify-center px-2"
-                style={video ? undefined : { touchAction: "none" }}
+                /*
+                 * Beim Video bleibt `touch-action` bewusst großzügig, sonst
+                 * verliert die Bedienleiste des Browsers ihre Gesten;
+                 * `manipulation` nimmt ihr allein den Doppeltipp-Zoom.
+                 */
+                style={{ touchAction: video ? "manipulation" : "none" }}
                 onPointerDown={aktiv ? onPointerDown : undefined}
                 onPointerMove={aktiv ? onPointerMove : undefined}
                 onPointerUp={aktiv ? onPointerUp : undefined}

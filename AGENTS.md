@@ -23,8 +23,8 @@ schreiben. Sprache im Code, in Kommentaren und in der Oberfläche: **Deutsch.**
 - `src/db/` – Drizzle-Schema und SQLite-Verbindung. Migrationen sind das Array
   `MIGRATIONS` in `src/db/index.ts`.
 - `src/lib/` – Serverlogik (`server-only`): Auth, OIDC, Bildverarbeitung,
-  Zugriff auf Reisen. `view-types.ts` und `format.ts` sind die Grenze zum
-  Client und bewusst frei von `server-only`.
+  Zugriff auf Reisen. `view-types.ts`, `format.ts` und `limits.ts` sind die
+  Grenze zum Client und bewusst frei von `server-only`.
 - `src/components/TripView.tsx` – Timeline plus Karte, wird sowohl von der
   angemeldeten Ansicht als auch vom öffentlichen Share-Link benutzt.
 - `src/app/(app)/` – alles hinter dem Login, `src/app/s/[token]/` der
@@ -50,11 +50,19 @@ schreiben. Sprache im Code, in Kommentaren und in der Oberfläche: **Deutsch.**
   ins Leere; die Karte bleibt dann ohne Fehlermeldung stehen.
 - **Der MapTiler-Key bleibt auf dem Server.** Kartenabrufe gehen über
   `/api/map/[...path]`, siehe `src/lib/maptiler-rewrite.ts`.
+- **`src/proxy.ts` darf `/api/upload` nicht anfassen.** Sobald der Proxy eine
+  Anfrage sieht, puffert Next deren Rumpf und kappt ihn bei 10 MB – jeder
+  Video-Upload stirbt dann an `Failed to parse body as FormData`. Wer einen
+  weiteren Weg für große Uploads baut, nimmt ihn ebenfalls aus dem `matcher`.
+- **Die Timeline zeigt neueste zuerst, die Daten bleiben chronologisch.**
+  `getSteps()` sortiert aufsteigend; nur `TripView` dreht die Liste beim
+  Rendern. Global umzudrehen zerlegt Tageszählung, Zeitraum und Routenlinie
+  (siehe [E13]).
 - **Keine Rechteverwaltung einführen.** Dass jeder angemeldete Account alles
   darf, ist so gewollt (siehe [E2] in der Architekturdoku).
 
 ## Was nie im Browser geprüft wurde
 
 Kartenkacheln, das Docker-Image und der OIDC-Fluss gegen eine echte Instanz –
-Einzelheiten in Abschnitt 12 von `docs/ARCHITEKTUR.md`. Wer daran arbeitet,
+Einzelheiten in Abschnitt 13 von `docs/ARCHITEKTUR.md`. Wer daran arbeitet,
 sollte das Ergebnis wirklich ansehen und nicht auf den Build vertrauen.

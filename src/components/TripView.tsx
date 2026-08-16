@@ -29,7 +29,7 @@ export default function TripView({
 }: Props) {
   const [mobileView, setMobileView] = useState<"timeline" | "map">("timeline");
   const [activeStepId, setActiveStepId] = useState<number | null>(
-    steps[0]?.id ?? null,
+    steps.at(-1)?.id ?? null,
   );
   const articleRefs = useRef(new Map<number, HTMLElement>());
   // Nach einem Marker-Klick soll das Scroll-Tracking kurz stillhalten.
@@ -53,6 +53,15 @@ export default function TripView({
   );
 
   const firstDay = steps[0]?.occurredAt ?? null;
+
+  /**
+   * In der Timeline steht der neueste Beitrag oben – wer mitliest, will das
+   * Neue sehen und nicht erst an den Anfang der Reise scrollen. Umgedreht wird
+   * nur die Anzeige: `steps` bleibt chronologisch, weil Tageszählung,
+   * Routenlinie und die Leiste über der Karte daran hängen. Eine rückwärts
+   * gezeichnete Route wäre keine Route mehr.
+   */
+  const timelineSteps = useMemo(() => [...steps].reverse(), [steps]);
 
   // Beim Scrollen mitverfolgen, welcher Beitrag gerade gelesen wird.
   useEffect(() => {
@@ -190,7 +199,7 @@ export default function TripView({
                 className="absolute bottom-6 left-[7px] top-3 w-0.5 bg-line"
               />
 
-              {steps.map((step, index) => {
+              {timelineSteps.map((step, index) => {
                 const isActive = step.id === activeStepId;
                 return (
                   <li key={step.id} className="relative pb-9 pl-8">
