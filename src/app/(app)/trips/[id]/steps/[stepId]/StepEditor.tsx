@@ -2,7 +2,7 @@
 
 import type { StyleSpecification } from "maplibre-gl";
 import Link from "next/link";
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import MapCanvas from "@/components/MapCanvas";
 import PhotoImg from "@/components/PhotoImg";
 import SubmitButton from "@/components/SubmitButton";
@@ -48,6 +48,7 @@ export default function StepEditor({
   const [occurredAt, setOccurredAt] = useState(toDateTimeLocal(step.occurredAt));
   const [upload, setUpload] = useState<UploadState>(null);
   const [problems, setProblems] = useState<string[]>([]);
+  const [locating, setLocating] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   /**
@@ -135,6 +136,54 @@ export default function StepEditor({
       // Ohne Ortsnamen ist der Pin trotzdem gesetzt.
     }
   }
+
+  /**
+   * Rettungsanker für Fotos ohne GPS – iOS entfernt die Position beim Teilen
+   * je nach Weg. Wer noch vor Ort ist, übernimmt sie einfach vom Gerät.
+   */
+  function applyDeviceLocation() {
+    if (!navigator.geolocation) {
+      setLocating("Dieses Gerät gibt keinen Standort her.");
+      return;
+    }
+    setLocating("Standort wird ermittelt …");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocating(null);
+        void pickLocation(position.coords.latitude, position.coords.longitude);
+      },
+      (error) => {
+        setLocating(
+          error.code === error.PERMISSION_DENIED
+            ? "Zugriff auf den Standort wurde abgelehnt."
+            : "Standort konnte nicht ermittelt werden.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }
+
+  // Ohne feste Referenz bekäme die Karte bei jedem Tastendruck neue Daten
+  // gereicht und würde ihre Ansicht zurücksetzen.
+  const mapSteps = useMemo(
+    () =>
+      lat !== null && lon !== null
+        ? [
+            {
+              id: step.id,
+              title: placeName || "Dieser Beitrag",
+              lat,
+              lon,
+              occurredAt: step.occurredAt,
+              coverPhotoId: photos[0]?.id ?? null,
+            },
+          ]
+        : [],
+    // placeName absichtlich nicht enthalten: Der Titel steht nur im
+    // Marker-Label und ist kein Grund, die Karte neu zu bespielen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lat, lon, step.id, step.occurredAt, photos[0]?.id],
+  );
 
   const uploadPercent = upload
     ? Math.round(((upload.done + upload.current) / upload.total) * 100)
@@ -351,31 +400,61 @@ export default function StepEditor({
             placeholder="Bergen, Norwegen"
           />
 
-          <div className="relative mt-2 h-52 overflow-hidden rounded-2xl border border-line">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={applyDeviceLocation}
+              className="btn btn-secondary px-4 py-2 text-sm"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+                <path
+                  d="M12 2v2m0 16v2M2 12h2m16 0h2"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Mein Standort
+            </button>
+
+            {lat !== null && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLat(null);
+                  setLon(null);
+                }}
+                className="btn btn-ghost px-3 py-2 text-sm"
+              >
+                Ort entfernen
+              </button>
+            )}
+
+            <span className="text-[13px] text-ink-soft">
+              {locating ??
+                (lat === null
+                  ? "Kein Ort gesetzt – tippe auf die Karte."
+                  : `${lat.toFixed(5)}, ${lon?.toFixed(5)}`)}
+            </span>
+          </div>
+
+          <div className="relative mt-2 h-56 overflow-hidden rounded-2xl border border-line">
             <MapCanvas
-              steps={
-                lat !== null && lon !== null
-                  ? [
-                      {
-                        id: step.id,
-                        title: placeName || "Dieser Beitrag",
-                        lat,
-                        lon,
-                        occurredAt: step.occurredAt,
-                        coverPhotoId: photos[0]?.id ?? null,
-                      },
-                    ]
-                  : []
-              }
+              steps={mapSteps}
               mapStyle={mapStyle}
               onMapClick={pickLocation}
+              autoFit={false}
               className="h-full w-full"
             />
-            <p className="pointer-events-none absolute inset-x-3 bottom-3 rounded-xl bg-surface/90 px-3 py-2 text-center text-[13px] text-ink-soft backdrop-blur">
-              {lat === null
-                ? "Kein GPS im Foto – tippe auf die Karte, um den Ort zu setzen."
-                : "Tippe auf die Karte, um den Ort zu korrigieren."}
-            </p>
           </div>
         </div>
 

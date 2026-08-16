@@ -32,6 +32,13 @@ type Props = {
   className?: string;
   /** Karte in der Übersicht: keine Bedienung, nur Anschauen. */
   static?: boolean;
+  /**
+   * Ob die Karte dem Inhalt folgen soll. In der Timeline ja – dort wandert
+   * die Ansicht mit den Stationen mit. Im Editor nur beim ersten Mal: Wer
+   * dort gerade einen Ort sucht, will nicht bei jedem Klick zurückgesetzt
+   * werden.
+   */
+  autoFit?: boolean;
 };
 
 function routeGeoJson(steps: MapStep[]): GeoJSON.FeatureCollection {
@@ -98,10 +105,13 @@ export default function TripMap({
   onMapClick,
   className,
   static: isStatic = false,
+  autoFit = true,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<number, Marker>>(new Map());
+  // Merkt sich, auf welche Punkte die Ansicht zuletzt ausgerichtet wurde.
+  const lastFitRef = useRef<string | null>(null);
   // In Callbacks von MapLibre soll immer der aktuelle Handler landen.
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -190,21 +200,29 @@ export default function TripMap({
       }
     }
 
-    if (steps.length === 1) {
-      map.jumpTo({ center: [steps[0].lon, steps[0].lat], zoom: 9 });
-    } else if (steps.length > 1) {
-      const bounds = steps.reduce(
-        (acc, s) => acc.extend([s.lon, s.lat]),
-        new LngLatBounds(
-          [steps[0].lon, steps[0].lat],
-          [steps[0].lon, steps[0].lat],
-        ),
-      );
-      map.fitBounds(bounds, {
-        padding: { top: 60, bottom: 60, left: 40, right: 40 },
-        maxZoom: 11,
-        duration: 0,
-      });
+    // Die Kamera nur bewegen, wenn sich die Punkte wirklich geändert haben –
+    // sonst springt die Ansicht bei jedem Tastendruck im Formular zurück.
+    const signature = steps.map((s) => `${s.id}@${s.lat},${s.lon}`).join("|");
+    const darfFolgen = autoFit || lastFitRef.current === null;
+
+    if (steps.length > 0 && darfFolgen && signature !== lastFitRef.current) {
+      lastFitRef.current = signature;
+      if (steps.length === 1) {
+        map.jumpTo({ center: [steps[0].lon, steps[0].lat], zoom: 9 });
+      } else {
+        const bounds = steps.reduce(
+          (acc, s) => acc.extend([s.lon, s.lat]),
+          new LngLatBounds(
+            [steps[0].lon, steps[0].lat],
+            [steps[0].lon, steps[0].lat],
+          ),
+        );
+        map.fitBounds(bounds, {
+          padding: { top: 60, bottom: 60, left: 40, right: 40 },
+          maxZoom: 11,
+          duration: 0,
+        });
+      }
     }
 
     // Die Routenlinie ist ein Style-Layer und kann erst dazu, wenn das Style steht.
