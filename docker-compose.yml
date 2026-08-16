@@ -1,0 +1,32 @@
+services:
+  ownsteps:
+    build: .
+    image: ownsteps:latest
+    container_name: ownsteps
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      # Im Container läuft die App fest auf 2555. BIND_ADDRESS und HOST_PORT
+      # bestimmen nur die Außenseite.
+      #
+      # Läuft der Reverse Proxy bzw. Tunnel-Client (newt, Traefik, npm) auf
+      # demselben Host, sollte BIND_ADDRESS=127.0.0.1 gesetzt sein – dann ist
+      # der Port nur lokal erreichbar und nicht offen im Netz.
+      - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-2555}:2555"
+    volumes:
+      # Enthält ownsteps.db und alle hochgeladenen Fotos – das ist das Backup.
+      - ./data:/data
+
+    # Nur nötig, wenn der Proxy selbst als Container in einem Bridge-Netz läuft
+    # (Traefik, nginx-proxy-manager). Dann hier sein Netz eintragen und als
+    # Ziel "http://ownsteps:2555" verwenden. Für Tunnel-Clients im Host-Netz
+    # (z.B. newt) gilt das nicht – die erreichen die App über 127.0.0.1.
+    #
+    # networks:
+    #   - proxy
+    #   - default
+
+# networks:
+#   proxy:
+#     external: true
+#     name: <name-des-proxy-netzes>

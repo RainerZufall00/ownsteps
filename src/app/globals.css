@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #fbf9f6;
+  --surface: #ffffff;
+  --surface-muted: #f3efe9;
+  --ink: #1a1714;
+  --ink-soft: #6b625a;
+  --ink-faint: #9c948b;
+  --line: #e7e1d8;
+  --accent: #e4572e;
+  --accent-soft: #fdeee8;
+  --accent-ink: #ffffff;
+  --sea: #16706b;
+  --shadow: 0 1px 2px rgb(26 23 20 / 0.04), 0 8px 24px -12px rgb(26 23 20 / 0.18);
+  --shadow-lg: 0 2px 4px rgb(26 23 20 / 0.05), 0 24px 48px -20px rgb(26 23 20 / 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #14110f;
+    --surface: #1e1a17;
+    --surface-muted: #272220;
+    --ink: #f5f1ec;
+    --ink-soft: #b3a9a0;
+    --ink-faint: #7d746c;
+    --line: #332d29;
+    --accent: #ff6b3d;
+    --accent-soft: #35211a;
+    --accent-ink: #1a1714;
+    --sea: #4ec4b8;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+    --shadow-lg: 0 2px 4px rgb(0 0 0 / 0.4), 0 24px 48px -20px rgb(0 0 0 / 0.7);
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-sea: var(--sea);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: var(--shadow);
+  --shadow-float: var(--shadow-lg);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    /* Verhindert, dass iOS beim Fokussieren von Eingabefeldern hineinzoomt. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Auf dem Handy soll nichts hinter der Systemleiste verschwinden. */
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3
+      text-[15px] font-semibold transition active:scale-[0.97]
+      disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    box-shadow: var(--shadow);
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+
+  .btn-ghost {
+    color: var(--ink-soft);
+  }
+
+  .btn-ghost:hover {
+    background: var(--surface-muted);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    @apply rounded-3xl;
+  }
+
+  .field {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    /* 16px Schriftgröße, sonst zoomt Safari beim Antippen. */
+    @apply w-full rounded-2xl px-4 py-3 text-base outline-none transition
+      placeholder:text-[color:var(--ink-faint)];
+  }
+
+  .field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .label {
+    color: var(--ink-soft);
+    @apply mb-1.5 block text-sm font-medium;
+  }
+}
+
+/* Runde Foto-Marker auf der Karte. */
+.ownsteps-marker {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 999px;
+  border: 3px solid #fff;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.28);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ownsteps-marker img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ownsteps-marker:hover {
+  transform: scale(1.08);
+}
+
+.ownsteps-marker[data-active="true"] {
+  transform: scale(1.22);
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px rgb(228 87 46 / 0.5);
+  z-index: 2;
+}
+
+/* MapLibre an das eigene Farbschema anpassen. */
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+  border-radius: 8px 0 0 0;
+}
+
+.maplibregl-ctrl-group {
+  border-radius: 14px !important;
+  overflow: hidden;
+  box-shadow: var(--shadow) !important;
+}
+
+.maplibregl-popup-content {
+  border-radius: 16px !important;
+  padding: 0 !important;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg) !important;
+  background: var(--surface) !important;
+  color: var(--ink);
+}
+
+.maplibregl-popup-close-button {
+  display: none;
+}
+
+.maplibregl-popup-tip {
+  border-top-color: var(--surface) !important;
+  border-bottom-color: var(--surface) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
