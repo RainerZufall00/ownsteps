@@ -151,9 +151,14 @@ erDiagram
 Wichtige Eigenheiten:
 
 - **Zeitstempel sind Unix-Millisekunden als INTEGER.** Ausnahme sind
-  `trips.start_date` / `end_date`, die als `YYYY-MM-DD` gedacht sind; sie
-  werden aktuell nicht gepflegt, weil der Zeitraum aus den Beiträgen abgeleitet
-  wird (`formatRange` in `src/lib/format.ts`).
+  `trips.start_date` / `end_date`: Sie stehen als `YYYY-MM-DD` in der
+  Datenbank, weil ein Reisezeitraum ein Kalenderdatum ist und keine Uhrzeit
+  hat – eine Millisekunde daraus zu machen hieße, sich eine Genauigkeit
+  auszudenken, die niemand eingegeben hat. Beide Felder sind freiwillig; wo
+  sie fehlen, springt der Zeitraum der Beiträge ein (`formatTripRange` in
+  `src/lib/format.ts`). **Zum Lesen immer `fromDateInput()` benutzen**, nie
+  `new Date("2026-07-01")` – letzteres liest den String als UTC und verschiebt
+  das Datum je nach Zeitzone um einen Tag.
 - **`steps.occurred_at` bestimmt die Sortierung**, nicht `created_at`. Ein
   nachträglich hochgeladenes Foto rutscht dadurch an die richtige Stelle.
   Die **Uhrzeit wird nirgends angezeigt** und ist auch nicht einstellbar – im
@@ -207,6 +212,14 @@ flowchart TD
 > **Regel:** Jeder neue Pfad, über den Reise-Inhalte nach außen gehen, muss
 > `resolveTripAccess` benutzen. Das gilt besonders für Route Handler – dort
 > greift kein Layout, das nebenbei die Anmeldung prüft.
+
+**Ein neuer Share-Token braucht eine Rückfrage.** `rotateShareTokenAction`
+überschreibt den alten Token, und der ist danach unwiederbringlich weg: Jeder
+verschickte Link ist tot, ohne dass die Empfänger wüssten, warum. Der Knopf in
+den Reise-Einstellungen führt deshalb wie beim Löschen über einen zweiten
+Schritt (`RotateShareForm`). Dass die Rückfrage nach getaner Arbeit wieder
+zuklappt, erledigt der Token als `key` an der Komponente – ändert er sich, baut
+React sie neu auf.
 
 ### Kommentare
 
@@ -635,15 +648,31 @@ scrollen. Umgedreht wird aber **nur die Anzeige** – `getSteps()` liefert
 weiterhin aufsteigend, und `TripView` dreht die Liste erst beim Rendern
 (`timelineSteps`).
 
-Der Grund steht in denselben Daten: Die Tageszählung („Tag 6") misst ab
-`steps[0]`, der Reisezeitraum im Kopf liest `steps[0]` und `steps.at(-1)`, und
-die Routenlinie auf der Karte verbindet die Punkte in genau der Reihenfolge des
+Der Grund steht in denselben Daten: Die Tageszählung („Tag 6") misst ab dem
+ersten Tag, der Reisezeitraum im Kopf braucht Anfang *und* Ende, und die
+Routenlinie auf der Karte verbindet die Punkte in genau der Reihenfolge des
 Arrays. Eine global umgedrehte Liste würde die Route rückwärts zeichnen und die
 Tageszählung an den Reiseschluss hängen. Aus demselben Grund bleibt die Leiste
 über der Karte chronologisch: Sie bildet den Weg ab, nicht den Nachrichtenlauf.
 
 Aktiv beim Öffnen ist deshalb `steps.at(-1)` – der oberste Beitrag der
 Timeline und der letzte Punkt der Route.
+
+### [E14] Eingetragener Reisezeitraum schlägt die Beiträge
+
+`trips.start_date` und `end_date` sind freiwillig, haben aber Vorrang, sobald
+sie gesetzt sind. Die Beiträge zeigen nur, wie weit geschrieben wurde – wer
+„1.–20. Juli" einträgt, will nicht „1.–3. Juli" lesen, bloß weil der Rest noch
+fehlt. Ohne Eintrag bleibt alles beim Alten und die Spanne kommt aus den
+Beiträgen; bestehende Reisen ändern sich dadurch nicht.
+
+Dasselbe gilt für die Tageszählung: **Tag 1 ist der eingetragene Reisebeginn**,
+sonst der erste Beitrag. Wer am dritten Tag zum ersten Mal schreibt, liest
+„Tag 4" und nicht wieder „Tag 1".
+
+Die beiden Daten wandern getrennt: `formatTripRange()` bekommt die Reise und
+die Spanne der Beiträge und entscheidet selbst, `TripView` bekommt nur
+`startDate` – das Ende braucht die Timeline nicht.
 
 ---
 
@@ -732,6 +761,13 @@ Gerät weg. `h-[100svh]` rechnet mit sichtbarer Leiste und ist stabil, während
 bekommt zusätzlich `env(safe-area-inset-bottom)`, sonst liegt er beim iPhone
 unter dem Home-Indikator.
 
+**React 19 leert ein Formular nach jeder Aktion.** Bei `<form action={…}>`
+setzt React unkontrollierte Felder anschließend zurück – auch dann, wenn die
+Aktion mit einer Fehlermeldung zurückkommt. Wer sich am Reisezeitraum vertippt,
+stünde sonst vor einem leeren Formular und dürfte Name, Datum und Beschreibung
+neu tippen. Formulare, die Eingaben ablehnen können, halten ihre Werte deshalb
+in `useState` (`NewTripForm`, `TripDetailsForm`).
+
 **Der Seitenzoom des Browsers ist in einem Overlay eine Falle.** Zoomt der
 Browser selbst, verschiebt er den sichtbaren Ausschnitt – ein
 `position: fixed`-Overlay wandert dabei nicht mit, und es gibt keine API, mit
@@ -810,6 +846,14 @@ Verifiziert (Produktions-Build, echte HTTP-Anfragen):
 - Timeline-Reihenfolge: vier Stationen erscheinen neueste zuerst, während
   Tageszählung (`Tag 1` beim ältesten), Reisezeitraum im Kopf und die Leiste
   über der Karte chronologisch bleiben
+- Reisezeitraum: beim Anlegen und beim Bearbeiten gesetzt, in Kopfzeile und
+  Reisekarte angezeigt, Tageszählung rückt entsprechend (erster Beitrag drei
+  Tage nach dem Beginn wird zu „Tag 4"); ein Ende vor dem Beginn wird
+  abgelehnt, ohne die Eingaben zu verlieren; Reisen ohne Zeitraum zeigen
+  weiterhin die Spanne ihrer Beiträge
+- Neuer Share-Link: Die Rückfrage ändert nichts, „Abbrechen" führt zurück,
+  nach dem Bestätigen steht ein neuer Token und der alte Link antwortet mit
+  404
 
 Nicht verifiziert – hier ist beim Weiterbauen Vorsicht angebracht:
 
@@ -832,7 +876,6 @@ Nichts davon ist angefangen; die Liste ist eine Orientierung, keine Zusage.
 
 - Reihenfolge der Fotos innerhalb eines Beitrags per Ziehen ändern
   (`photos.sort_order` ist dafür schon da)
-- Reisezeitraum von Hand setzen (`trips.start_date` / `end_date` liegen ungenutzt)
 - Karten-Stil pro Reise wählbar machen (`MAP_STYLE` ist derzeit global)
 - Originale über die Oberfläche herunterladbar machen; dafür müsste der
   Medientyp der Originaldatei mitgespeichert werden, er steht bisher nirgends

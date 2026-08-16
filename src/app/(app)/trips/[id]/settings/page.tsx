@@ -4,8 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PUBLIC_URL } from "@/lib/env";
 import { getTrip } from "@/lib/trips";
-import { rotateShareTokenAction } from "../../../actions";
 import DeleteTripForm from "./DeleteTripForm";
+import RotateShareForm from "./RotateShareForm";
 import ShareSettings from "./ShareSettings";
 import TripDetailsForm from "./TripDetailsForm";
 
@@ -65,28 +65,21 @@ export default async function TripSettingsPage({
           hasPassword={Boolean(trip.sharePasswordHash)}
         />
 
+        {/* Der Token als `key`: Sobald ein neuer Link steht, baut React die
+            Komponente neu auf und die Rückfrage klappt von selbst zu. */}
         {trip.shareEnabled && (
-          <form action={rotateShareTokenAction} className="mt-5 border-t border-line pt-4">
-            <input type="hidden" name="tripId" value={trip.id} />
-            <button
-              type="submit"
-              className="text-sm font-medium text-ink-soft transition hover:text-accent"
-            >
-              Neuen Link erzeugen
-            </button>
-            <p className="mt-1 text-[13px] text-ink-faint">
-              Der bisherige Link funktioniert danach nicht mehr.
-            </p>
-          </form>
+          <RotateShareForm key={trip.shareToken} tripId={trip.id} />
         )}
       </section>
 
       <section className="card mt-5 p-6">
-        <h2 className="mb-4 text-lg font-semibold">Name und Beschreibung</h2>
+        <h2 className="mb-4 text-lg font-semibold">Name, Zeitraum, Beschreibung</h2>
         <TripDetailsForm
           tripId={trip.id}
           title={trip.title}
           summary={trip.summary ?? ""}
+          startDate={trip.startDate ?? ""}
+          endDate={trip.endDate ?? ""}
         />
       </section>
 

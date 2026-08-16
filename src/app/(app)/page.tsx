@@ -1,6 +1,6 @@
 import Link from "next/link";
 import PhotoImg from "@/components/PhotoImg";
-import { formatRange, pluralize } from "@/lib/format";
+import { formatTripRange, pluralize } from "@/lib/format";
 import { listTrips } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
@@ -66,7 +66,7 @@ export default async function TripsPage() {
                       {trip.title}
                     </h2>
                     <p className="mt-0.5 text-[13px] font-medium text-white/85">
-                      {formatRange(trip.firstStepAt, trip.lastStepAt)}
+                      {formatTripRange(trip, trip.firstStepAt, trip.lastStepAt)}
                     </p>
                   </div>
                   {trip.shareEnabled && (

@@ -20,6 +20,22 @@ import {
 
 export type ActionState = { error?: string; ok?: boolean };
 
+/**
+ * Der Reisezeitraum ist freiwillig – man legt eine Reise auch mal an, bevor
+ * feststeht, wann sie endet. Nur wenn beide Daten stehen, müssen sie
+ * zueinander passen.
+ */
+function leseZeitraum(formData: FormData):
+  | { startDate: string | null; endDate: string | null }
+  | { error: string } {
+  const startDate = String(formData.get("startDate") ?? "").trim() || null;
+  const endDate = String(formData.get("endDate") ?? "").trim() || null;
+  if (startDate && endDate && endDate < startDate) {
+    return { error: "Das Ende der Reise liegt vor ihrem Beginn." };
+  }
+  return { startDate, endDate };
+}
+
 export async function createTripAction(
   _prev: ActionState,
   formData: FormData,
@@ -28,10 +44,13 @@ export async function createTripAction(
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { error: "Die Reise braucht einen Namen." };
 
+  const zeitraum = leseZeitraum(formData);
+  if ("error" in zeitraum) return zeitraum;
+
   const trip = await createTrip({
     title,
     summary: String(formData.get("summary") ?? ""),
-    startDate: String(formData.get("startDate") ?? "") || null,
+    ...zeitraum,
     userId: user.id,
   });
 
@@ -49,9 +68,13 @@ export async function updateTripAction(
   if (!Number.isInteger(tripId)) return { error: "Reise nicht gefunden." };
   if (!title) return { error: "Die Reise braucht einen Namen." };
 
+  const zeitraum = leseZeitraum(formData);
+  if ("error" in zeitraum) return zeitraum;
+
   await updateTrip(tripId, {
     title,
     summary: String(formData.get("summary") ?? "").trim() || null,
+    ...zeitraum,
   });
 
   revalidatePath(`/trips/${tripId}`);
@@ -210,7 +233,7 @@ export async function updateShareAction(
   }
 
   await updateTrip(tripId, patch);
-  revalidatePath(`/trips/${tripId}/share`);
+  revalidatePath(`/trips/${tripId}/settings`);
   revalidatePath("/");
   return { ok: true };
 }
@@ -222,5 +245,5 @@ export async function rotateShareTokenAction(formData: FormData) {
   if (!Number.isInteger(tripId)) return;
 
   await updateTrip(tripId, { shareToken: newShareToken() });
-  revalidatePath(`/trips/${tripId}/share`);
+  revalidatePath(`/trips/${tripId}/settings`);
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import TripView from "@/components/TripView";
-import { formatRange, pluralize } from "@/lib/format";
+import { formatTripRange, pluralize } from "@/lib/format";
 import { getMapStyle } from "@/lib/map";
 import { getSteps, getTrip } from "@/lib/trips";
 import { toViewStep } from "@/lib/view-types";
@@ -54,7 +54,8 @@ export default async function TripPage({ params }: PageProps<"/trips/[id]">) {
             {trip.title}
           </h1>
           <p className="mt-1 text-[15px] text-ink-soft">
-            {formatRange(
+            {formatTripRange(
+              trip,
               steps[0]?.occurredAt ?? null,
               steps.at(-1)?.occurredAt ?? null,
             )}
@@ -95,7 +96,12 @@ export default async function TripPage({ params }: PageProps<"/trips/[id]">) {
   return (
     <>
       <TripView
-        trip={{ id: trip.id, title: trip.title, summary: trip.summary }}
+        trip={{
+          id: trip.id,
+          title: trip.title,
+          summary: trip.summary,
+          startDate: trip.startDate,
+        }}
         steps={steps.map(toViewStep)}
         mapStyle={getMapStyle()}
         editable

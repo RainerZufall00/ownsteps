@@ -109,12 +109,20 @@ sollte ebenfalls großzügig sein – ein Video über eine Mobilfunkleitung daue
 
 ## Wie es sich bedient
 
-1. **Reise anlegen** – nur ein Name nötig.
+1. **Reise anlegen** – nur ein Name nötig. Der Reisezeitraum ist freiwillig und
+   lässt sich später jederzeit ändern.
 2. **Beitrag hinzufügen** – Fotos auswählen, fertig. Ort und Zeitpunkt kommen
    aus den Bildern; der Beitrag ist ab dem ersten Foto gespeichert, auch wenn
    der Text erst später dazukommt.
 3. **Teilen** – unter „Teilen" den Schalter umlegen und den Link verschicken.
-   Optional zusätzlich mit Passwort. Ein neuer Link macht den alten ungültig.
+   Optional zusätzlich mit Passwort. Ein neuer Link macht den alten ungültig;
+   OwnSteps fragt deshalb vorher nach.
+
+Ist ein **Reisezeitraum** eingetragen, steht er in der Kopfzeile und auf der
+Reisekarte – auch schon, bevor der erste Beitrag da ist. Er bestimmt außerdem
+den ersten Reisetag: Wer am 1. Juli losfährt und am 4. Juli den ersten Beitrag
+schreibt, liest dort „Tag 4". Ohne Zeitraum richtet sich beides wie bisher nach
+den Beiträgen.
 
 Neben Fotos lassen sich auch **Videos** hochladen (bis 400 MB). Das Standbild
 entsteht dabei im Browser; die Datei selbst wird unverändert gespeichert, es

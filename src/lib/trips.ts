@@ -197,6 +197,7 @@ export async function createTrip(input: {
   title: string;
   summary?: string | null;
   startDate?: string | null;
+  endDate?: string | null;
   userId: number;
 }) {
   const [trip] = await db
@@ -205,6 +206,7 @@ export async function createTrip(input: {
       title: input.title.trim(),
       summary: input.summary?.trim() || null,
       startDate: input.startDate || null,
+      endDate: input.endDate || null,
       shareToken: newShareToken(),
       createdBy: input.userId,
     })

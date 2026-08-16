@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Logo from "@/components/Logo";
 import TripView from "@/components/TripView";
 import { PUBLIC_URL, SITE_NAME } from "@/lib/env";
-import { formatRange, pluralize } from "@/lib/format";
+import { formatTripRange, pluralize } from "@/lib/format";
 import { getMapStyle } from "@/lib/map";
 import { getTripByShareToken, resolveTripAccess } from "@/lib/share";
 import { getSteps } from "@/lib/trips";
@@ -96,7 +96,8 @@ export default async function SharedTripPage({
         {trip.title}
       </h1>
       <p className="mt-1 text-[15px] text-ink-soft">
-        {formatRange(
+        {formatTripRange(
+          trip,
           steps[0]?.occurredAt ?? null,
           steps.at(-1)?.occurredAt ?? null,
         )}
@@ -117,7 +118,12 @@ export default async function SharedTripPage({
 
   return (
     <TripView
-      trip={{ id: trip.id, title: trip.title, summary: trip.summary }}
+      trip={{
+        id: trip.id,
+        title: trip.title,
+        summary: trip.summary,
+        startDate: trip.startDate,
+      }}
       steps={steps.map(toViewStep)}
       mapStyle={getMapStyle()}
       header={header}

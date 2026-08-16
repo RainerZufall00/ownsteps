@@ -3,7 +3,7 @@
 import type { StyleSpecification } from "maplibre-gl";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { formatWeekday, tripDay } from "@/lib/format";
+import { formatWeekday, fromDateInput, tripDay } from "@/lib/format";
 import type { ViewStep, ViewTrip } from "@/lib/view-types";
 import CommentSection from "./CommentSection";
 import MapCanvas, { type MapStep } from "./MapCanvas";
@@ -52,7 +52,12 @@ export default function TripView({
     [steps],
   );
 
-  const firstDay = steps[0]?.occurredAt ?? null;
+  /**
+   * Tag 1 ist der eingetragene Reisebeginn, sonst der erste Beitrag. Wer den
+   * Zeitraum angibt, will „Tag 3" lesen, wenn er am dritten Tag zum ersten Mal
+   * etwas schreibt – nicht wieder „Tag 1".
+   */
+  const firstDay = fromDateInput(trip.startDate) ?? steps[0]?.occurredAt ?? null;
 
   /**
    * In der Timeline steht der neueste Beitrag oben – wer mitliest, will das

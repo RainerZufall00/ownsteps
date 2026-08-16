@@ -34,6 +34,8 @@ export type ViewTrip = {
   id: number;
   title: string;
   summary: string | null;
+  /** ISO-Datum („2026-07-01"), von Hand gesetzt – bestimmt den ersten Reisetag. */
+  startDate: string | null;
 };
 
 export function toViewStep(step: {
