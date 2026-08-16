@@ -37,6 +37,7 @@ export default async function StepEditorPage({
           width: photo.width,
           height: photo.height,
           placeholder: photo.placeholder,
+          caption: photo.caption,
         })),
       }}
     />

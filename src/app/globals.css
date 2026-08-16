@@ -135,14 +135,15 @@
   }
 }
 
-/* Runde Foto-Marker auf der Karte. */
+/* Runde Foto-Marker auf der Karte, weiß gefasst wie bei einer Perlenkette. */
 .ownsteps-marker {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   padding: 0;
   border-radius: 999px;
+  /* Der weiße Ring trägt die Marker über jedes Satellitenbild. */
   border: 3px solid #fff;
-  background: var(--accent);
+  background: #2a2622;
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -150,8 +151,8 @@
   place-items: center;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgb(0 0 0 / 0.28);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.45);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ownsteps-marker img {
@@ -161,14 +162,14 @@
 }
 
 .ownsteps-marker:hover {
-  transform: scale(1.08);
+  transform: scale(1.06);
 }
 
+/* Die aktive Station wächst nur – keine Signalfarbe, das Foto soll wirken. */
 .ownsteps-marker[data-active="true"] {
-  transform: scale(1.22);
-  border-color: var(--accent);
-  box-shadow: 0 6px 20px rgb(228 87 46 / 0.5);
-  z-index: 2;
+  transform: scale(1.25);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.6);
+  z-index: 3;
 }
 
 /* MapLibre an das eigene Farbschema anpassen. */

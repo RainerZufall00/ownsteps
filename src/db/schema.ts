@@ -60,6 +60,7 @@ export const steps = sqliteTable(
     tripId: integer("trip_id")
       .notNull()
       .references(() => trips.id, { onDelete: "cascade" }),
+    /** Veraltet: Die Timeline zeigt den Ort als Überschrift, nicht diesen Text. */
     title: text("title").notNull().default(""),
     body: text("body").notNull().default(""),
     lat: real("lat"),
@@ -94,6 +95,8 @@ export const photos = sqliteTable(
     /** Verzeichnisname unterhalb von uploads/, enthält die abgeleiteten Größen. */
     storageKey: text("storage_key").notNull(),
     originalName: text("original_name"),
+    /** Optionale Bildunterschrift, erscheint in der Vollbildansicht. */
+    caption: text("caption"),
     width: integer("width").notNull(),
     height: integer("height").notNull(),
     bytes: integer("bytes").notNull().default(0),
@@ -111,7 +114,26 @@ export const photos = sqliteTable(
   ],
 );
 
+export const comments = sqliteTable(
+  "comments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    tripId: integer("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    stepId: integer("step_id")
+      .notNull()
+      .references(() => steps.id, { onDelete: "cascade" }),
+    /** Frei gewählter Name – Kommentare brauchen keinen Account. */
+    authorName: text("author_name").notNull(),
+    body: text("body").notNull(),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [index("comments_step_idx").on(t.stepId, t.createdAt)],
+);
+
 export type User = typeof users.$inferSelect;
+export type Comment = typeof comments.$inferSelect;
 export type Trip = typeof trips.$inferSelect;
 export type Step = typeof steps.$inferSelect;
 export type Photo = typeof photos.$inferSelect;

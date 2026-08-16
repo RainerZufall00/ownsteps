@@ -31,7 +31,8 @@ export const APP_SECRET = globalForEnv.__ownstepsSecret ?? loadSecret();
 globalForEnv.__ownstepsSecret = APP_SECRET;
 
 export const MAPTILER_KEY = process.env.MAPTILER_KEY?.trim() ?? "";
-export const MAP_STYLE =
-  process.env.MAP_STYLE?.trim() || "streets-v2";
+// Satellitenbild mit dezenter Beschriftung – Fotos und Route stehen darauf
+// besser als auf einer Straßenkarte.
+export const MAP_STYLE = process.env.MAP_STYLE?.trim() || "hybrid";
 export const SITE_NAME = process.env.SITE_NAME?.trim() || "OwnSteps";
 export const PUBLIC_URL = process.env.PUBLIC_URL?.trim().replace(/\/$/, "") ?? "";

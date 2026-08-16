@@ -3,9 +3,11 @@ import "server-only";
 import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  comments,
   photos,
   steps,
   trips,
+  type Comment,
   type Photo,
   type Step,
   type Trip,
@@ -13,7 +15,7 @@ import {
 import { deletePhotoFilesFor } from "./photos";
 import { newShareToken } from "./share";
 
-export type StepWithPhotos = Step & { photos: Photo[] };
+export type StepWithPhotos = Step & { photos: Photo[]; comments: Comment[] };
 
 export type TripSummary = Trip & {
   stepCount: number;
@@ -134,6 +136,17 @@ export async function getSteps(
     )
     .orderBy(asc(photos.sortOrder), asc(photos.id));
 
+  const commentRows = await db
+    .select()
+    .from(comments)
+    .where(
+      inArray(
+        comments.stepId,
+        stepRows.map((s) => s.id),
+      ),
+    )
+    .orderBy(asc(comments.createdAt));
+
   const byStep = new Map<number, Photo[]>();
   for (const photo of photoRows) {
     if (photo.stepId === null) continue;
@@ -142,7 +155,18 @@ export async function getSteps(
     else byStep.set(photo.stepId, [photo]);
   }
 
-  return stepRows.map((step) => ({ ...step, photos: byStep.get(step.id) ?? [] }));
+  const commentsByStep = new Map<number, Comment[]>();
+  for (const comment of commentRows) {
+    const list = commentsByStep.get(comment.stepId);
+    if (list) list.push(comment);
+    else commentsByStep.set(comment.stepId, [comment]);
+  }
+
+  return stepRows.map((step) => ({
+    ...step,
+    photos: byStep.get(step.id) ?? [],
+    comments: commentsByStep.get(step.id) ?? [],
+  }));
 }
 
 export async function getStep(stepId: number): Promise<StepWithPhotos | null> {
@@ -160,7 +184,13 @@ export async function getStep(stepId: number): Promise<StepWithPhotos | null> {
     .where(eq(photos.stepId, stepId))
     .orderBy(asc(photos.sortOrder), asc(photos.id));
 
-  return { ...step, photos: photoRows };
+  const commentRows = await db
+    .select()
+    .from(comments)
+    .where(eq(comments.stepId, stepId))
+    .orderBy(asc(comments.createdAt));
+
+  return { ...step, photos: photoRows, comments: commentRows };
 }
 
 export async function createTrip(input: {

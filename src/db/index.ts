@@ -91,6 +91,22 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS photos_trip_idx ON photos(trip_id);
     `,
   },
+  {
+    name: "0002_captions_and_comments",
+    sql: `
+      ALTER TABLE photos ADD COLUMN caption TEXT;
+
+      CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+        step_id INTEGER NOT NULL REFERENCES steps(id) ON DELETE CASCADE,
+        author_name TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+      );
+      CREATE INDEX IF NOT EXISTS comments_step_idx ON comments(step_id, created_at);
+    `,
+  },
 ];
 
 function isBusyError(error: unknown) {

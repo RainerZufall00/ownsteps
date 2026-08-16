@@ -17,9 +17,22 @@ export function formatTime(ms: number) {
   return format(new Date(ms), "HH:mm", { locale: de });
 }
 
-/** Wert für <input type="datetime-local"> in lokaler Zeit. */
-export function toDateTimeLocal(ms: number) {
-  return format(new Date(ms), "yyyy-MM-dd'T'HH:mm");
+/** Wert für <input type="date"> in lokaler Zeit. */
+export function toDateInput(ms: number) {
+  return format(new Date(ms), "yyyy-MM-dd");
+}
+
+/**
+ * Setzt das Datum neu und behält die Uhrzeit des Originals. Die Uhrzeit wird
+ * nirgends angezeigt, bestimmt aber die Reihenfolge mehrerer Beiträge an
+ * einem Tag – sie stammt aus den EXIF-Daten und soll nicht verloren gehen.
+ */
+export function withDate(originalMs: number, isoDate: string) {
+  const [jahr, monat, tag] = isoDate.split("-").map(Number);
+  if (!jahr || !monat || !tag) return originalMs;
+  const datum = new Date(originalMs);
+  datum.setFullYear(jahr, monat - 1, tag);
+  return datum.getTime();
 }
 
 /** Reisetag wie bei Polarsteps: der erste Beitrag ist Tag 1. */

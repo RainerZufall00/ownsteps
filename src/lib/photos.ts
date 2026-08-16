@@ -23,6 +23,10 @@ export async function deletePhoto(photoId: number) {
   await deletePhotoFiles(photo.storageKey);
 }
 
+export async function setPhotoCaption(photoId: number, caption: string | null) {
+  await db.update(photos).set({ caption }).where(eq(photos.id, photoId));
+}
+
 /** Räumt die Dateien mehrerer Fotos ab, z.B. wenn ein Beitrag gelöscht wird. */
 export async function deletePhotoFilesFor(photoRows: { storageKey: string }[]) {
   await Promise.all(photoRows.map((p) => deletePhotoFiles(p.storageKey)));

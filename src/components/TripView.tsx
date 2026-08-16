@@ -3,9 +3,11 @@
 import type { StyleSpecification } from "maplibre-gl";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { formatTime, formatWeekday, tripDay } from "@/lib/format";
+import { formatWeekday, tripDay } from "@/lib/format";
 import type { ViewStep, ViewTrip } from "@/lib/view-types";
+import CommentSection from "./CommentSection";
 import MapCanvas, { type MapStep } from "./MapCanvas";
+import MapTimelineStrip from "./MapTimelineStrip";
 import PhotoGrid from "./PhotoGrid";
 
 type Props = {
@@ -85,7 +87,8 @@ export default function TripView({
     });
   }, []);
 
-  const focusStep = (stepId: number) => {
+  /** Zum Beitrag springen – aus der Kartenansicht heraus in die Timeline. */
+  const openStep = (stepId: number) => {
     setActiveStepId(stepId);
     setMobileView("timeline");
     suppressObserver.current = true;
@@ -178,22 +181,13 @@ export default function TripView({
                           </span>
                         )}
                         <span>{formatWeekday(step.occurredAt)}</span>
-                        <span className="text-ink-faint">
-                          {formatTime(step.occurredAt)}
-                        </span>
                       </div>
 
-                      {step.title && (
-                        <h2 className="mt-1.5 text-xl font-bold leading-snug tracking-tight">
-                          {step.title}
-                        </h2>
-                      )}
-
                       {step.placeName && (
-                        <p className="mt-1 flex items-center gap-1.5 text-[14px] text-ink-soft">
+                        <h2 className="mt-1.5 flex items-start gap-1.5 text-xl font-bold leading-snug tracking-tight">
                           <svg
                             viewBox="0 0 24 24"
-                            className="h-4 w-4 shrink-0 text-accent"
+                            className="mt-0.5 h-5 w-5 shrink-0 text-accent"
                             aria-hidden="true"
                           >
                             <path
@@ -204,7 +198,7 @@ export default function TripView({
                             <circle cx="12" cy="10" r="2.6" fill="currentColor" />
                           </svg>
                           {step.placeName}
-                        </p>
+                        </h2>
                       )}
 
                       {step.photos.length > 0 && (
@@ -218,6 +212,13 @@ export default function TripView({
                           {step.body}
                         </p>
                       )}
+
+                      <CommentSection
+                        tripId={trip.id}
+                        stepId={step.id}
+                        comments={step.comments}
+                        canDelete={editable}
+                      />
 
                       {editable && (
                         <Link
@@ -259,9 +260,19 @@ export default function TripView({
               steps={mapSteps}
               mapStyle={mapStyle}
               activeStepId={activeStepId}
-              onSelect={focusStep}
+              onSelect={setActiveStepId}
               className="h-full w-full"
             />
+
+            {/* Blättern über der Karte, ohne die Marker treffen zu müssen. */}
+            <MapTimelineStrip
+              steps={steps.filter((s) => s.lat !== null && s.lon !== null)}
+              firstDay={firstDay}
+              activeStepId={activeStepId}
+              onFocus={setActiveStepId}
+              onOpen={openStep}
+            />
+
             {mapSteps.length === 0 && (
               <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-2xl bg-surface/90 px-4 py-3 text-center text-sm text-ink-soft backdrop-blur">
                 Noch keine Orte – Fotos mit GPS-Daten setzen die Marker

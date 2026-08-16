@@ -234,16 +234,28 @@ export default function TripMap({
         return;
       }
       map.addSource("route", { type: "geojson", data: routeGeoJson(steps) });
+      // Zwei Linien übereinander: ein dunkler Saum trägt die weiße Route auch
+      // über hellem Gelände, ohne dass eine Signalfarbe nötig wäre.
+      map.addLayer({
+        id: "route-saum",
+        type: "line",
+        source: "route",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#000000",
+          "line-opacity": 0.35,
+          "line-width": 7,
+          "line-blur": 1,
+        },
+      });
       map.addLayer({
         id: "route-line",
         type: "line",
         source: "route",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#e4572e",
-          "line-width": 3,
-          "line-opacity": 0.9,
-          "line-dasharray": [2, 1.6],
+          "line-color": "#ffffff",
+          "line-width": 3.5,
         },
       });
     };

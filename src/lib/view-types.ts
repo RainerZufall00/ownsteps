@@ -5,6 +5,14 @@ export type ViewPhoto = {
   width: number;
   height: number;
   placeholder: string | null;
+  caption: string | null;
+};
+
+export type ViewComment = {
+  id: number;
+  authorName: string;
+  body: string;
+  createdAt: number;
 };
 
 export type ViewStep = {
@@ -16,6 +24,7 @@ export type ViewStep = {
   placeName: string | null;
   occurredAt: number;
   photos: ViewPhoto[];
+  comments: ViewComment[];
 };
 
 export type ViewTrip = {
@@ -33,6 +42,7 @@ export function toViewStep(step: {
   placeName: string | null;
   occurredAt: number;
   photos: ViewPhoto[];
+  comments?: ViewComment[];
 }): ViewStep {
   return {
     id: step.id,
@@ -47,6 +57,13 @@ export function toViewStep(step: {
       width: p.width,
       height: p.height,
       placeholder: p.placeholder,
+      caption: p.caption,
+    })),
+    comments: (step.comments ?? []).map((c) => ({
+      id: c.id,
+      authorName: c.authorName,
+      body: c.body,
+      createdAt: c.createdAt,
     })),
   };
 }

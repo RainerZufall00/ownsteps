@@ -6,7 +6,7 @@ import { useActionState, useMemo, useRef, useState } from "react";
 import MapCanvas from "@/components/MapCanvas";
 import PhotoImg from "@/components/PhotoImg";
 import SubmitButton from "@/components/SubmitButton";
-import { toDateTimeLocal } from "@/lib/format";
+import { toDateInput } from "@/lib/format";
 import type { ViewPhoto } from "@/lib/view-types";
 import {
   deletePhotoAction,
@@ -45,10 +45,11 @@ export default function StepEditor({
   const [lat, setLat] = useState<number | null>(step.lat);
   const [lon, setLon] = useState<number | null>(step.lon);
   const [placeName, setPlaceName] = useState(step.placeName ?? "");
-  const [occurredAt, setOccurredAt] = useState(toDateTimeLocal(step.occurredAt));
+  const [occurredAt, setOccurredAt] = useState(toDateInput(step.occurredAt));
   const [upload, setUpload] = useState<UploadState>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [locating, setLocating] = useState<string | null>(null);
+  const [coverHinweis, setCoverHinweis] = useState<number | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   /**
@@ -230,134 +231,129 @@ export default function StepEditor({
       </p>
 
       {/* Fotos liegen außerhalb des Formulars: sie werden sofort gespeichert. */}
-      <section className="mt-6">
-        <h2 className="label">Fotos</h2>
+      {/* Die Fotos stehen mit im Formular, damit die Bildunterschriften
+          zusammen mit dem Beitrag gespeichert werden. Die Bilder selbst sind
+          schon beim Hochladen gesichert. */}
+      <form action={action} className="mt-6 space-y-5">
+        <input type="hidden" name="stepId" value={step.id} />
+        <input type="hidden" name="lat" value={lat ?? ""} />
+        <input type="hidden" name="lon" value={lon ?? ""} />
 
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {photos.map((photo) => (
-            <div
-              key={photo.id}
-              className="group relative aspect-square overflow-hidden rounded-2xl bg-surface-muted"
-            >
-              <PhotoImg
-                photo={photo}
-                variant="thumb"
-                className="h-full w-full object-cover"
-                sizes="160px"
-              />
-              <button
-                type="button"
-                aria-label="Foto entfernen"
-                onClick={async () => {
-                  setPhotos((current) =>
-                    current.filter((p) => p.id !== photo.id),
-                  );
-                  const body = new FormData();
-                  body.append("photoId", String(photo.id));
-                  body.append("stepId", String(step.id));
-                  await deletePhotoAction(body);
-                }}
-                className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/75"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                  <path
-                    d="m6 6 12 12M18 6 6 18"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
+        <section>
+          <h2 className="label">Fotos</h2>
 
-              <form
-                action={setCoverPhotoAction}
-                className="absolute inset-x-1.5 bottom-1.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100"
-              >
-                <input type="hidden" name="tripId" value={step.tripId} />
-                <input type="hidden" name="photoId" value={photo.id} />
-                <button
-                  type="submit"
-                  className="w-full rounded-full bg-black/55 py-1 text-[11px] font-semibold text-white backdrop-blur transition hover:bg-black/75"
+          {photos.length > 0 && (
+            <ul className="mb-2 space-y-2">
+              {photos.map((photo) => (
+                <li
+                  key={photo.id}
+                  className="flex gap-3 rounded-2xl border border-line p-2"
                 >
-                  Titelbild
-                </button>
-              </form>
-            </div>
-          ))}
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
+                    <PhotoImg
+                      photo={photo}
+                      variant="thumb"
+                      className="h-full w-full object-cover"
+                      sizes="80px"
+                    />
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
+                    <input
+                      name={`caption_${photo.id}`}
+                      defaultValue={photo.caption ?? ""}
+                      maxLength={500}
+                      className="field py-1.5 text-[15px]"
+                      placeholder="Bildunterschrift (optional)"
+                      aria-label="Bildunterschrift"
+                    />
+                    <div className="flex gap-4 px-1 text-[13px] font-medium">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const body = new FormData();
+                          body.append("tripId", String(step.tripId));
+                          body.append("photoId", String(photo.id));
+                          await setCoverPhotoAction(body);
+                          setCoverHinweis(photo.id);
+                        }}
+                        className="text-ink-soft transition hover:text-accent"
+                      >
+                        {coverHinweis === photo.id ? "Titelbild ✓" : "Titelbild"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setPhotos((current) =>
+                            current.filter((p) => p.id !== photo.id),
+                          );
+                          const body = new FormData();
+                          body.append("photoId", String(photo.id));
+                          body.append("stepId", String(step.id));
+                          await deletePhotoAction(body);
+                        }}
+                        className="text-ink-faint transition hover:text-accent"
+                      >
+                        Entfernen
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
 
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
             disabled={upload !== null}
-            className="grid aspect-square place-items-center rounded-2xl border-2 border-dashed border-line text-ink-faint transition hover:border-accent hover:text-accent disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line py-4 text-sm font-semibold text-ink-faint transition hover:border-accent hover:text-accent disabled:opacity-50"
           >
-            <span className="flex flex-col items-center gap-1">
-              <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
-                <path
-                  d="M12 5v14M5 12h14"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <span className="text-[11px] font-semibold">Hinzufügen</span>
-            </span>
-          </button>
-        </div>
-
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(event) => {
-            const files = [...(event.target.files ?? [])];
-            void uploadFiles(files);
-          }}
-        />
-
-        {upload && (
-          <div className="mt-3">
-            <div className="h-1.5 overflow-hidden rounded-full bg-surface-muted">
-              <div
-                className="h-full rounded-full bg-accent transition-[width] duration-200"
-                style={{ width: `${uploadPercent}%` }}
+            <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+              <path
+                d="M12 5v14M5 12h14"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
               />
-            </div>
-            <p className="mt-1.5 text-[13px] text-ink-soft">
-              {upload.done} von {upload.total} hochgeladen …
-            </p>
-          </div>
-        )}
+            </svg>
+            Fotos hinzufügen
+          </button>
 
-        {problems.length > 0 && (
-          <ul className="mt-3 space-y-1 rounded-2xl bg-accent-soft px-4 py-3 text-[13px] text-accent">
-            {problems.map((problem) => (
-              <li key={problem}>{problem}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <form action={action} className="mt-7 space-y-5">
-        <input type="hidden" name="stepId" value={step.id} />
-        <input type="hidden" name="lat" value={lat ?? ""} />
-        <input type="hidden" name="lon" value={lon ?? ""} />
-
-        <div>
-          <label className="label" htmlFor="title">
-            Überschrift
-          </label>
           <input
-            id="title"
-            name="title"
-            defaultValue={step.title}
-            maxLength={160}
-            className="field"
-            placeholder="Ankunft in Bergen"
+            ref={fileInput}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              const files = [...(event.target.files ?? [])];
+              void uploadFiles(files);
+            }}
           />
-        </div>
+
+          {upload && (
+            <div className="mt-3">
+              <div className="h-1.5 overflow-hidden rounded-full bg-surface-muted">
+                <div
+                  className="h-full rounded-full bg-accent transition-[width] duration-200"
+                  style={{ width: `${uploadPercent}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-[13px] text-ink-soft">
+                {upload.done} von {upload.total} hochgeladen …
+              </p>
+            </div>
+          )}
+
+          {problems.length > 0 && (
+            <ul className="mt-3 space-y-1 rounded-2xl bg-accent-soft px-4 py-3 text-[13px] text-accent">
+              {problems.map((problem) => (
+                <li key={problem}>{problem}</li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <div>
           <label className="label" htmlFor="body">
@@ -374,13 +370,13 @@ export default function StepEditor({
         </div>
 
         <div>
-          <label className="label" htmlFor="occurredAt">
-            Zeitpunkt
+          <label className="label" htmlFor="occurredDate">
+            Datum
           </label>
           <input
-            id="occurredAt"
-            name="occurredAt"
-            type="datetime-local"
+            id="occurredDate"
+            name="occurredDate"
+            type="date"
             value={occurredAt}
             onChange={(event) => setOccurredAt(event.target.value)}
             className="field"

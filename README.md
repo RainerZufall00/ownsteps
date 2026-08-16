@@ -115,6 +115,17 @@ Für große Fotos sollte der Proxy Uploads bis 25 MB erlauben (nginx:
 3. **Teilen** – unter „Teilen" den Schalter umlegen und den Link verschicken.
    Optional zusätzlich mit Passwort. Ein neuer Link macht den alten ungültig.
 
+Wer den Link hat, kann **kommentieren** – Name eintippen, Text schreiben, ohne
+Account. Löschen können Kommentare nur angemeldete Autoren.
+
+In der Timeline steht der **Ort** als Überschrift; eine eigene Überschrift gibt
+es nicht. Pro Foto lässt sich eine **Bildunterschrift** hinterlegen, die in der
+Vollbildansicht erscheint. Dort blättert ein Tippen auf die rechte bzw. linke
+Seite weiter, ein Doppeltipp oder zwei Finger zoomen.
+
+Die **Kartenansicht** hat unten eine Leiste, über die man die Stationen
+durchblättert – die Karte zieht mit. Ein zweites Antippen springt zum Beitrag.
+
 Fotos ohne GPS-Daten bekommen keinen automatischen Ort – im Editor lässt sich
 der Pin dann direkt auf der Karte setzen.
 

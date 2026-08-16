@@ -130,6 +130,7 @@ export async function POST(request: Request) {
       width: p.width,
       height: p.height,
       placeholder: p.placeholder,
+      caption: p.caption,
       lat: p.lat,
       lon: p.lon,
       takenAt: p.takenAt,

@@ -4,7 +4,8 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { deletePhoto } from "@/lib/photos";
+import { withDate } from "@/lib/format";
+import { deletePhoto, setPhotoCaption } from "@/lib/photos";
 import { newShareToken } from "@/lib/share";
 import {
   createDraftStep,
@@ -88,14 +89,18 @@ export async function saveStepAction(
   const step = await getStep(stepId);
   if (!step) return { error: "Beitrag nicht gefunden." };
 
-  const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
-  if (!title && !body && step.photos.length === 0) {
-    return { error: "Bitte einen Titel, Text oder ein Foto hinzufügen." };
+  const placeName = String(formData.get("placeName") ?? "").trim();
+  if (!body && !placeName && step.photos.length === 0) {
+    return { error: "Bitte einen Ort, Text oder ein Foto hinzufügen." };
   }
 
-  const occurredRaw = String(formData.get("occurredAt") ?? "");
-  const occurredAt = occurredRaw ? new Date(occurredRaw).getTime() : NaN;
+  // Nur das Datum ist einstellbar; die Uhrzeit aus den EXIF-Daten bleibt
+  // erhalten und sortiert mehrere Beiträge desselben Tages.
+  const occurredRaw = String(formData.get("occurredDate") ?? "");
+  const occurredAt = occurredRaw
+    ? withDate(step.occurredAt, occurredRaw)
+    : step.occurredAt;
 
   const latRaw = String(formData.get("lat") ?? "");
   const lonRaw = String(formData.get("lon") ?? "");
@@ -103,14 +108,23 @@ export async function saveStepAction(
   const lon = lonRaw ? Number(lonRaw) : null;
 
   await updateStep(stepId, {
-    title,
     body,
-    occurredAt: Number.isNaN(occurredAt) ? step.occurredAt : occurredAt,
+    occurredAt,
     lat: lat !== null && Number.isFinite(lat) ? lat : null,
     lon: lon !== null && Number.isFinite(lon) ? lon : null,
-    placeName: String(formData.get("placeName") ?? "").trim() || null,
+    placeName: placeName || null,
     published: true,
   });
+
+  // Bildunterschriften reisen im selben Formular mit.
+  for (const photo of step.photos) {
+    const feld = formData.get(`caption_${photo.id}`);
+    if (feld === null) continue;
+    const caption = String(feld).trim().slice(0, 500);
+    if ((photo.caption ?? "") !== caption) {
+      await setPhotoCaption(photo.id, caption || null);
+    }
+  }
 
   revalidatePath(`/trips/${step.tripId}`);
   revalidatePath("/");

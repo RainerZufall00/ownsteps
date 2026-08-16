@@ -127,7 +127,16 @@ erDiagram
         real lat
         real lon
         text placeholder "winziges base64-JPEG"
+        text caption "optional, in der Vollbildansicht"
         int sort_order
+    }
+    comments {
+        int id PK
+        int trip_id FK
+        int step_id FK
+        text author_name "frei gewählt, kein Account"
+        text body
+        int created_at
     }
 ```
 
@@ -139,6 +148,13 @@ Wichtige Eigenheiten:
   wird (`formatRange` in `src/lib/format.ts`).
 - **`steps.occurred_at` bestimmt die Sortierung**, nicht `created_at`. Ein
   nachträglich hochgeladenes Foto rutscht dadurch an die richtige Stelle.
+  Die **Uhrzeit wird nirgends angezeigt** und ist auch nicht einstellbar – im
+  Editor gibt es nur ein Datum. Sie stammt aus den EXIF-Daten und sortiert
+  mehrere Beiträge desselben Tages; `withDate()` in `format.ts` tauscht beim
+  Speichern deshalb nur den Datumsanteil aus.
+- **`steps.title` wird nicht mehr benutzt.** Als Überschrift dient der Ort
+  (`place_name`). Die Spalte bleibt, damit vorhandene Installationen nicht
+  umgebaut werden müssen.
 - **`photos.trip_id` ist redundant** zu `steps.trip_id`, macht aber die
   Zugriffsprüfung beim Ausliefern zu einem einzigen Join und erlaubt Fotos
   ohne Beitrag.
@@ -183,6 +199,18 @@ flowchart TD
 > **Regel:** Jeder neue Pfad, über den Reise-Inhalte nach außen gehen, muss
 > `resolveTripAccess` benutzen. Das gilt besonders für Route Handler – dort
 > greift kein Layout, das nebenbei die Anmeldung prüft.
+
+### Kommentare
+
+Wer die Reise sehen darf, darf auch kommentieren – Name und Text genügen, ein
+Account ist nicht nötig. `addCommentAction` prüft dafür dieselbe Funktion
+`resolveTripAccess`. Löschen darf nur, wer angemeldet ist.
+
+Gegen versehentliche Doppelklicks und stumpfes Zumüllen steht in
+`src/lib/comments.ts` eine Bremse: höchstens fünf Kommentare pro Minute und
+Absenderadresse. Sie liegt bewusst im Arbeitsspeicher – bei einer Instanz für
+zwei Familien wäre eine Tabelle dafür überzogen, und nach einem Neustart darf
+sie ruhig bei null anfangen.
 
 ---
 
@@ -269,6 +297,19 @@ obwohl der Server längst das Richtige liefert. Genau das ist beim ersten
 Deployment passiert – die Fehlersuche lief ins Leere, weil `curl` korrekte
 Adressen zeigte und der Browser trotzdem alte benutzte.
 
+Voreingestellt ist der Stil **`hybrid`** (Satellitenbild mit dezenter
+Beschriftung). Auf Luftbildern wirken die Fotomarker und die Route deutlich
+besser als auf einer Straßenkarte – das war der sichtbarste Unterschied zum
+Vorbild Polarsteps. Dazu passend: die Route als **weiße Linie mit dunklem
+Saum** (zwei Layer übereinander) und Marker mit **weißem Ring** statt
+farbiger Hervorhebung. Die aktive Station wächst nur, damit das Foto wirkt und
+nicht die Signalfarbe. Andere Stile lassen sich über `MAP_STYLE` setzen,
+etwa `satellite`, `outdoor-v2` oder `streets-v2`.
+
+Über der Karte liegt mit `MapTimelineStrip` eine Leiste, durch die man die
+Stationen blättert; sie rastet je Eintrag ein und zieht die Karte mit. Ein
+Antippen der bereits aktiven Station springt zum Beitrag in der Timeline.
+
 In `TripMap.tsx` gilt:
 
 - **Marker hängen nicht am `load`-Ereignis.** Sie sind gewöhnliche
@@ -279,6 +320,11 @@ In `TripMap.tsx` gilt:
   die Funktion ist bewusst idempotent.
 - Ein `ResizeObserver` ruft `map.resize()`, weil der Container auf dem Handy
   zwischen sichtbar und versteckt wechselt.
+- **Die Kamera folgt nur, wenn sich die Punkte geändert haben** (Vergleich
+  einer Signatur aus IDs und Koordinaten). Ohne das setzte jeder Tastendruck
+  im Editor die Ansicht zurück. Mit `autoFit={false}` richtet sie sich
+  überhaupt nur einmal aus – wer dort einen Ort sucht, bestimmt den Ausschnitt
+  selbst.
 - `map.on("error", …)` loggt Style- und Kachelfehler, die MapLibre sonst
   stillschweigend schluckt.
 
