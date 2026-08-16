@@ -254,9 +254,20 @@ Reihenfolge ist zweimal wichtig:
 Deshalb steht `PUBLIC_URL` nicht nur für die Share-Links, sondern macht auch
 die Karte hinter einem Proxy eindeutig.
 
-Schutz gegen Fremdnutzung: Anfragen mit `Sec-Fetch-Site: cross-site` werden
-ohne Anmeldung abgewiesen. Das Ziel wird über `target.origin !== UPSTREAM`
-geprüft, damit der Pfad nicht auf einen fremden Host zeigen kann.
+Das Ziel wird über `target.origin !== UPSTREAM` geprüft, damit der Pfad nicht
+auf einen fremden Host zeigen kann. Eine Sperre gegen
+`Sec-Fetch-Site: cross-site` gab es zwischenzeitlich, sie ist wieder
+entfernt: Wer den Header weglässt, kam ohnehin durch – der Schutz war also
+keiner – während sie Anfragen aus MapLibres Worker blockieren konnte.
+
+**Die umgeschriebenen JSON-Antworten werden mit `no-cache` ausgeliefert**, die
+Kacheln, Sprites und Schriften dagegen für einen Tag. Der Unterschied ist
+wichtig: In den JSON-Dateien stecken die aus `PUBLIC_URL` gebauten Adressen.
+Mit langer Frist hält ein Browser nach einem Umzug oder einer
+Konfigurationsänderung tagelang an toten URLs fest, und die Karte bleibt leer,
+obwohl der Server längst das Richtige liefert. Genau das ist beim ersten
+Deployment passiert – die Fehlersuche lief ins Leere, weil `curl` korrekte
+Adressen zeigte und der Browser trotzdem alte benutzte.
 
 In `TripMap.tsx` gilt:
 

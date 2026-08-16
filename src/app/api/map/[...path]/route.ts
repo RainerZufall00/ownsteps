@@ -1,4 +1,3 @@
-import { getCurrentUser } from "@/lib/auth";
 import { MAPTILER_KEY, PUBLIC_URL } from "@/lib/env";
 import {
   publicOrigin,
@@ -16,11 +15,10 @@ export async function GET(request: Request) {
     return new Response("Keine Kartenquelle konfiguriert", { status: 503 });
   }
 
-  // Fremde Seiten sollen den Proxy nicht als kostenlosen Tile-Server missbrauchen.
-  if (request.headers.get("sec-fetch-site") === "cross-site") {
-    const user = await getCurrentUser();
-    if (!user) return new Response("Kein Zugriff", { status: 403 });
-  }
+  // Hier stand einmal eine Sperre gegen "Sec-Fetch-Site: cross-site". Sie hat
+  // nichts gebracht – wer den Header weglässt, kam ohnehin durch – konnte aber
+  // Anfragen blockieren, die MapLibre aus seinem Worker heraus stellt. Der
+  // Proxy ist bewusst so offen wie die Instanz selbst.
 
   const incoming = new URL(request.url);
   // Den rohen Pfad verwenden, damit die Kodierung exakt so bleibt,
@@ -66,7 +64,12 @@ export async function GET(request: Request) {
     return new Response(rewritten, {
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": cacheControl,
+        // Bewusst kurzlebig: In diesen Antworten stecken die umgeschriebenen
+        // Adressen, die von PUBLIC_URL und den Proxy-Headern abhängen. Mit
+        // langer Frist hielte der Browser nach einem Umzug oder einer
+        // Konfigurationsänderung tagelang an toten URLs fest – die Karte
+        // bliebe leer, obwohl der Server längst das Richtige liefert.
+        "Cache-Control": "no-cache",
       },
     });
   }
