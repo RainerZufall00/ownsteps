@@ -4,6 +4,55 @@ import { MAPTILER_KEY } from "./env";
 
 export type PlaceInfo = { placeName: string | null; countryCode: string | null };
 
+export type PlaceHit = {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+};
+
+/**
+ * Ortssuche für den Editor. Liefert Vorschläge samt Koordinaten, damit sich
+ * ein Ort auch dann setzen lässt, wenn im Foto keine Position steckt.
+ */
+export async function searchPlaces(query: string): Promise<PlaceHit[]> {
+  const suche = query.trim();
+  if (!MAPTILER_KEY || suche.length < 2) return [];
+
+  try {
+    const url = new URL(
+      `https://api.maptiler.com/geocoding/${encodeURIComponent(suche)}.json`,
+    );
+    url.searchParams.set("key", MAPTILER_KEY);
+    url.searchParams.set("language", "de");
+    url.searchParams.set("limit", "6");
+    url.searchParams.set("autocomplete", "true");
+
+    const response = await fetch(url, { next: { revalidate: 60 * 60 } });
+    if (!response.ok) return [];
+
+    const data = (await response.json()) as {
+      features?: {
+        id?: string;
+        place_name?: string;
+        text?: string;
+        center?: [number, number];
+      }[];
+    };
+
+    return (data.features ?? [])
+      .filter((f) => Array.isArray(f.center) && f.center.length === 2)
+      .map((f, index) => ({
+        id: f.id ?? `${index}`,
+        name: f.place_name ?? f.text ?? "Unbekannter Ort",
+        lon: f.center![0],
+        lat: f.center![1],
+      }));
+  } catch {
+    return [];
+  }
+}
+
 type GeocodeFeature = {
   text?: string;
   place_type?: string[];

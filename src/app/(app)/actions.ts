@@ -13,6 +13,7 @@ import {
   deleteStep,
   deleteTrip,
   getStep,
+  getTrip,
   updateStep,
   updateTrip,
 } from "@/lib/trips";
@@ -58,10 +59,27 @@ export async function updateTripAction(
   return { ok: true };
 }
 
-export async function deleteTripAction(formData: FormData) {
+/**
+ * Löscht die Reise samt Fotos – aber erst, wenn der Name abgetippt wurde.
+ * Ein einzelner Fehlklick soll keine Reise auslöschen können.
+ */
+export async function deleteTripAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   await requireUser();
   const tripId = Number(formData.get("tripId"));
-  if (!Number.isInteger(tripId)) return;
+  if (!Number.isInteger(tripId)) return { error: "Reise nicht gefunden." };
+
+  const trip = await getTrip(tripId);
+  if (!trip) return { error: "Reise nicht gefunden." };
+
+  const bestaetigung = String(formData.get("confirmTitle") ?? "").trim();
+  if (bestaetigung !== trip.title.trim()) {
+    return {
+      error: `Zum Löschen bitte „${trip.title}“ genau so eintippen.`,
+    };
+  }
 
   await deleteTrip(tripId);
   revalidatePath("/");

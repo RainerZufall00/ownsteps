@@ -39,6 +39,12 @@ type Props = {
    * werden.
    */
   autoFit?: boolean;
+  /**
+   * Gezieltes Anfliegen einer Stelle – etwa nach einem Treffer der Ortssuche.
+   * Ausgelöst wird über `key`, damit dieselbe Stelle erneut angesteuert
+   * werden kann.
+   */
+  focusPoint?: { lat: number; lon: number; key: number } | null;
 };
 
 function routeGeoJson(steps: MapStep[]): GeoJSON.FeatureCollection {
@@ -106,6 +112,7 @@ export default function TripMap({
   className,
   static: isStatic = false,
   autoFit = true,
+  focusPoint = null,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -270,6 +277,19 @@ export default function TripMap({
       map.off("styledata", syncRoute);
     };
   }, [steps, activeStepId]);
+
+  // Auf Zuruf eine Stelle anfliegen (Ortssuche im Editor).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focusPoint) return;
+    map.easeTo({
+      center: [focusPoint.lon, focusPoint.lat],
+      zoom: Math.max(map.getZoom(), 11),
+      duration: 700,
+    });
+    // Nur der Zähler entscheidet, sonst würde jedes Rendern erneut fliegen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusPoint?.key]);
 
   // Aktive Station hervorheben und sanft anfahren.
   useEffect(() => {

@@ -126,8 +126,13 @@ Seite weiter, ein Doppeltipp oder zwei Finger zoomen.
 Die **Kartenansicht** hat unten eine Leiste, über die man die Stationen
 durchblättert – die Karte zieht mit. Ein zweites Antippen springt zum Beitrag.
 
-Fotos ohne GPS-Daten bekommen keinen automatischen Ort – im Editor lässt sich
-der Pin dann direkt auf der Karte setzen.
+Fotos ohne GPS-Daten bekommen keinen automatischen Ort. Im Editor gibt es dafür
+drei Wege: **„Mein Standort"** übernimmt die Position vom Gerät, das **Ortsfeld
+sucht** beim Tippen (Vorschläge antippen setzt Ort und Kartenausschnitt), und
+notfalls setzt ein Antippen der Karte den Punkt.
+
+Eine Reise lässt sich nur löschen, wenn ihr Name zur Bestätigung eingetippt
+wird – Fotos und Beiträge sind danach weg.
 
 Beide Accounts arbeiten gemeinsam an allen Reisen; es gibt bewusst keine
 Rechteverwaltung.

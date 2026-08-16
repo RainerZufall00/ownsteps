@@ -4,7 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PUBLIC_URL } from "@/lib/env";
 import { getTrip } from "@/lib/trips";
-import { deleteTripAction, rotateShareTokenAction } from "../../../actions";
+import { rotateShareTokenAction } from "../../../actions";
+import DeleteTripForm from "./DeleteTripForm";
 import ShareSettings from "./ShareSettings";
 import TripDetailsForm from "./TripDetailsForm";
 
@@ -93,17 +94,11 @@ export default async function TripSettingsPage({
         <h2 className="text-lg font-semibold">Reise löschen</h2>
         <p className="mt-1.5 text-[15px] text-ink-soft">
           Entfernt alle Beiträge und Fotos dieser Reise unwiderruflich vom
-          Server.
+          Server. Es gibt danach kein Zurück – außer über eine Sicherung.
         </p>
-        <form action={deleteTripAction} className="mt-4">
-          <input type="hidden" name="tripId" value={trip.id} />
-          <button
-            type="submit"
-            className="btn border border-accent px-5 py-2.5 text-sm text-accent"
-          >
-            Endgültig löschen
-          </button>
-        </form>
+        <div className="mt-4">
+          <DeleteTripForm tripId={trip.id} title={trip.title} />
+        </div>
       </section>
     </main>
   );

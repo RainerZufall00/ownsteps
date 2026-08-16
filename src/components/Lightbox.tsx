@@ -143,6 +143,7 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
   function onPointerUp(event: React.PointerEvent) {
     const g = geste.current;
     const dx = event.clientX - g.startX;
+    const dy = event.clientY - g.startY;
     const dauer = Date.now() - g.beginn;
     const warEinzeln = zeiger.current.size === 1;
     // Maße jetzt festhalten – im setTimeout weiter unten ist das Event weg.
@@ -153,6 +154,12 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
     if (zeiger.current.size < 2) g.startAbstand = 0;
     if (zeiger.current.size === 0) setInGeste(false);
     if (!warEinzeln) return;
+
+    // Nach unten wischen schließt – die Geste, die man von Fotogalerien kennt.
+    if (!gezoomt && g.bewegt && dy > 90 && Math.abs(dy) > Math.abs(dx)) {
+      onClose();
+      return;
+    }
 
     // Wischen blättert – aber nur, solange nicht gezoomt ist.
     if (!gezoomt && g.bewegt && Math.abs(dx) > 50) {
@@ -170,7 +177,15 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
     }
     g.letzterTipp = jetzt;
 
-    if (gezoomt) return;
+    // Im gezoomten Bild holt ein einzelner Tipp zurück auf die Übersicht –
+    // sonst sitzt man in der Vergrößerung fest.
+    if (gezoomt) {
+      window.setTimeout(() => {
+        if (geste.current.letzterTipp !== jetzt) return;
+        setZoom(OHNE_ZOOM);
+      }, 260);
+      return;
+    }
 
     // Einfacher Tipp: linkes Drittel zurück, sonst weiter. Kurz abwarten,
     // damit ein zweiter Tipp noch als Doppeltipp durchgehen kann.
@@ -189,7 +204,17 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
     >
       <div className="flex shrink-0 items-center justify-between px-4 py-3 text-white/80">
         <span className="text-sm tabular-nums">
-          {index + 1} / {photos.length}
+          {gezoomt ? (
+            <button
+              type="button"
+              onClick={() => setZoom(OHNE_ZOOM)}
+              className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/20"
+            >
+              Zoom zurücksetzen
+            </button>
+          ) : (
+            `${index + 1} / ${photos.length}`
+          )}
         </span>
         <button
           type="button"

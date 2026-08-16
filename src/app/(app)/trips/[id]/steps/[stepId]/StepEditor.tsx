@@ -30,6 +30,7 @@ type EditorStep = {
 };
 
 type UploadState = { done: number; total: number; current: number } | null;
+type PlaceHit = { id: string; name: string; lat: number; lon: number };
 
 const initial: ActionState = {};
 
@@ -50,7 +51,15 @@ export default function StepEditor({
   const [problems, setProblems] = useState<string[]>([]);
   const [locating, setLocating] = useState<string | null>(null);
   const [coverHinweis, setCoverHinweis] = useState<number | null>(null);
+  const [vorschlaege, setVorschlaege] = useState<PlaceHit[]>([]);
+  const [sucht, setSucht] = useState(false);
+  const [focusPoint, setFocusPoint] = useState<{
+    lat: number;
+    lon: number;
+    key: number;
+  } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const suchTimer = useRef<number | undefined>(undefined);
 
   /**
    * Bilder gehen einzeln raus: das hält den Speicherbedarf auf dem VPS klein
@@ -122,9 +131,46 @@ export default function StepEditor({
     if (fileInput.current) fileInput.current.value = "";
   }
 
+  /** Tippen im Ortsfeld startet die Suche, ohne bei jedem Zeichen zu funken. */
+  function onOrtEingabe(wert: string) {
+    setPlaceName(wert);
+    window.clearTimeout(suchTimer.current);
+    if (wert.trim().length < 2) {
+      setVorschlaege([]);
+      return;
+    }
+    suchTimer.current = window.setTimeout(async () => {
+      setSucht(true);
+      try {
+        const response = await fetch(
+          `/api/geocode/search?q=${encodeURIComponent(wert)}`,
+        );
+        if (!response.ok) return;
+        const daten = (await response.json()) as { hits: PlaceHit[] };
+        setVorschlaege(daten.hits ?? []);
+      } catch {
+        setVorschlaege([]);
+      } finally {
+        setSucht(false);
+      }
+    }, 350);
+  }
+
+  /** Einen Vorschlag übernehmen: Name, Koordinaten und Kartenausschnitt. */
+  function waehleOrt(hit: PlaceHit) {
+    window.clearTimeout(suchTimer.current);
+    setPlaceName(hit.name);
+    setLat(hit.lat);
+    setLon(hit.lon);
+    setFocusPoint({ lat: hit.lat, lon: hit.lon, key: Date.now() });
+    setVorschlaege([]);
+    setLocating(null);
+  }
+
   async function pickLocation(nextLat: number, nextLon: number) {
     setLat(nextLat);
     setLon(nextLon);
+    setFocusPoint({ lat: nextLat, lon: nextLon, key: Date.now() });
     if (placeName.trim()) return;
     try {
       const response = await fetch(
@@ -387,14 +433,51 @@ export default function StepEditor({
           <label className="label" htmlFor="placeName">
             Ort
           </label>
-          <input
-            id="placeName"
-            name="placeName"
-            value={placeName}
-            onChange={(event) => setPlaceName(event.target.value)}
-            className="field"
-            placeholder="Bergen, Norwegen"
-          />
+
+          <div className="relative">
+            <input
+              id="placeName"
+              name="placeName"
+              value={placeName}
+              onChange={(event) => onOrtEingabe(event.target.value)}
+              autoComplete="off"
+              className="field pr-10"
+              placeholder="Ort suchen, z.B. Ulm"
+            />
+            {sucht && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-ink-faint">
+                sucht …
+              </span>
+            )}
+
+            {vorschlaege.length > 0 && (
+              <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-float">
+                {vorschlaege.map((hit) => (
+                  <li key={hit.id}>
+                    <button
+                      type="button"
+                      onClick={() => waehleOrt(hit)}
+                      className="flex w-full items-start gap-2 px-4 py-2.5 text-left text-[15px] transition hover:bg-surface-muted"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="mt-0.5 h-4 w-4 shrink-0 text-accent"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11Z"
+                          fill="currentColor"
+                          opacity="0.25"
+                        />
+                        <circle cx="12" cy="10" r="2.6" fill="currentColor" />
+                      </svg>
+                      {hit.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
@@ -449,6 +532,7 @@ export default function StepEditor({
               mapStyle={mapStyle}
               onMapClick={pickLocation}
               autoFit={false}
+              focusPoint={focusPoint}
               className="h-full w-full"
             />
           </div>

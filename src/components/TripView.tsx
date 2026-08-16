@@ -34,6 +34,8 @@ export default function TripView({
   const articleRefs = useRef(new Map<number, HTMLElement>());
   // Nach einem Marker-Klick soll das Scroll-Tracking kurz stillhalten.
   const suppressObserver = useRef(false);
+  const kartenBox = useRef<HTMLDivElement>(null);
+  const [kartenHoehe, setKartenHoehe] = useState<number | null>(null);
 
   const mapSteps = useMemo<MapStep[]>(
     () =>
@@ -75,6 +77,33 @@ export default function TripView({
     return () => observer.disconnect();
   }, [steps]);
 
+  /**
+   * Auf dem Handy soll die Karte bis zum unteren Rand reichen. Wie viel Platz
+   * über ihr liegt, hängt von der Ansicht ab – die angemeldete hat eine
+   * Kopfleiste, der Share-Link nicht. Deshalb wird gemessen statt gerechnet.
+   */
+  useEffect(() => {
+    if (mobileView !== "map") return;
+    const messen = () => {
+      const box = kartenBox.current;
+      if (!box) return;
+      // Ab der großen Ansicht regelt das Stylesheet die Höhe.
+      if (window.matchMedia("(min-width: 1024px)").matches) {
+        setKartenHoehe(null);
+        return;
+      }
+      const oben = box.getBoundingClientRect().top;
+      setKartenHoehe(Math.max(320, window.innerHeight - oben - 12));
+    };
+    messen();
+    window.addEventListener("resize", messen);
+    window.addEventListener("orientationchange", messen);
+    return () => {
+      window.removeEventListener("resize", messen);
+      window.removeEventListener("orientationchange", messen);
+    };
+  }, [mobileView]);
+
   // Beim Aufruf mit #step-123 direkt dorthin springen.
   useEffect(() => {
     const hash = window.location.hash;
@@ -104,11 +133,20 @@ export default function TripView({
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-24 pt-5 lg:pb-10">
-      {header}
+    <div
+      className={`mx-auto max-w-6xl px-4 pt-5 lg:pb-10 ${
+        mobileView === "map" ? "pb-0" : "pb-24"
+      }`}
+    >
+      {/* Im Kartenmodus tritt der Kopfbereich auf dem Handy zurück, damit die
+          Karte den Bildschirm bekommt. */}
+      <div className={mobileView === "map" ? "hidden lg:block" : ""}>
+        {header}
+      </div>
 
-      {/* Umschalter nur auf schmalen Bildschirmen. */}
-      <div className="sticky top-14 z-30 -mx-4 mb-4 bg-paper/85 px-4 py-2 backdrop-blur-lg lg:hidden">
+      {/* Umschalter nur auf schmalen Bildschirmen. Bewusst nicht mitlaufend:
+          eine mitscrollende Leiste über der Timeline wirkt unruhig. */}
+      <div className="mb-4 lg:hidden">
         <div className="flex rounded-full border border-line bg-surface p-1">
           {(["timeline", "map"] as const).map((view) => (
             <button
@@ -172,7 +210,7 @@ export default function TripView({
                         if (element) articleRefs.current.set(step.id, element);
                         else articleRefs.current.delete(step.id);
                       }}
-                      className="scroll-mt-32"
+                      className="scroll-mt-20"
                     >
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px] font-medium text-ink-soft">
                         {firstDay && (
@@ -255,7 +293,11 @@ export default function TripView({
             mobileView === "timeline" ? "hidden" : ""
           } lg:sticky lg:top-20 lg:block`}
         >
-          <div className="relative h-[calc(100dvh-11rem)] overflow-hidden rounded-3xl border border-line shadow-card lg:h-[calc(100dvh-7rem)]">
+          <div
+            ref={kartenBox}
+            style={kartenHoehe ? { height: kartenHoehe } : undefined}
+            className="relative h-[70dvh] overflow-hidden rounded-3xl border border-line shadow-card lg:h-[calc(100dvh-7rem)]"
+          >
             <MapCanvas
               steps={mapSteps}
               mapStyle={mapStyle}

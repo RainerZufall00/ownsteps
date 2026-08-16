@@ -69,6 +69,7 @@ src/
 | `GET /api/photos/[id]/[variant]` | Fotos ausliefern, **mit Zugriffsprüfung** |
 | `GET /api/map/[...path]` | Proxy zu MapTiler, hängt den Key serverseitig an |
 | `GET /api/geocode?lat=&lon=` | Ortsname für einen von Hand gesetzten Pin |
+| `GET /api/geocode/search?q=` | Ortssuche mit Vorschlägen für den Editor |
 | `GET /api/auth/oidc/start` | OIDC-Anmeldung beginnen |
 | `GET /api/auth/oidc/callback` | Rückkehr vom Anbieter, Sitzung anlegen |
 | `GET /api/health` | Healthcheck für Docker |
@@ -310,6 +311,14 @@ etwa `satellite`, `outdoor-v2` oder `streets-v2`.
 Stationen blättert; sie rastet je Eintrag ein und zieht die Karte mit. Ein
 Antippen der bereits aktiven Station springt zum Beitrag in der Timeline.
 
+**Im Kartenmodus wird die Höhe gemessen, nicht gerechnet.** Auf dem Handy soll
+die Karte bis zum unteren Rand reichen; wie viel Platz über ihr liegt, hängt
+aber von der Ansicht ab – die angemeldete hat eine Kopfleiste, der Share-Link
+nicht. Eine feste Rechnung wie `100dvh - 11rem` ließ die Karte in der
+Besucheransicht auf ein Drittel schrumpfen. Jetzt liefert
+`getBoundingClientRect().top` den Startpunkt, und der Kopfbereich tritt auf
+schmalen Bildschirmen ganz zurück.
+
 In `TripMap.tsx` gilt:
 
 - **Marker hängen nicht am `load`-Ereignis.** Sie sind gewöhnliche
@@ -429,10 +438,13 @@ wäre unterwegs hochgeladenes Material weg, sobald jemand die Seite verlässt.
 Deshalb setzt `/api/upload` `published = true`, sobald ein Foto durch ist.
 Entwürfe ohne Fotos räumt `cleanupStaleDrafts` nach sieben Tagen ab.
 
-### [E8] Ort primär aus EXIF
+### [E8] Ort primär aus EXIF, mit drei Rückfallebenen
 Ausdrücklicher Wunsch: unterwegs soll nichts von Hand eingetragen werden
-müssen. Das Antippen der Karte im Editor ist nur die Rückfallebene für Fotos
-ohne GPS. Eine Ortssuche per Texteingabe gibt es bewusst nicht.
+müssen. In der Praxis reicht das nicht – iOS entfernt die Position je nach
+Weg beim Teilen. Deshalb gibt es zusätzlich, in dieser Reihenfolge:
+**„Mein Standort"** (Position des Geräts), die **Ortssuche** im Ortsfeld
+(MapTiler-Geocoding, Auswahl setzt Namen, Koordinaten und Kartenausschnitt)
+und als Letztes das **Antippen der Karte**.
 
 ### [E9] maplibre-gl auf Version 5 festhalten
 v6 leitet die Adresse seines Workers aus `import.meta.url` ab. Nach dem Bündeln
