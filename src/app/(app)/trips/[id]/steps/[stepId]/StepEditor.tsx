@@ -7,6 +7,7 @@ import MapCanvas from "@/components/MapCanvas";
 import PhotoImg from "@/components/PhotoImg";
 import SubmitButton from "@/components/SubmitButton";
 import { toDateInput } from "@/lib/format";
+import { MAX_BILD_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
 import type { ViewPhoto } from "@/lib/view-types";
 import {
   deletePhotoAction,
@@ -178,11 +179,25 @@ export default function StepEditor({
 
     for (const [index, file] of files.entries()) {
       try {
+        const istVideo = file.type.startsWith("video/");
+        const grenze = istVideo ? MAX_VIDEO_BYTES : MAX_BILD_BYTES;
+        if (file.size > grenze) {
+          // Vor dem Hochladen abfangen: Sonst wandern hundert Megabyte durchs
+          // Netz, nur damit der Server sie am Ende ablehnt.
+          setProblems((current) => [
+            ...current,
+            `${file.name}: ${Math.round(file.size / 1024 / 1024)} MB – erlaubt sind ` +
+              `${Math.round(grenze / 1024 / 1024)} MB.`,
+          ]);
+          setUpload({ done: index + 1, total: files.length, current: 0 });
+          continue;
+        }
+
         const body = new FormData();
         body.append("stepId", String(step.id));
         body.append("files", file);
 
-        if (file.type.startsWith("video/")) {
+        if (istVideo) {
           // Das Standbild braucht einen Moment – ohne Hinweis wirkt das wie
           // ein Hänger, weil der Fortschrittsbalken noch bei null steht.
           setUpload({

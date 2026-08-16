@@ -286,6 +286,27 @@ unverändert auf der Platte. Eine Verkleinerung bräuchte ffmpeg im Image
 in Echtzeit läuft – ein Video von drei Minuten kostet dann drei Minuten
 Wartezeit.
 
+#### Woher die Größengrenze kommt
+
+`src/lib/limits.ts` hält die Grenzen an einer Stelle, weil sowohl der Editor
+(vor dem Hochladen) als auch `/api/upload` (danach) sie brauchen: **25 MB pro
+Bild, 400 MB pro Video.** Der Editor prüft zuerst – sonst wandern hundert
+Megabyte durchs Netz, nur damit der Server sie am Ende ablehnt.
+
+Die 400 MB sind eine **Speichergrenze, keine Formatgrenze**. `/api/upload`
+liest die Datei am Stück: einmal beim Zerlegen des Formulars
+(`request.formData()`), einmal als `Buffer`. Für ein 400-MB-Video hält der
+Server also kurzzeitig rund ein Gigabyte im Arbeitsspeicher. Auf einem kleinen
+VPS ist das die reale Obergrenze, nicht die Zahl in der Konstante. Wer sie
+anheben will, muss vorher das Buffern loswerden – also den Rumpf der Anfrage
+streamend auf die Platte schreiben, statt `formData()` zu benutzen.
+
+Davor liegen zwei Grenzen, die OwnSteps nicht kennt und die sich anders
+melden: der **Reverse Proxy** (nginx `client_max_body_size`, bei Pangolin die
+Einstellung des Tunnels) bricht mit `413` ab, und dessen **Zeitlimit** kappt
+lange Uploads über eine dünne Leitung. Ein Upload, der ohne App-Logzeile
+scheitert, ist fast immer dort hängengeblieben.
+
 ---
 
 ## 7. Karte
@@ -604,6 +625,32 @@ steht `serverActions.bodySizeLimit` auf bescheidenen 2 MB: Server Actions
 übertragen hier nur Formulartexte, alles Große läuft über `/api/upload`. Wer
 später einen weiteren Weg für große Uploads baut, muss ihn ebenfalls ausnehmen.
 
+**Vollbild-Overlays brauchen `100svh`, nicht `inset-0`.** Auf dem Handy ist
+der Bezugsrahmen für `position: fixed` der Viewport **ohne** Adressleiste. Ein
+`fixed inset-0` reicht deshalb unter die Browserleiste – und das unterste Kind
+ist unsichtbar, ohne dass im DOM oder in den Maßen etwas auffällig wäre. In der
+Vollbildansicht traf es die Bildunterschrift: im Quelltext vorhanden, auf dem
+Gerät weg. `h-[100svh]` rechnet mit sichtbarer Leiste und ist stabil, während
+`100dvh` bei jedem Ein- und Ausblenden der Leiste springt. Der untere Rand
+bekommt zusätzlich `env(safe-area-inset-bottom)`, sonst liegt er beim iPhone
+unter dem Home-Indikator.
+
+**Die Bedienleiste eines Videos gehört dem Browser.** In der Vollbildansicht
+hängen die Wischgesten am Rahmen der Kachel, nicht am Medium – und beim Video
+werden Gesten ignoriert, die in den untersten 64 Pixeln des Videos beginnen.
+Sonst wird jedes Spulen zum Blättern. Aus demselben Grund gibt es dort **kein**
+`setPointerCapture` (es nähme den nativen Bedienelementen die Ereignisse) und
+**kein** `touch-action: none` (das erbt in den Shadow-DOM der Bedienleiste und
+macht den Fortschrittsbalken unbedienbar). Weil ein Tipp beim Video dem
+Abspielen gehört, kann er nicht weiterblättern – deshalb sind die Pfeiltasten
+bei Videos auf **jeder** Bildschirmgröße sichtbar, bei Fotos nur ab `sm`.
+
+**Beim Pausieren nicht über die Videoliste indizieren.** `photos` enthält Fotos
+*und* Videos; `querySelectorAll("video")` liefert nur die Videos. Wer den
+Streifen-Index auf diese Liste anwendet, pausiert bei gemischten Beiträgen das
+falsche Element – meist genau das gerade laufende. Die Position steht deshalb
+als `data-pos` am `<video>`.
+
 **Neue Abhängigkeiten mit nativen Anteilen im Docker-Build prüfen.** Die
 Installation läuft mit `--ignore-scripts` (Begründung unter [E10]); ein Paket,
 das auf sein install-Script angewiesen ist, fällt dabei still aus. Gegenprobe
@@ -630,6 +677,13 @@ Verifiziert (Produktions-Build, echte HTTP-Anfragen):
 - Umschreibung des MapTiler-Styles: Key entfernt, Platzhalter unversehrt
 - Gleichzeitiger Start: sechs Prozesse auf leerer Datenbank, genau eine
   Migration, keine Sperrfehler; fünf Builds auf frischer Datenbank in Folge
+- Vollbildansicht mit gemischtem Beitrag (Foto + zwei Videos) bei 375 × 812:
+  Wischen auf dem Videokörper blättert, dieselbe Bewegung auf der Bedienleiste
+  nicht; ein Tipp aufs Video blättert nicht, aufs Foto schon; die Pfeile
+  schalten zwischen beiden Videos; beim Wechsel wird das *andere* Video
+  pausiert, nicht das laufende; die Unterschrift wechselt bei Foto wie Video mit
+- Bildunterschriften von Videos: über das echte Formular gespeichert und in der
+  Share-Ansicht wieder ausgeliefert
 
 Nicht verifiziert – hier ist beim Weiterbauen Vorsicht angebracht:
 

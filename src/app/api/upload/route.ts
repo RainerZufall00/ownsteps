@@ -4,10 +4,9 @@ import { photos, steps } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { reverseGeocode } from "@/lib/geocode";
 import { processUpload, processVideo } from "@/lib/images";
+import { MAX_BILD_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
 import { deletePhoto } from "@/lib/photos";
 
-const MAX_BILD_BYTES = 25 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 400 * 1024 * 1024;
 const ACCEPTED = /^image\/(jpeg|png|webp|avif|heic|heif|tiff)$/i;
 const ACCEPTED_VIDEO = /^video\//i;
 

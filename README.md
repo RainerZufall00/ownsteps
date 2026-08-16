@@ -117,16 +117,31 @@ Für große Fotos sollte der Proxy Uploads bis 25 MB erlauben (nginx:
 
 Neben Fotos lassen sich auch **Videos** hochladen (bis 400 MB). Das Standbild
 entsteht dabei im Browser; die Datei selbst wird unverändert gespeichert, es
-wird also nichts umgerechnet. Steht ein Reverse Proxy davor, muss der große
-Uploads durchlassen – bei nginx etwa `client_max_body_size 400m;`.
+wird also nichts umgerechnet.
+
+Die 400 MB sind eine Speicher- und keine Formatgrenze: Der Server liest die
+Datei am Stück ein und braucht dafür kurzzeitig etwa das Doppelte an
+Arbeitsspeicher. Auf einem kleinen VPS ist das die eigentliche Grenze. Größere
+Dateien lehnt der Editor gleich beim Auswählen ab, statt sie erst hochzuladen.
+Steht ein Reverse Proxy davor, muss der große Uploads durchlassen – bei nginx
+etwa `client_max_body_size 400m;`; bricht ein Upload ohne Eintrag im
+Container-Log ab, liegt es fast immer an ihm.
 
 Wer den Link hat, kann **kommentieren** – Name eintippen, Text schreiben, ohne
 Account. Löschen können Kommentare nur angemeldete Autoren.
 
 In der Timeline steht der **Ort** als Überschrift; eine eigene Überschrift gibt
-es nicht. Pro Foto lässt sich eine **Bildunterschrift** hinterlegen, die in der
-Vollbildansicht erscheint. Dort blättert ein Tippen auf die rechte bzw. linke
-Seite weiter, ein Doppeltipp oder zwei Finger zoomen.
+es nicht. Pro Foto **und pro Video** lässt sich eine **Bildunterschrift**
+hinterlegen, die in der Vollbildansicht unter dem Medium erscheint. Dort
+blättert ein Tippen auf die rechte bzw. linke Seite weiter, ein Doppeltipp oder
+zwei Finger zoomen.
+
+Bei einem **Video** gehört der Tipp dem Abspielen. Weiter geht es dort durch
+Wischen über das Bild oder über die Pfeile links und rechts, die bei Videos auf
+jedem Gerät eingeblendet werden. Gesten auf der Bedienleiste des Videos bleiben
+dem Spulen vorbehalten. Wird das Video über den Vollbildknopf in die Ansicht
+des Browsers übergeben, zeigt dieser nur das Video – Unterschrift und Pfeile
+sind dann erst nach dem Verlassen wieder da.
 
 Die **Kartenansicht** hat unten eine Leiste, über die man die Stationen
 durchblättert – die Karte zieht mit. Ein zweites Antippen springt zum Beitrag.
