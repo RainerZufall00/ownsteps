@@ -30,6 +30,29 @@ export function variantPath(storageKey: string, variant: VariantName) {
   return path.join(photoDir(storageKey), `${variant}.webp`);
 }
 
+export function videoPath(storageKey: string) {
+  return path.join(photoDir(storageKey), "video");
+}
+
+/**
+ * Legt ein Video ab. Das Standbild kommt als fertiges Bild vom Browser und
+ * durchläuft dieselbe Aufbereitung wie ein Foto – so bleibt das Image frei von
+ * ffmpeg, und Raster wie Vollbildansicht behandeln beide Medien gleich.
+ */
+export async function processVideo(
+  video: Buffer,
+  poster: Buffer,
+): Promise<ExtractedMeta> {
+  const meta = await processUpload(poster);
+  try {
+    await fs.writeFile(videoPath(meta.storageKey), video);
+  } catch (error) {
+    await fs.rm(photoDir(meta.storageKey), { recursive: true, force: true });
+    throw error;
+  }
+  return { ...meta, bytes: meta.bytes + video.byteLength };
+}
+
 export type ExtractedMeta = {
   width: number;
   height: number;

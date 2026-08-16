@@ -61,6 +61,18 @@ export function formatDuration(from: number | null, to: number | null) {
   return days === 1 ? "1 Tag" : `${days} Tage`;
 }
 
+/** Länge eines Videos als m:ss – bei über einer Stunde als h:mm:ss. */
+export function formatMediaDuration(ms: number) {
+  const gesamt = Math.round(ms / 1000);
+  const stunden = Math.floor(gesamt / 3600);
+  const minuten = Math.floor((gesamt % 3600) / 60);
+  const sekunden = gesamt % 60;
+  const zwei = (n: number) => String(n).padStart(2, "0");
+  return stunden > 0
+    ? `${stunden}:${zwei(minuten)}:${zwei(sekunden)}`
+    : `${minuten}:${zwei(sekunden)}`;
+}
+
 export function pluralize(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
 }

@@ -62,7 +62,68 @@ export default function StepEditor({
   const suchTimer = useRef<number | undefined>(undefined);
 
   /**
-   * Bilder gehen einzeln raus: das hält den Speicherbedarf auf dem VPS klein
+   * Holt ein Standbild aus einem Video. Der Browser kann das Video ohnehin
+   * dekodieren – so bleibt ffmpeg aus dem Docker-Image heraus.
+   */
+  async function videoStandbild(file: File) {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+
+    try {
+      await new Promise<void>((fertig, fehler) => {
+        const abbruch = window.setTimeout(
+          () => fehler(new Error("Zeitüberschreitung")),
+          20000,
+        );
+        video.onloadeddata = () => {
+          window.clearTimeout(abbruch);
+          fertig();
+        };
+        video.onerror = () => {
+          window.clearTimeout(abbruch);
+          fehler(new Error("Video nicht lesbar"));
+        };
+      });
+
+      // Etwas hineinspringen – das allererste Bild ist oft schwarz.
+      const zielZeit = Number.isFinite(video.duration)
+        ? Math.min(1, video.duration / 3)
+        : 0;
+      if (zielZeit > 0) {
+        await new Promise<void>((fertig) => {
+          video.onseeked = () => fertig();
+          video.currentTime = zielZeit;
+          window.setTimeout(fertig, 3000);
+        });
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise<Blob | null>((fertig) =>
+        canvas.toBlob(fertig, "image/jpeg", 0.85),
+      );
+      if (!blob) throw new Error("Standbild konnte nicht erzeugt werden");
+
+      return {
+        poster: new File([blob], "poster.jpg", { type: "image/jpeg" }),
+        durationMs: Number.isFinite(video.duration)
+          ? Math.round(video.duration * 1000)
+          : 0,
+      };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  /**
+   * Dateien gehen einzeln raus: das hält den Speicherbedarf auf dem VPS klein
    * und zeigt unterwegs einen ehrlichen Fortschritt.
    */
   async function uploadFiles(files: File[]) {
@@ -75,6 +136,12 @@ export default function StepEditor({
         const body = new FormData();
         body.append("stepId", String(step.id));
         body.append("files", file);
+
+        if (file.type.startsWith("video/")) {
+          const standbild = await videoStandbild(file);
+          body.append("poster0", standbild.poster);
+          body.append("duration0", String(standbild.durationMs));
+        }
 
         const result = await new Promise<{
           photos: ViewPhoto[];
@@ -295,13 +362,20 @@ export default function StepEditor({
                   key={photo.id}
                   className="flex gap-3 rounded-2xl border border-line p-2"
                 >
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
+                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
                     <PhotoImg
                       photo={photo}
                       variant="thumb"
                       className="h-full w-full object-cover"
                       sizes="80px"
                     />
+                    {photo.mediaType === "video" && (
+                      <span className="absolute inset-0 grid place-items-center bg-black/25">
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 fill-white drop-shadow">
+                          <path d="M8 5.5v13l11-6.5z" />
+                        </svg>
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
@@ -363,13 +437,13 @@ export default function StepEditor({
                 strokeLinecap="round"
               />
             </svg>
-            Fotos hinzufügen
+            Fotos oder Videos hinzufügen
           </button>
 
           <input
             ref={fileInput}
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             multiple
             className="hidden"
             onChange={(event) => {

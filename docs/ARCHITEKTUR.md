@@ -129,6 +129,9 @@ erDiagram
         real lon
         text placeholder "winziges base64-JPEG"
         text caption "optional, in der Vollbildansicht"
+        text media_type "photo oder video"
+        int duration_ms "nur bei Videos"
+        text video_mime "nur bei Videos"
         int sort_order
     }
     comments {
@@ -215,7 +218,7 @@ sie ruhig bei null anfangen.
 
 ---
 
-## 6. Bildpipeline
+## 6. Bild- und Videopipeline
 
 ```
 Browser ──(eine Datei pro Request)──> POST /api/upload
@@ -245,6 +248,24 @@ Browser ──(eine Datei pro Request)──> POST /api/upload
 - **Aus dem ersten Foto mit GPS** übernimmt der Beitrag Ort und Aufnahmezeit,
   und `reverseGeocode` macht daraus einen Ortsnamen. Nur solange der Beitrag
   noch nichts Eigenes gesetzt hat.
+
+### Videos
+
+Videos liegen in denselben Ordnern wie Fotos, als Datei `video`; die drei
+Bildgrößen zeigen dann das **Standbild**. Dadurch behandeln Raster, Karte und
+Vollbildansicht beide Medien gleich – nur `photos.media_type` unterscheidet sie.
+
+**Das Standbild erzeugt der Browser**, nicht der Server: Beim Auswählen wird
+das Video in ein `<video>`-Element geladen, ein Stück hineingesprungen (das
+erste Bild ist oft schwarz) und der Frame über ein `<canvas>` als JPEG
+abgegriffen. Das erspart dem Image ffmpeg samt seiner rund 150 MB und der
+Bauzeit; die Dekodierfähigkeit bringt jedes Gerät ohnehin mit, das das Video
+aufgenommen hat. Der Preis: Ohne JavaScript kein Video-Upload, und die
+Videodatei wird **unverändert** gespeichert – es gibt keine Umkodierung.
+
+Ausgeliefert werden Videos mit **Bereichsanfragen** (`Range`, Status 206).
+Ohne die ließe sich im Video nicht springen, und Safari spielt es teilweise gar
+nicht erst ab.
 
 ---
 

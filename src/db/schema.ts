@@ -97,6 +97,13 @@ export const photos = sqliteTable(
     originalName: text("original_name"),
     /** Optionale Bildunterschrift, erscheint in der Vollbildansicht. */
     caption: text("caption"),
+    /** "photo" oder "video" – bei Videos sind die Bildgrößen das Standbild. */
+    mediaType: text("media_type", { enum: ["photo", "video"] })
+      .notNull()
+      .default("photo"),
+    /** Nur bei Videos: Länge in Millisekunden und der Typ der Datei. */
+    durationMs: integer("duration_ms"),
+    videoMime: text("video_mime"),
     width: integer("width").notNull(),
     height: integer("height").notNull(),
     bytes: integer("bytes").notNull().default(0),

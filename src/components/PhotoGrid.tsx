@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatMediaDuration } from "@/lib/format";
 import type { ViewPhoto } from "@/lib/view-types";
 import Lightbox from "./Lightbox";
 import PhotoImg from "./PhotoImg";
@@ -56,6 +57,21 @@ export default function PhotoGrid({
                 }
                 sizes={single ? "(max-width: 768px) 100vw, 640px" : "300px"}
               />
+              {photo.mediaType === "video" && (
+                <span className="pointer-events-none absolute inset-0 grid place-items-center">
+                  <span className="grid h-11 w-11 place-items-center rounded-full bg-black/45 backdrop-blur-sm">
+                    <svg viewBox="0 0 24 24" className="ml-0.5 h-5 w-5 fill-white">
+                      <path d="M8 5.5v13l11-6.5z" />
+                    </svg>
+                  </span>
+                  {photo.durationMs ? (
+                    <span className="absolute bottom-1.5 right-1.5 rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-white">
+                      {formatMediaDuration(photo.durationMs)}
+                    </span>
+                  ) : null}
+                </span>
+              )}
+
               {hidden > 0 && index === visible.length - 1 && (
                 <span className="absolute inset-0 grid place-items-center bg-black/45 text-xl font-bold text-white">
                   +{hidden}

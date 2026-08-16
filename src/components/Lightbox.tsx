@@ -13,6 +13,8 @@ type Zoom = { scale: number; x: number; y: number };
 
 const OHNE_ZOOM: Zoom = { scale: 1, x: 0, y: 0 };
 const MAX_SCALE = 4;
+/** Ab diesem Anteil der Bildschirmbreite rastet das nächste Medium ein. */
+const BLAETTER_SCHWELLE = 0.22;
 
 function abstand(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y);
@@ -20,11 +22,10 @@ function abstand(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 export default function Lightbox({ photos, startIndex, onClose }: Props) {
   const [index, setIndex] = useState(startIndex);
+  const [zug, setZug] = useState(0);
   const [zoom, setZoom] = useState<Zoom>(OHNE_ZOOM);
-  // Während eine Geste läuft, soll das Bild dem Finger ohne Nachlauf folgen.
-  const [inGeste, setInGeste] = useState(false);
+  const [animiert, setAnimiert] = useState(true);
 
-  // Alle laufenden Finger; ab zwei davon wird gezoomt statt geblättert.
   const zeiger = useRef(new Map<number, { x: number; y: number }>());
   const geste = useRef({
     startAbstand: 0,
@@ -35,17 +36,26 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
     bewegt: false,
     beginn: 0,
     letzterTipp: 0,
+    /**
+     * Sobald zwei Finger im Spiel waren, wird bis zum Loslassen aller Finger
+     * weder geblättert noch getippt. Ohne das wurde der zuletzt gehobene
+     * Finger einer Zoom-Geste als Wischen gedeutet – die Ansicht sprang dann
+     * ins nächste Bild oder aus dem Zoom heraus.
+     */
+    warPinch: false,
   });
 
   const gezoomt = zoom.scale > 1.01;
+  const medium = photos[index];
 
   const blaettern = useCallback(
     (delta: number) => {
+      setAnimiert(true);
+      setZug(0);
       setZoom(OHNE_ZOOM);
       setIndex((current) => {
         const next = current + delta;
-        if (next < 0) return photos.length - 1;
-        if (next >= photos.length) return 0;
+        if (next < 0 || next >= photos.length) return current;
         return next;
       });
     },
@@ -67,13 +77,19 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
     };
   }, [blaettern, onClose]);
 
-  const photo = photos[index];
-  if (!photo) return null;
+  // Beim Wechsel läuft kein Video im Hintergrund weiter.
+  useEffect(() => {
+    document.querySelectorAll<HTMLVideoElement>(".ownsteps-lightbox video")
+      .forEach((video, i) => {
+        if (i !== index) video.pause();
+      });
+  }, [index]);
+
+  if (!medium) return null;
 
   function begrenze(next: Zoom): Zoom {
     const scale = Math.min(Math.max(next.scale, 1), MAX_SCALE);
     if (scale <= 1.01) return OHNE_ZOOM;
-    // Grob im Rahmen halten, damit das Bild nicht aus dem Blick rutscht.
     const spielraum = 400 * (scale - 1);
     return {
       scale,
@@ -83,16 +99,12 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
   }
 
   function onPointerDown(event: React.PointerEvent) {
-    // Darf fehlschlagen (etwa bei Pointern, die der Browser nicht mehr kennt)
-    // und würde sonst die gesamte Gestenerkennung mit sich reißen.
     try {
       (event.target as Element).setPointerCapture?.(event.pointerId);
     } catch {
-      // Ohne Capture funktioniert alles weiter, nur außerhalb des Bildes
-      // endende Gesten gehen verloren.
+      // Ohne Capture funktioniert alles weiter.
     }
     zeiger.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    setInGeste(true);
 
     const g = geste.current;
     g.bewegt = false;
@@ -100,11 +112,14 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
     g.startX = event.clientX;
     g.startY = event.clientY;
     g.zoomStart = zoom;
+    setAnimiert(false);
 
     if (zeiger.current.size === 2) {
       const [a, b] = [...zeiger.current.values()];
       g.startAbstand = abstand(a, b);
       g.startScale = zoom.scale;
+      g.warPinch = true;
+      setZug(0);
     }
   }
 
@@ -117,27 +132,29 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
       const [a, b] = [...zeiger.current.values()];
       if (g.startAbstand > 0) {
         g.bewegt = true;
-        const faktor = abstand(a, b) / g.startAbstand;
-        setZoom((z) => begrenze({ ...z, scale: g.startScale * faktor }));
+        setZoom(begrenze({ ...zoom, scale: g.startScale * (abstand(a, b) / g.startAbstand) }));
       }
       return;
     }
 
+    // Nach einer Zoom-Geste bleibt der verbliebene Finger wirkungslos.
+    if (g.warPinch) return;
+
     const dx = event.clientX - g.startX;
     const dy = event.clientY - g.startY;
-    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) g.bewegt = true;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) g.bewegt = true;
 
-    // Nur im gezoomten Zustand wird das Bild verschoben; sonst bleibt die
-    // Wischgeste fürs Blättern reserviert.
     if (gezoomt) {
       setZoom(
-        begrenze({
-          scale: g.zoomStart.scale,
-          x: g.zoomStart.x + dx,
-          y: g.zoomStart.y + dy,
-        }),
+        begrenze({ scale: g.zoomStart.scale, x: g.zoomStart.x + dx, y: g.zoomStart.y + dy }),
       );
+      return;
     }
+
+    // Das Medium wandert mit dem Finger, an den Enden gebremst.
+    const amRand =
+      (index === 0 && dx > 0) || (index === photos.length - 1 && dx < 0);
+    setZug(amRand ? dx * 0.3 : dx);
   }
 
   function onPointerUp(event: React.PointerEvent) {
@@ -145,50 +162,53 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
     const dx = event.clientX - g.startX;
     const dy = event.clientY - g.startY;
     const dauer = Date.now() - g.beginn;
-    const warEinzeln = zeiger.current.size === 1;
-    // Maße jetzt festhalten – im setTimeout weiter unten ist das Event weg.
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const relativ = (event.clientX - rect.left) / rect.width;
 
     zeiger.current.delete(event.pointerId);
     if (zeiger.current.size < 2) g.startAbstand = 0;
-    if (zeiger.current.size === 0) setInGeste(false);
-    if (!warEinzeln) return;
 
-    // Nach unten wischen schließt – die Geste, die man von Fotogalerien kennt.
-    if (!gezoomt && g.bewegt && dy > 90 && Math.abs(dy) > Math.abs(dx)) {
+    // Erst wenn alle Finger weg sind, zählt wieder eine neue Geste.
+    if (zeiger.current.size > 0) return;
+    if (g.warPinch) {
+      g.warPinch = false;
+      setAnimiert(true);
+      setZug(0);
+      return;
+    }
+
+    setAnimiert(true);
+
+    if (gezoomt) {
+      // Im Zoom: kurzer Tipp holt zurück auf die Übersicht.
+      if (!g.bewegt && dauer < 250) setZoom(OHNE_ZOOM);
+      return;
+    }
+
+    // Nach unten wischen schließt.
+    if (g.bewegt && dy > 90 && Math.abs(dy) > Math.abs(dx)) {
+      setZug(0);
       onClose();
       return;
     }
 
-    // Wischen blättert – aber nur, solange nicht gezoomt ist.
-    if (!gezoomt && g.bewegt && Math.abs(dx) > 50) {
-      blaettern(dx < 0 ? 1 : -1);
+    if (g.bewegt) {
+      const schwelle = window.innerWidth * BLAETTER_SCHWELLE;
+      if (Math.abs(dx) > schwelle) blaettern(dx < 0 ? 1 : -1);
+      else setZug(0);
       return;
     }
-    if (g.bewegt) return;
 
-    // Zwei kurze Tipps hintereinander zoomen hinein und wieder heraus.
+    // Zwei kurze Tipps zoomen hinein.
     const jetzt = Date.now();
     if (dauer < 250 && jetzt - g.letzterTipp < 300) {
       g.letzterTipp = 0;
-      setZoom((z) => (z.scale > 1.01 ? OHNE_ZOOM : begrenze({ scale: 2.5, x: 0, y: 0 })));
+      setZoom(begrenze({ scale: 2.5, x: 0, y: 0 }));
       return;
     }
     g.letzterTipp = jetzt;
 
-    // Im gezoomten Bild holt ein einzelner Tipp zurück auf die Übersicht –
-    // sonst sitzt man in der Vergrößerung fest.
-    if (gezoomt) {
-      window.setTimeout(() => {
-        if (geste.current.letzterTipp !== jetzt) return;
-        setZoom(OHNE_ZOOM);
-      }, 260);
-      return;
-    }
-
-    // Einfacher Tipp: linkes Drittel zurück, sonst weiter. Kurz abwarten,
-    // damit ein zweiter Tipp noch als Doppeltipp durchgehen kann.
+    // Einfacher Tipp: linkes Drittel zurück, sonst weiter.
     window.setTimeout(() => {
       if (geste.current.letzterTipp !== jetzt) return;
       blaettern(relativ < 0.33 ? -1 : 1);
@@ -197,10 +217,10 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-sm"
+      className="ownsteps-lightbox fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Foto"
+      aria-label="Medien"
     >
       <div className="flex shrink-0 items-center justify-between px-4 py-3 text-white/80">
         <span className="text-sm tabular-nums">
@@ -223,46 +243,67 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
           aria-label="Schließen"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-            <path
-              d="m6 6 12 12M18 6 6 18"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
+            <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>
       </div>
 
-      {/* Fläche neben dem Bild schließt die Ansicht. */}
-      <div
-        className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
-        onClick={(event) => {
-          if (event.target === event.currentTarget) onClose();
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={photo.id}
-          src={`/api/photos/${photo.id}/large`}
-          alt={photo.caption ?? ""}
-          draggable={false}
-          className="max-h-full max-w-full touch-none select-none object-contain"
+      {/* Alle Medien liegen nebeneinander; verschoben wird die ganze Reihe. */}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <div
+          className="flex h-full"
           style={{
-            transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})`,
-            transition: inGeste ? "none" : "transform 0.2s ease-out",
-            cursor: gezoomt ? "grab" : "pointer",
+            transform: `translateX(calc(${-index * 100}% + ${zug}px))`,
+            transition: animiert
+              ? "transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)"
+              : "none",
           }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        />
+        >
+          {photos.map((eintrag, i) => (
+            <div
+              key={eintrag.id}
+              className="flex h-full w-full shrink-0 items-center justify-center px-2"
+            >
+              {eintrag.mediaType === "video" ? (
+                <video
+                  src={`/api/photos/${eintrag.id}/video`}
+                  poster={`/api/photos/${eintrag.id}/medium`}
+                  controls
+                  playsInline
+                  preload={i === index ? "metadata" : "none"}
+                  className="max-h-full max-w-full"
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/api/photos/${eintrag.id}/large`}
+                  alt={eintrag.caption ?? ""}
+                  draggable={false}
+                  className="max-h-full max-w-full touch-none select-none object-contain"
+                  style={
+                    i === index
+                      ? {
+                          transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})`,
+                          transition: animiert ? "transform 0.2s ease-out" : "none",
+                          cursor: gezoomt ? "grab" : "pointer",
+                        }
+                      : undefined
+                  }
+                  onPointerDown={i === index ? onPointerDown : undefined}
+                  onPointerMove={i === index ? onPointerMove : undefined}
+                  onPointerUp={i === index ? onPointerUp : undefined}
+                  onPointerCancel={i === index ? onPointerUp : undefined}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {photo.caption && (
+      {medium.caption && (
         <div className="shrink-0 px-5 pb-6 pt-3">
           <p className="mx-auto max-w-2xl text-center text-[15px] leading-relaxed text-white/90">
-            {photo.caption}
+            {medium.caption}
           </p>
         </div>
       )}
@@ -271,36 +312,24 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
         <>
           <button
             type="button"
-            aria-label="Vorheriges Foto"
-            className="absolute left-2 top-1/2 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:grid"
+            aria-label="Vorheriges Medium"
+            disabled={index === 0}
+            className="absolute left-2 top-1/2 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-25 sm:grid"
             onClick={() => blaettern(-1)}
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-              <path
-                d="m15 5-7 7 7 7"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
+              <path d="m15 5-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
             </svg>
           </button>
           <button
             type="button"
-            aria-label="Nächstes Foto"
-            className="absolute right-2 top-1/2 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:grid"
+            aria-label="Nächstes Medium"
+            disabled={index === photos.length - 1}
+            className="absolute right-2 top-1/2 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-25 sm:grid"
             onClick={() => blaettern(1)}
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-              <path
-                d="m9 5 7 7-7 7"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
+              <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
             </svg>
           </button>
         </>

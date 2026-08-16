@@ -3,11 +3,13 @@ import { db } from "@/db";
 import { photos, steps } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { reverseGeocode } from "@/lib/geocode";
-import { processUpload } from "@/lib/images";
+import { processUpload, processVideo } from "@/lib/images";
 import { deletePhoto } from "@/lib/photos";
 
-const MAX_BYTES = 25 * 1024 * 1024;
+const MAX_BILD_BYTES = 25 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 400 * 1024 * 1024;
 const ACCEPTED = /^image\/(jpeg|png|webp|avif|heic|heif|tiff)$/i;
+const ACCEPTED_VIDEO = /^video\//i;
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -41,21 +43,42 @@ export async function POST(request: Request) {
   const failed: { name: string; reason: string }[] = [];
   let nextOrder = maxOrder + 1;
 
-  for (const file of files) {
-    if (file.size > MAX_BYTES) {
+  for (const [position, file] of files.entries()) {
+    const istVideo = ACCEPTED_VIDEO.test(file.type);
+
+    if (istVideo && file.size > MAX_VIDEO_BYTES) {
+      failed.push({ name: file.name, reason: "Video ist größer als 400 MB." });
+      continue;
+    }
+    if (!istVideo && file.size > MAX_BILD_BYTES) {
       failed.push({ name: file.name, reason: "Datei ist größer als 25 MB." });
       continue;
     }
-    if (file.type && !ACCEPTED.test(file.type)) {
-      failed.push({ name: file.name, reason: "Kein unterstütztes Bildformat." });
+    if (file.type && !istVideo && !ACCEPTED.test(file.type)) {
+      failed.push({ name: file.name, reason: "Kein unterstütztes Format." });
+      continue;
+    }
+
+    // Das Standbild eines Videos erzeugt der Browser beim Auswählen.
+    const poster = form.get(`poster${position}`);
+    if (istVideo && !(poster instanceof File)) {
+      failed.push({
+        name: file.name,
+        reason: "Vorschaubild fehlt – Video konnte nicht gelesen werden.",
+      });
       continue;
     }
 
     try {
-      const meta = await processUpload(
-        Buffer.from(await file.arrayBuffer()),
-      );
-      // Nachvollziehbar machen, was aus dem Bild gelesen wurde – ohne das
+      const daten = Buffer.from(await file.arrayBuffer());
+      const meta = istVideo
+        ? await processVideo(
+            daten,
+            Buffer.from(await (poster as File).arrayBuffer()),
+          )
+        : await processUpload(daten);
+
+      // Nachvollziehbar machen, was aus der Datei gelesen wurde – ohne das
       // rät man bei "kein GPS gefunden" nur herum.
       console.log(
         `[upload] ${file.name} (${file.type || "unbekannt"}, ` +
@@ -63,6 +86,8 @@ export async function POST(request: Request) {
           `Ort ${meta.lat !== null ? `${meta.lat.toFixed(5)},${meta.lon?.toFixed(5)}` : "keiner"}, ` +
           `Zeit ${meta.takenAt ? new Date(meta.takenAt).toISOString() : "keine"}`,
       );
+
+      const dauerRoh = Number(form.get(`duration${position}`));
       const [photo] = await db
         .insert(photos)
         .values({
@@ -78,6 +103,12 @@ export async function POST(request: Request) {
           lon: meta.lon,
           placeholder: meta.placeholder,
           sortOrder: nextOrder++,
+          mediaType: istVideo ? "video" : "photo",
+          videoMime: istVideo ? file.type || "video/mp4" : null,
+          durationMs:
+            istVideo && Number.isFinite(dauerRoh) && dauerRoh > 0
+              ? Math.round(dauerRoh)
+              : null,
         })
         .returning();
       created.push(photo);
@@ -131,6 +162,8 @@ export async function POST(request: Request) {
       height: p.height,
       placeholder: p.placeholder,
       caption: p.caption,
+      mediaType: p.mediaType,
+      durationMs: p.durationMs,
       lat: p.lat,
       lon: p.lon,
       takenAt: p.takenAt,

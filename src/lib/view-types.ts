@@ -6,6 +6,9 @@ export type ViewPhoto = {
   height: number;
   placeholder: string | null;
   caption: string | null;
+  /** Bei "video" zeigen die Bildgrößen das Standbild, die Datei liegt daneben. */
+  mediaType: "photo" | "video";
+  durationMs: number | null;
 };
 
 export type ViewComment = {
@@ -58,6 +61,8 @@ export function toViewStep(step: {
       height: p.height,
       placeholder: p.placeholder,
       caption: p.caption,
+      mediaType: p.mediaType,
+      durationMs: p.durationMs,
     })),
     comments: (step.comments ?? []).map((c) => ({
       id: c.id,

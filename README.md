@@ -115,6 +115,11 @@ Für große Fotos sollte der Proxy Uploads bis 25 MB erlauben (nginx:
 3. **Teilen** – unter „Teilen" den Schalter umlegen und den Link verschicken.
    Optional zusätzlich mit Passwort. Ein neuer Link macht den alten ungültig.
 
+Neben Fotos lassen sich auch **Videos** hochladen (bis 400 MB). Das Standbild
+entsteht dabei im Browser; die Datei selbst wird unverändert gespeichert, es
+wird also nichts umgerechnet. Steht ein Reverse Proxy davor, muss der große
+Uploads durchlassen – bei nginx etwa `client_max_body_size 400m;`.
+
 Wer den Link hat, kann **kommentieren** – Name eintippen, Text schreiben, ohne
 Account. Löschen können Kommentare nur angemeldete Autoren.
 

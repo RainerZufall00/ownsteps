@@ -38,6 +38,8 @@ export default async function StepEditorPage({
           height: photo.height,
           placeholder: photo.placeholder,
           caption: photo.caption,
+          mediaType: photo.mediaType,
+          durationMs: photo.durationMs,
         })),
       }}
     />

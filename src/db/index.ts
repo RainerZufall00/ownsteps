@@ -107,6 +107,14 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS comments_step_idx ON comments(step_id, created_at);
     `,
   },
+  {
+    name: "0003_videos",
+    sql: `
+      ALTER TABLE photos ADD COLUMN media_type TEXT NOT NULL DEFAULT 'photo';
+      ALTER TABLE photos ADD COLUMN duration_ms INTEGER;
+      ALTER TABLE photos ADD COLUMN video_mime TEXT;
+    `,
+  },
 ];
 
 function isBusyError(error: unknown) {
