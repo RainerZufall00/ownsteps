@@ -57,6 +57,8 @@ src/
 ├── components/           Client-Komponenten (Karte, Timeline, Lightbox …)
 ├── db/                   Schema und Verbindung samt Migrationen
 ├── lib/                  Serverlogik, fast alles mit "server-only"
+├── proxy.ts              Zugriffsprotokoll (in Next 16 der Nachfolger von
+│                         middleware.ts – die alte Datei ist abgekündigt)
 └── instrumentation.ts    Läuft einmal beim Serverstart
 ```
 
@@ -266,6 +268,23 @@ Videodatei wird **unverändert** gespeichert – es gibt keine Umkodierung.
 Ausgeliefert werden Videos mit **Bereichsanfragen** (`Range`, Status 206).
 Ohne die ließe sich im Video nicht springen, und Safari spielt es teilweise gar
 nicht erst ab.
+
+> **Falle beim Standbild:** Das `<video>`-Element läuft mit
+> `preload="metadata"`. Wer darauf `loadeddata` abwartet, wartet ewig – dieses
+> Ereignis setzt geladene Bilddaten voraus, die bei dieser Einstellung nie
+> kommen. Richtig ist: auf `loadedmetadata` warten, dann `currentTime` setzen
+> und auf `seeked` warten; für den Sprung lädt der Browser genau den nötigen
+> Ausschnitt nach. Der Fehler ließ jeden Video-Upload in eine
+> Zeitüberschreitung laufen, **bevor** überhaupt etwas an den Server ging –
+> weshalb auch die Server-Logs schwiegen. Scheitert das Standbild trotzdem
+> (etwa bei einem Codec, den der Browser nicht dekodiert), wird ein
+> Ersatzbild erzeugt und das Video trotzdem hochgeladen.
+
+**Videos werden nicht umgerechnet.** Was das Gerät aufnimmt, landet
+unverändert auf der Platte. Eine Verkleinerung bräuchte ffmpeg im Image
+(spart Speicherplatz, nicht Upload-Zeit) oder eine Umwandlung im Browser, die
+in Echtzeit läuft – ein Video von drei Minuten kostet dann drei Minuten
+Wartezeit.
 
 ---
 

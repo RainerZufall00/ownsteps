@@ -29,7 +29,12 @@ type EditorStep = {
   photos: ViewPhoto[];
 };
 
-type UploadState = { done: number; total: number; current: number } | null;
+type UploadState = {
+  done: number;
+  total: number;
+  current: number;
+  hinweis?: string;
+} | null;
 type PlaceHit = { id: string; name: string; lat: number; lon: number };
 
 const initial: ActionState = {};
@@ -61,9 +66,34 @@ export default function StepEditor({
   const fileInput = useRef<HTMLInputElement>(null);
   const suchTimer = useRef<number | undefined>(undefined);
 
+  /** Einfarbiges Ersatzbild, falls sich aus dem Video keines gewinnen lässt. */
+  async function ersatzStandbild() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#2a2622";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "600 64px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Video", canvas.width / 2, canvas.height / 2 + 22);
+    }
+    const blob = await new Promise<Blob | null>((fertig) =>
+      canvas.toBlob(fertig, "image/jpeg", 0.8),
+    );
+    return new File([blob ?? new Blob()], "poster.jpg", { type: "image/jpeg" });
+  }
+
   /**
    * Holt ein Standbild aus einem Video. Der Browser kann das Video ohnehin
    * dekodieren – so bleibt ffmpeg aus dem Docker-Image heraus.
+   *
+   * Wichtig ist die Reihenfolge: Erst auf die Metadaten warten, dann an eine
+   * Stelle springen. Auf `loadeddata` zu warten führte ins Leere, weil bei
+   * `preload="metadata"` gar keine Bilddaten geladen werden – der Upload lief
+   * dadurch in eine Zeitüberschreitung, ohne je zu starten.
    */
   async function videoStandbild(file: File) {
     const url = URL.createObjectURL(file);
@@ -73,50 +103,65 @@ export default function StepEditor({
     video.playsInline = true;
     video.preload = "metadata";
 
-    try {
-      await new Promise<void>((fertig, fehler) => {
-        const abbruch = window.setTimeout(
-          () => fehler(new Error("Zeitüberschreitung")),
-          20000,
+    const warte = (ereignis: string, grenze: number) =>
+      new Promise<boolean>((fertig) => {
+        const timer = window.setTimeout(() => fertig(false), grenze);
+        video.addEventListener(
+          ereignis,
+          () => {
+            window.clearTimeout(timer);
+            fertig(true);
+          },
+          { once: true },
         );
-        video.onloadeddata = () => {
-          window.clearTimeout(abbruch);
-          fertig();
-        };
-        video.onerror = () => {
-          window.clearTimeout(abbruch);
-          fehler(new Error("Video nicht lesbar"));
-        };
+        video.addEventListener(
+          "error",
+          () => {
+            window.clearTimeout(timer);
+            fertig(false);
+          },
+          { once: true },
+        );
       });
 
-      // Etwas hineinspringen – das allererste Bild ist oft schwarz.
-      const zielZeit = Number.isFinite(video.duration)
-        ? Math.min(1, video.duration / 3)
-        : 0;
-      if (zielZeit > 0) {
-        await new Promise<void>((fertig) => {
-          video.onseeked = () => fertig();
-          video.currentTime = zielZeit;
-          window.setTimeout(fertig, 3000);
-        });
+    try {
+      const hatMetadaten = await warte("loadedmetadata", 20000);
+      const dauerMs =
+        hatMetadaten && Number.isFinite(video.duration)
+          ? Math.round(video.duration * 1000)
+          : 0;
+
+      if (hatMetadaten && video.videoWidth > 0) {
+        // Etwas hineinspringen – das erste Bild ist oft schwarz. Der Browser
+        // lädt dafür genau den benötigten Ausschnitt nach.
+        const zielZeit = Number.isFinite(video.duration)
+          ? Math.min(1, video.duration / 3)
+          : 0;
+        video.currentTime = zielZeit;
+        await warte("seeked", 10000);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas
+          .getContext("2d")
+          ?.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const blob = await new Promise<Blob | null>((fertig) =>
+          canvas.toBlob(fertig, "image/jpeg", 0.85),
+        );
+        if (blob && blob.size > 0) {
+          return {
+            poster: new File([blob], "poster.jpg", { type: "image/jpeg" }),
+            durationMs: dauerMs,
+          };
+        }
       }
 
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const blob = await new Promise<Blob | null>((fertig) =>
-        canvas.toBlob(fertig, "image/jpeg", 0.85),
-      );
-      if (!blob) throw new Error("Standbild konnte nicht erzeugt werden");
-
-      return {
-        poster: new File([blob], "poster.jpg", { type: "image/jpeg" }),
-        durationMs: Number.isFinite(video.duration)
-          ? Math.round(video.duration * 1000)
-          : 0,
-      };
+      // Kein Standbild möglich (etwa bei einem Codec, den der Browser nicht
+      // dekodiert). Das Video soll trotzdem hochgeladen werden.
+      console.warn("[upload] Kein Standbild aus dem Video, nehme Ersatzbild");
+      return { poster: await ersatzStandbild(), durationMs: dauerMs };
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -138,6 +183,14 @@ export default function StepEditor({
         body.append("files", file);
 
         if (file.type.startsWith("video/")) {
+          // Das Standbild braucht einen Moment – ohne Hinweis wirkt das wie
+          // ein Hänger, weil der Fortschrittsbalken noch bei null steht.
+          setUpload({
+            done: index,
+            total: files.length,
+            current: 0,
+            hinweis: "Video wird vorbereitet …",
+          });
           const standbild = await videoStandbild(file);
           body.append("poster0", standbild.poster);
           body.append("duration0", String(standbild.durationMs));
