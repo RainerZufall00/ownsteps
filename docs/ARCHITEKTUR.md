@@ -590,6 +590,20 @@ der beiden Fälle als Ziel – sie wechselt bei jedem Neustart und führt danach
 `Bad Gateway`. `BIND_ADDRESS` in der `.env` beschränkt das Port-Mapping auf
 `127.0.0.1`, sobald ein Proxy davorsteht.
 
+**Der Proxy darf `/api/upload` nicht anfassen.** Sobald `src/proxy.ts` eine
+Anfrage sieht, puffert Next deren Rumpf und begrenzt ihn auf 10 MB. Ein
+Video-Upload stirbt dann mitten im Betrieb:
+
+```
+Request body exceeded 10MB for /api/upload
+⨯ TypeError: Failed to parse body as FormData.
+```
+
+Der Pfad steht deshalb in der Ausnahmeliste des `matcher`. Aus demselben Grund
+steht `serverActions.bodySizeLimit` auf bescheidenen 2 MB: Server Actions
+übertragen hier nur Formulartexte, alles Große läuft über `/api/upload`. Wer
+später einen weiteren Weg für große Uploads baut, muss ihn ebenfalls ausnehmen.
+
 **Neue Abhängigkeiten mit nativen Anteilen im Docker-Build prüfen.** Die
 Installation läuft mit `--ignore-scripts` (Begründung unter [E10]); ein Paket,
 das auf sein install-Script angewiesen ist, fällt dabei still aus. Gegenprobe
