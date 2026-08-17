@@ -66,11 +66,20 @@ export default function MapTimelineStrip({
   if (steps.length === 0) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 pb-3">
+    /*
+     * Abstand nach unten: Am Bildschirmrand liegt bei iPhone und iPad die
+     * Wischfläche des Systems – dort landete jedes Blättern im App-Wechsel
+     * statt in der Leiste. Die 2,5 rem halten sie darüber, `safe-area-inset`
+     * kommt für Geräte mit Home-Indikator obendrauf.
+     */
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-10"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 2.5rem)" }}
+    >
       <div
         ref={leiste}
         onScroll={onScroll}
-        className="pointer-events-auto flex snap-x snap-mandatory gap-2 overflow-x-auto px-[calc(50%-6.5rem)] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="pointer-events-auto flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-[calc(50%-8.5rem)] pb-1 [scrollbar-width:none] sm:px-[calc(50%-10rem)] [&::-webkit-scrollbar]:hidden"
       >
         {steps.map((step, index) => {
           const aktiv = step.id === activeStepId;
@@ -83,38 +92,38 @@ export default function MapTimelineStrip({
                 else eintraege.current.delete(step.id);
               }}
               onClick={() => (aktiv ? onOpen(step.id) : onFocus(step.id))}
-              className={`flex w-52 shrink-0 snap-center items-center gap-2.5 rounded-2xl p-2 text-left transition ${
+              className={`flex w-[17rem] shrink-0 snap-center items-center gap-3 rounded-2xl p-2.5 text-left transition sm:w-80 ${
                 aktiv
                   ? "bg-surface shadow-float"
                   : "bg-surface/80 shadow-card backdrop-blur"
               }`}
             >
-              <span className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
+              <span className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
                 {step.photos[0] ? (
                   <PhotoImg
                     photo={step.photos[0]}
                     variant="thumb"
                     className="h-full w-full object-cover"
-                    sizes="48px"
+                    sizes="64px"
                   />
                 ) : (
-                  <span className="grid h-full w-full place-items-center text-sm font-bold text-ink-faint">
+                  <span className="grid h-full w-full place-items-center text-base font-bold text-ink-faint">
                     {index + 1}
                   </span>
                 )}
               </span>
 
               <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-semibold text-accent">
+                <span className="block text-[13px] font-semibold text-accent">
                   {firstDay
                     ? `Tag ${tripDay(firstDay, step.occurredAt)}`
                     : formatDateShort(step.occurredAt)}
                 </span>
-                <span className="block truncate text-[14px] font-semibold leading-tight">
+                <span className="block truncate text-[17px] font-semibold leading-tight">
                   {step.placeName ?? formatDateShort(step.occurredAt)}
                 </span>
                 {aktiv && (
-                  <span className="block text-[11px] text-ink-faint">
+                  <span className="block text-[12px] text-ink-faint">
                     Antippen zum Lesen
                   </span>
                 )}

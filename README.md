@@ -163,6 +163,12 @@ sind dann erst nach dem Verlassen wieder da.
 
 Die **Kartenansicht** hat unten eine Leiste, über die man die Stationen
 durchblättert – die Karte zieht mit. Ein zweites Antippen springt zum Beitrag.
+Sie hält Abstand zum unteren Bildschirmrand, weil dort auf iPhone und iPad die
+Wischfläche des Systems liegt.
+
+Timeline und Karte stehen **ab 1280 Pixel nebeneinander**. Darunter – also auch
+auf dem Tablet im Querformat – schaltet man zwischen beiden um; so bekommt
+jede Ansicht die ganze Breite statt zwei gedrängter Spalten.
 
 Fotos ohne GPS-Daten bekommen keinen automatischen Ort. Im Editor gibt es dafür
 drei Wege: **„Mein Standort"** übernimmt die Position vom Gerät, das **Ortsfeld

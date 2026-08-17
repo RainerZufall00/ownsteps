@@ -387,6 +387,14 @@ etwa `satellite`, `outdoor-v2` oder `streets-v2`.
 Stationen blättert; sie rastet je Eintrag ein und zieht die Karte mit. Ein
 Antippen der bereits aktiven Station springt zum Beitrag in der Timeline.
 
+**Die Leiste hält Abstand zum unteren Bildschirmrand** (2,5 rem plus
+`safe-area-inset-bottom`). Klebte sie unten, läge sie in der Wischfläche von
+iOS und iPadOS – das Blättern landete dann im App-Wechsel statt in der Leiste.
+Aus demselben Grund sind die Karten groß genug zum Treffen (17 rem breit,
+64 px Vorschaubild, ab `sm` 20 rem). Wer die Breite ändert, muss den
+Innenabstand `px-[calc(50%-…)]` mitziehen: Er zentriert die Einrastpunkte und
+ist genau die halbe Kartenbreite.
+
 **Im Kartenmodus wird die Höhe gemessen, nicht gerechnet.** Auf dem Handy soll
 die Karte bis zum unteren Rand reichen; wie viel Platz über ihr liegt, hängt
 aber von der Ansicht ab – die angemeldete hat eine Kopfleiste, der Share-Link
@@ -443,9 +451,20 @@ Nach einem Klick auf einen Marker oder einen Eintrag der Kartenleiste hält
 `suppressObserver` das Nachverfolgen für 800 ms still. Ohne das überschreibt
 das Scrollen zum Ziel unterwegs die gerade getroffene Wahl.
 
-Der Umschalter „Timeline / Karte" erscheint nur auf schmalen Bildschirmen und
-läuft **bewusst nicht mit** – eine mitscrollende Leiste über der Timeline wirkt
-unruhig. Ab `lg` stehen beide nebeneinander, die Karte klebt (`sticky`).
+Der Umschalter „Timeline / Karte" läuft **bewusst nicht mit** – eine
+mitscrollende Leiste über der Timeline wirkt unruhig.
+
+**Nebeneinander erst ab `xl` (1280 px), nicht ab `lg`.** Ein iPad im
+Querformat misst rund 1194 px; bei `lg` blieben davon 628 px für die Timeline
+und 460 px für die Karte, und beides wirkte gedrängt. Bis `xl` bekommt deshalb
+jede Ansicht über den Umschalter die volle Breite, ab `xl` stehen sie
+nebeneinander (Karte 520 px, `sticky`) in einem bis 1280 px breiten Rahmen.
+
+Welche Breite der Rahmen darunter hat, entscheidet der Modus: Die Timeline
+bekommt mit `max-w-3xl` eine Lesespalte – über die vollen 1150 px eines Tablets
+gezogen wären die Zeilen unlesbar –, die Karte bekommt `max-w-6xl` und damit
+alles. Deshalb hängt die Breite am `mobileView`-Zustand und nicht allein an
+Breakpoints.
 
 ### Raster (`PhotoGrid`)
 
@@ -761,6 +780,15 @@ Gerät weg. `h-[100svh]` rechnet mit sichtbarer Leiste und ist stabil, während
 bekommt zusätzlich `env(safe-area-inset-bottom)`, sonst liegt er beim iPhone
 unter dem Home-Indikator.
 
+**`mx-auto` an einem Flex-Kind schaltet das Dehnen ab.** `<body>` ist ein
+`flex flex-col`; hat ein direktes Kind auf der Querachse `margin: auto`, gilt
+`align-self: stretch` nicht mehr, und das Element schrumpft auf seinen Inhalt.
+Solange der Inhalt selbst breit ist – Fotoraster, Textabsätze –, fällt das nie
+auf. Die Karte hat aber keine eigene Breite: In der Kartenansicht fiel der
+ganze Rahmen dadurch auf 135 px zusammen. Ein `w-full` neben `mx-auto` löst es;
+zu prüfen ist es an einer Ansicht, deren Inhalt keine natürliche Breite
+mitbringt.
+
 **React 19 leert ein Formular nach jeder Aktion.** Bei `<form action={…}>`
 setzt React unkontrollierte Felder anschließend zurück – auch dann, wenn die
 Aktion mit einer Fehlermeldung zurückkommt. Wer sich am Reisezeitraum vertippt,
@@ -854,6 +882,13 @@ Verifiziert (Produktions-Build, echte HTTP-Anfragen):
 - Neuer Share-Link: Die Rückfrage ändert nichts, „Abbrechen" führt zurück,
   nach dem Bestätigen steht ein neuer Token und der alte Link antwortet mit
   404
+- Layout bei vier Bildschirmgrößen: Handy (375 × 812), Tablet hoch
+  (834 × 1194) und quer (1194 × 834) zeigen den Umschalter, die Timeline
+  bleibt bei 768 px, die Karte nimmt die volle Breite (343 / 802 / 1120 px);
+  ab 1280 px stehen beide nebeneinander (696 px und 520 px), nirgends
+  entsteht ein waagerechter Scrollbalken
+- Tagesleiste: Die Karten enden 57 px über dem unteren Bildschirmrand
+  (zuvor 16 px) und rasten weiterhin mittig ein – Abweichung 1 px
 
 Nicht verifiziert – hier ist beim Weiterbauen Vorsicht angebracht:
 

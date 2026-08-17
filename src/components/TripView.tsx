@@ -101,8 +101,8 @@ export default function TripView({
     const messen = () => {
       const box = kartenBox.current;
       if (!box) return;
-      // Ab der großen Ansicht regelt das Stylesheet die Höhe.
-      if (window.matchMedia("(min-width: 1024px)").matches) {
+      // Ab der zweispaltigen Ansicht regelt das Stylesheet die Höhe.
+      if (window.matchMedia("(min-width: 1280px)").matches) {
         setKartenHoehe(null);
         return;
       }
@@ -148,19 +148,30 @@ export default function TripView({
 
   return (
     <div
-      className={`mx-auto max-w-6xl px-4 pt-5 lg:pb-10 ${
-        mobileView === "map" ? "pb-0" : "pb-24"
+      /*
+       * Unterhalb der zweispaltigen Ansicht bestimmt der Modus die Breite: Die
+       * Timeline bekommt eine Lesespalte, die Karte den ganzen Platz. Ohne den
+       * Deckel liefen die Zeilen auf einem Tablet über 1150 px.
+       */
+      /*
+       * `w-full` ist Pflicht: `<body>` ist ein Flex-Container, und ein
+       * Flex-Kind mit `margin: auto` auf der Querachse dehnt sich nicht mehr,
+       * sondern schrumpft auf seinen Inhalt. Die Karte hat keine eigene
+       * Breite – ohne diese Zeile fiel sie auf gut hundert Pixel zusammen.
+       */
+      className={`mx-auto w-full px-4 pt-5 xl:max-w-7xl xl:pb-10 ${
+        mobileView === "map" ? "max-w-6xl pb-0" : "max-w-3xl pb-24"
       }`}
     >
       {/* Im Kartenmodus tritt der Kopfbereich auf dem Handy zurück, damit die
           Karte den Bildschirm bekommt. */}
-      <div className={mobileView === "map" ? "hidden lg:block" : ""}>
+      <div className={mobileView === "map" ? "hidden xl:block" : ""}>
         {header}
       </div>
 
       {/* Umschalter nur auf schmalen Bildschirmen. Bewusst nicht mitlaufend:
           eine mitscrollende Leiste über der Timeline wirkt unruhig. */}
-      <div className="mb-4 lg:hidden">
+      <div className="mb-4 xl:hidden">
         <div className="flex rounded-full border border-line bg-surface p-1">
           {(["timeline", "map"] as const).map((view) => (
             <button
@@ -180,8 +191,14 @@ export default function TripView({
         </div>
       </div>
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:items-start lg:gap-8">
-        <div className={mobileView === "map" ? "hidden lg:block" : ""}>
+      {/*
+        Nebeneinander erst ab `xl`. Auf einem Tablet im Querformat (rund
+        1194 px) blieben für die Timeline 628 px und für die Karte 460 px –
+        beides zu wenig, beides wirkte gedrängt. Darunter bekommt jede Ansicht
+        über den Umschalter die ganze Breite.
+      */}
+      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)] xl:items-start xl:gap-8">
+        <div className={mobileView === "map" ? "hidden xl:block" : ""}>
           {steps.length === 0 ? (
             <div className="card px-6 py-14 text-center">
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-2xl">
@@ -305,12 +322,12 @@ export default function TripView({
         <div
           className={`${
             mobileView === "timeline" ? "hidden" : ""
-          } lg:sticky lg:top-20 lg:block`}
+          } xl:sticky xl:top-20 xl:block`}
         >
           <div
             ref={kartenBox}
             style={kartenHoehe ? { height: kartenHoehe } : undefined}
-            className="relative h-[70dvh] overflow-hidden rounded-3xl border border-line shadow-card lg:h-[calc(100dvh-7rem)]"
+            className="relative h-[70dvh] overflow-hidden rounded-3xl border border-line shadow-card xl:h-[calc(100dvh-7rem)]"
           >
             <MapCanvas
               steps={mapSteps}
