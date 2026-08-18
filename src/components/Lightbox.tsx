@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ViewPhoto } from "@/lib/view-types";
+import { useMediaBase } from "./media-context";
 
 type Props = {
   photos: ViewPhoto[];
@@ -26,6 +27,7 @@ function abstand(a: { x: number; y: number }, b: { x: number; y: number }) {
 }
 
 export default function Lightbox({ photos, startIndex, onClose }: Props) {
+  const base = useMediaBase();
   const [index, setIndex] = useState(startIndex);
   const [zug, setZug] = useState(0);
   const [zoom, setZoom] = useState<Zoom>(OHNE_ZOOM);
@@ -374,8 +376,8 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
                 {video ? (
                   <video
                     data-pos={i}
-                    src={`/api/photos/${eintrag.id}/video`}
-                    poster={`/api/photos/${eintrag.id}/medium`}
+                    src={`${base}/${eintrag.id}/video`}
+                    poster={`${base}/${eintrag.id}/medium`}
                     controls
                     playsInline
                     preload={aktiv ? "metadata" : "none"}
@@ -384,7 +386,7 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`/api/photos/${eintrag.id}/large`}
+                    src={`${base}/${eintrag.id}/large`}
                     alt={eintrag.caption ?? ""}
                     draggable={false}
                     className="max-h-full max-w-full select-none object-contain"

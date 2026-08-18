@@ -19,13 +19,15 @@ export function proxy(request: NextRequest) {
 }
 
 /**
- * `/api/upload` muss ausgenommen bleiben: Sobald der Proxy eine Anfrage
- * anfasst, puffert Next deren Rumpf und kappt ihn bei 10 MB – ein Video-Upload
- * scheitert dann mit „Failed to parse body as FormData". Bilder und
- * Kartenkacheln bleiben außen vor, damit das Protokoll lesbar bleibt.
+ * `/api/upload` und `/api/trips` (Titelbild) müssen ausgenommen bleiben:
+ * Sobald der Proxy eine Anfrage anfasst, puffert Next deren Rumpf und kappt ihn
+ * bei 10 MB – ein Video- oder Bild-Upload scheitert dann mit „Failed to parse
+ * body as FormData". Bilder und Kartenkacheln (`api/photos`, `api/share-media`,
+ * `api/map`) bleiben außen vor, damit das Protokoll lesbar bleibt und die
+ * Bereichsauslieferung der Videos nicht angefasst wird.
  */
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|api/upload|api/photos|api/map|favicon.ico|icon-|apple-touch-icon).*)",
+    "/((?!_next/static|_next/image|api/upload|api/trips|api/photos|api/share-media|api/map|favicon.ico|icon-|apple-touch-icon).*)",
   ],
 };

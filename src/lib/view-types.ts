@@ -38,6 +38,27 @@ export type ViewTrip = {
   startDate: string | null;
 };
 
+/** Nur die für die Anzeige nötigen Felder – hält storage_key, GPS & Co. serverseitig. */
+export function toViewPhoto(p: {
+  id: number;
+  width: number;
+  height: number;
+  placeholder: string | null;
+  caption: string | null;
+  mediaType: "photo" | "video";
+  durationMs: number | null;
+}): ViewPhoto {
+  return {
+    id: p.id,
+    width: p.width,
+    height: p.height,
+    placeholder: p.placeholder,
+    caption: p.caption,
+    mediaType: p.mediaType,
+    durationMs: p.durationMs,
+  };
+}
+
 export function toViewStep(step: {
   id: number;
   title: string;
@@ -57,15 +78,7 @@ export function toViewStep(step: {
     lon: step.lon,
     placeName: step.placeName,
     occurredAt: step.occurredAt,
-    photos: step.photos.map((p) => ({
-      id: p.id,
-      width: p.width,
-      height: p.height,
-      placeholder: p.placeholder,
-      caption: p.caption,
-      mediaType: p.mediaType,
-      durationMs: p.durationMs,
-    })),
+    photos: step.photos.map(toViewPhoto),
     comments: (step.comments ?? []).map((c) => ({
       id: c.id,
       authorName: c.authorName,

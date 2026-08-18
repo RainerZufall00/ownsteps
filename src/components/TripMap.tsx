@@ -11,6 +11,7 @@ import {
 } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useMediaBase } from "./media-context";
 
 export type MapStep = {
   id: number;
@@ -70,6 +71,7 @@ function buildMarker(
   step: MapStep,
   index: number,
   isActive: boolean,
+  mediaBase: string,
   onSelect?: (id: number) => void,
 ) {
   const el = document.createElement("button");
@@ -81,7 +83,7 @@ function buildMarker(
 
   if (step.coverPhotoId) {
     const img = document.createElement("img");
-    img.src = `/api/photos/${step.coverPhotoId}/thumb`;
+    img.src = `${mediaBase}/${step.coverPhotoId}/thumb`;
     img.alt = "";
     img.loading = "lazy";
     el.appendChild(img);
@@ -114,6 +116,9 @@ export default function TripMap({
   autoFit = true,
   focusPoint = null,
 }: Props) {
+  const mediaBase = useMediaBase();
+  const mediaBaseRef = useRef(mediaBase);
+  mediaBaseRef.current = mediaBase;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<number, Marker>>(new Map());
@@ -190,8 +195,12 @@ export default function TripMap({
         return;
       }
       const marker = new Marker({
-        element: buildMarker(step, index, step.id === activeStepId, (id) =>
-          onSelectRef.current?.(id),
+        element: buildMarker(
+          step,
+          index,
+          step.id === activeStepId,
+          mediaBaseRef.current,
+          (id) => onSelectRef.current?.(id),
         ),
         anchor: "bottom",
       })

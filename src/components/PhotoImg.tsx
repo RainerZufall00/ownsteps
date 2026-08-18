@@ -1,4 +1,7 @@
+"use client";
+
 import type { ViewPhoto } from "@/lib/view-types";
+import { useMediaBase } from "./media-context";
 
 type Props = {
   photo: ViewPhoto;
@@ -22,10 +25,11 @@ export default function PhotoImg({
   priority = false,
   sizes,
 }: Props) {
+  const base = useMediaBase();
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`/api/photos/${photo.id}/${variant}`}
+      src={`${base}/${photo.id}/${variant}`}
       alt={alt}
       width={photo.width}
       height={photo.height}

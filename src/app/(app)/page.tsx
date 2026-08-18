@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PhotoImg from "@/components/PhotoImg";
 import { formatTripRange, pluralize } from "@/lib/format";
+import { toViewPhoto } from "@/lib/view-types";
 import { listTrips } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +52,7 @@ export default async function TripsPage() {
                 <div className="relative aspect-[16/10] overflow-hidden bg-surface-muted">
                   {trip.coverPhoto ? (
                     <PhotoImg
-                      photo={trip.coverPhoto}
+                      photo={toViewPhoto(trip.coverPhoto)}
                       variant="medium"
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
                       sizes="(max-width: 640px) 100vw, 480px"

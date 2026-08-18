@@ -8,6 +8,7 @@ import type { ViewStep, ViewTrip } from "@/lib/view-types";
 import CommentSection from "./CommentSection";
 import MapCanvas, { type MapStep } from "./MapCanvas";
 import MapTimelineStrip from "./MapTimelineStrip";
+import { MediaBaseProvider } from "./media-context";
 import PhotoGrid from "./PhotoGrid";
 
 type Props = {
@@ -16,6 +17,12 @@ type Props = {
   mapStyle: string | StyleSpecification;
   /** Zeigt Bearbeiten-Links an den Beiträgen. */
   editable?: boolean;
+  /**
+   * Woher die Medien kommen. Angemeldet über `/api/photos`, über einen
+   * Share-Link über `/api/share-media/<token>`, damit der Token in den
+   * Bild-URLs steckt und die Fotos nicht ohne ihn erreichbar sind.
+   */
+  mediaBase?: string;
   /** Kopfbereich, den die jeweilige Seite beisteuert (Titel, Aktionen). */
   header: ReactNode;
 };
@@ -25,6 +32,7 @@ export default function TripView({
   steps,
   mapStyle,
   editable = false,
+  mediaBase = "/api/photos",
   header,
 }: Props) {
   const [mobileView, setMobileView] = useState<"timeline" | "map">("timeline");
@@ -147,6 +155,7 @@ export default function TripView({
   };
 
   return (
+    <MediaBaseProvider value={mediaBase}>
     <div
       /*
        * Unterhalb der zweispaltigen Ansicht bestimmt der Modus die Breite: Die
@@ -356,5 +365,6 @@ export default function TripView({
         </div>
       </div>
     </div>
+    </MediaBaseProvider>
   );
 }

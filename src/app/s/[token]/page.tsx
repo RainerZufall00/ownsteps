@@ -29,8 +29,6 @@ export async function generateMetadata({
   if (!trip) return { title: "Nicht gefunden" };
 
   const steps = await getSteps(trip.id);
-  const cover =
-    steps.find((step) => step.photos.length > 0)?.photos[0] ?? null;
 
   return {
     title: trip.title,
@@ -43,11 +41,12 @@ export async function generateMetadata({
       title: trip.title,
       description: trip.summary ?? undefined,
       type: "article",
-      // Bei Passwortschutz kein Vorschaubild ausliefern.
-      images:
-        cover && !trip.sharePasswordHash
-          ? [`${await baseUrl()}/api/photos/${cover.id}/medium`]
-          : undefined,
+      // Nur das eigens hochgeladene Titelbild ist öffentlich; ob die Reise
+      // eines hat, entscheidet die Foto-Route (sie liefert sonst 403 und die
+      // Vorschau bleibt einfach leer). Andere Fotos gehen nie an einen Crawler.
+      images: trip.coverPhotoId
+        ? [`${await baseUrl()}/api/photos/${trip.coverPhotoId}/medium`]
+        : undefined,
     },
   };
 }
@@ -126,6 +125,7 @@ export default async function SharedTripPage({
       }}
       steps={steps.map(toViewStep)}
       mapStyle={getMapStyle()}
+      mediaBase={`/api/share-media/${token}`}
       header={header}
     />
   );

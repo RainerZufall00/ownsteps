@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   comments,
@@ -57,6 +57,8 @@ export async function listTrips(): Promise<TripSummary[]> {
   const photoStats = await db
     .select({ tripId: photos.tripId, photoCount: sql<number>`count(*)` })
     .from(photos)
+    // Das Titelbild hängt an keiner Station und zählt nicht als Reisefoto.
+    .where(isNotNull(photos.stepId))
     .groupBy(photos.tripId);
 
   // Fehlt ein gesetztes Titelbild, dient das erste Foto der Reise als Aufmacher.

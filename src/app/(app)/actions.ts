@@ -18,7 +18,7 @@ import {
   updateTrip,
 } from "@/lib/trips";
 
-export type ActionState = { error?: string; ok?: boolean };
+export type ActionState = { error?: string; ok?: boolean; tripId?: number };
 
 /**
  * Der Reisezeitraum ist freiwillig – man legt eine Reise auch mal an, bevor
@@ -55,7 +55,9 @@ export async function createTripAction(
   });
 
   revalidatePath("/");
-  redirect(`/trips/${trip.id}`);
+  // Kein redirect: Das Formular lädt danach noch das optionale Titelbild über
+  // `/api/trips/[id]/cover` hoch und springt erst dann in die Reise.
+  return { ok: true, tripId: trip.id };
 }
 
 export async function updateTripAction(
