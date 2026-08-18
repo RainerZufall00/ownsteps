@@ -1,3 +1,6 @@
+// Bleibt hier greifbar, weil die Kartenroute beides zusammen braucht.
+export { publicOrigin } from "./origin";
+
 const UPSTREAM = "https://api.maptiler.com";
 const MAPTILER_URL_RE = /https:\/\/api\.maptiler\.com\/([^"'\s\\]*)/g;
 
@@ -7,28 +10,6 @@ function stripKey(query: string) {
     .split("&")
     .filter((pair) => pair.length > 0 && !pair.startsWith("key="))
     .join("&");
-}
-
-/**
- * Ermittelt die von außen sichtbare Adresse der Instanz.
- *
- * `request.url` taugt dafür nicht: Hinter einem Reverse Proxy endet TLS beim
- * Proxy, der Server selbst spricht HTTP – daraus entstünde eine
- * `http://`-Adresse, die der Browser auf einer HTTPS-Seite als Mixed Content
- * blockiert. Deshalb zuerst PUBLIC_URL, dann die Forwarded-Header.
- */
-export function publicOrigin(request: Request, configured: string) {
-  if (configured) return configured.replace(/\/$/, "");
-
-  const headers = request.headers;
-  // Bei mehreren Proxys stehen die Werte kommagetrennt; der erste zählt.
-  const proto =
-    headers.get("x-forwarded-proto")?.split(",")[0].trim() || "http";
-  const host =
-    headers.get("x-forwarded-host")?.split(",")[0].trim() ||
-    headers.get("host");
-
-  return host ? `${proto}://${host}` : new URL(request.url).origin;
 }
 
 /**

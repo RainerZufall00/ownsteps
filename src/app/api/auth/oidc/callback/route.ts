@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createSession, upsertOidcUser } from "@/lib/auth";
+import { redirectTo } from "@/lib/origin";
 import {
   exchangeCode,
   isEmailAllowed,
@@ -9,9 +10,8 @@ import {
 } from "@/lib/oidc";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const fail = (reason: string) =>
-    Response.redirect(`${origin}/login?error=${reason}`, 302);
+  const { searchParams } = new URL(request.url);
+  const fail = (reason: string) => redirectTo(`/login?error=${reason}`);
 
   if (!oidcEnabled) return fail("oidc_disabled");
 
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 
     const user = await upsertOidcUser(claims);
     await createSession(user.id);
-    return Response.redirect(`${origin}${flow.next}`, 302);
+    return redirectTo(flow.next);
   } catch (error) {
     console.error("[oidc] Callback fehlgeschlagen", error);
     return fail("oidc_failed");

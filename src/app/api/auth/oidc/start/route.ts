@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirectTo } from "@/lib/origin";
 import {
   buildAuthorizationUrl,
   createPkcePair,
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
     return new Response("OIDC ist nicht konfiguriert.", { status: 404 });
   }
 
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   // Nur seiteninterne Ziele zulassen, damit der Login nicht als Weiterleitung
   // auf fremde Domains missbraucht werden kann.
   const requestedNext = searchParams.get("next") ?? "/";
@@ -45,6 +46,6 @@ export async function GET(request: Request) {
     return Response.redirect(url, 302);
   } catch (error) {
     console.error("[oidc] Start fehlgeschlagen", error);
-    return Response.redirect(`${origin}/login?error=oidc_unreachable`, 302);
+    return redirectTo("/login?error=oidc_unreachable");
   }
 }

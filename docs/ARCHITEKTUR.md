@@ -780,6 +780,30 @@ Gerät weg. `h-[100svh]` rechnet mit sichtbarer Leiste und ist stabil, während
 bekommt zusätzlich `env(safe-area-inset-bottom)`, sonst liegt er beim iPhone
 unter dem Home-Indikator.
 
+**`request.url` ist im Container nicht die Adresse der Instanz.** Der Server
+kennt nur seine eigene Bindung und meldet je nach Aufbau `http://0.0.0.0:2555`
+oder `http://127.0.0.1:2555`. Wer daraus eine Weiterleitung baut, schickt den
+Browser ins Leere – beim OIDC-Login endete der Rücksprung nach der Anmeldung
+genau so:
+
+```
+This site can't be reached — 0.0.0.0 refused to connect.
+```
+
+Im Log sieht das harmlos aus: `/api/auth/oidc/start` und
+`/api/auth/oidc/callback` erscheinen brav, die Sitzung wird sogar angelegt –
+nur kommt der Browser nie wieder an. Zwei Regeln halten das fern:
+
+- **Weiterleitungen im eigenen Haus bleiben relativ.** `Location: /` löst der
+  Browser gegen die Adresse auf, die er selbst aufgerufen hat. Damit hängt der
+  Rücksprung an keiner Einstellung. `Response.redirect()` taugt dafür nicht,
+  es verlangt eine vollständige Adresse – die Antwort wird von Hand gebaut
+  (`redirectTo` in `src/lib/origin.ts`).
+- **Adressen, die nach außen gehen, kommen aus `publicOrigin()`**: erst
+  `PUBLIC_URL`, dann `x-forwarded-proto` / `x-forwarded-host`, zuletzt die
+  Anfrage selbst. Das betrifft die OIDC-Callback-URL, die Share-Links und die
+  umgeschriebenen MapTiler-Adressen.
+
 **`mx-auto` an einem Flex-Kind schaltet das Dehnen ab.** `<body>` ist ein
 `flex flex-col`; hat ein direktes Kind auf der Querachse `margin: auto`, gilt
 `align-self: stretch` nicht mehr, und das Element schrumpft auf seinen Inhalt.
@@ -889,6 +913,12 @@ Verifiziert (Produktions-Build, echte HTTP-Anfragen):
   entsteht ein waagerechter Scrollbalken
 - Tagesleiste: Die Karten enden 57 px über dem unteren Bildschirmrand
   (zuvor 16 px) und rasten weiterhin mittig ein – Abweichung 1 px
+- OIDC gegen einen selbstgebauten Anbieter (Discovery, PKCE, signiertes
+  `id_token`, JWKS): Der Rücksprung nach der Anmeldung antwortet mit
+  `Location: /` – auch dann, wenn der `Host`-Header `0.0.0.0:2556` meldet –,
+  die Sitzung gilt anschließend (`GET /` → 200), und der Account wird aus den
+  Claims angelegt. Mit `X-Forwarded-Host` entsteht die Callback-URL auf der
+  öffentlichen Domain statt auf `0.0.0.0`
 
 Nicht verifiziert – hier ist beim Weiterbauen Vorsicht angebracht:
 

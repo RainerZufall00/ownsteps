@@ -3,17 +3,19 @@ import "server-only";
 import crypto from "node:crypto";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { PUBLIC_URL } from "./env";
+import { publicOrigin } from "./origin";
 
 /** Kurzlebiges Cookie, das State, PKCE-Verifier und Ziel des Logins hält. */
 export const OIDC_FLOW_COOKIE = "ownsteps_oidc";
 
 /**
- * Muss exakt der in Pocket ID hinterlegten Callback-URL entsprechen. Steht
- * PUBLIC_URL nicht in der Umgebung, wird die Herkunft der Anfrage genommen.
+ * Muss exakt der in Pocket ID hinterlegten Callback-URL entsprechen. Ohne
+ * PUBLIC_URL zieht `publicOrigin` die Weiterleitungs-Header des Proxys heran –
+ * die nackte Anfrage-URL wäre im Container `http://0.0.0.0:2555`, und der
+ * Anbieter lehnte den Rückweg als unbekannt ab.
  */
 export function redirectUriFor(request: Request) {
-  const base = PUBLIC_URL || new URL(request.url).origin;
-  return `${base}/api/auth/oidc/callback`;
+  return `${publicOrigin(request, PUBLIC_URL)}/api/auth/oidc/callback`;
 }
 
 export const OIDC_ISSUER = process.env.OIDC_ISSUER?.trim().replace(/\/$/, "") ?? "";

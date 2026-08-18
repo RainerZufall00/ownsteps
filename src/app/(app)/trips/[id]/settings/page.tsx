@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PUBLIC_URL } from "@/lib/env";
+import { originFromHeaders } from "@/lib/origin";
 import { getTrip } from "@/lib/trips";
 import DeleteTripForm from "./DeleteTripForm";
 import RotateShareForm from "./RotateShareForm";
@@ -14,11 +15,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Reise verwalten" };
 
 async function baseUrl() {
-  if (PUBLIC_URL) return PUBLIC_URL;
-  const store = await headers();
-  const proto = store.get("x-forwarded-proto") ?? "http";
-  const host = store.get("host") ?? "localhost:2555";
-  return `${proto}://${host}`;
+  return originFromHeaders(await headers(), PUBLIC_URL, "http://localhost:2555");
 }
 
 export default async function TripSettingsPage({
