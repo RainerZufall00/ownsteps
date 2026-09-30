@@ -3,8 +3,10 @@ import Link from "next/link";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { formatDateShort } from "@/lib/format";
+import { listApiTokens } from "@/lib/tokens";
 import { OIDC_BUTTON_LABEL, oidcEnabled } from "@/lib/oidc";
-import { logoutAction } from "./actions";
+import { logoutAction, revokeDeviceAction } from "./actions";
 import AddUserForm from "./AddUserForm";
 import PasswordForm from "./PasswordForm";
 
@@ -22,6 +24,7 @@ export default async function SettingsPage() {
       oidcSubject: users.oidcSubject,
     })
     .from(users);
+  const devices = user ? await listApiTokens(user.id) : [];
 
   return (
     <main className="mx-auto max-w-2xl px-4 pb-20 pt-5">
@@ -91,6 +94,45 @@ export default async function SettingsPage() {
           </p>
         </section>
       )}
+
+      <section className="card mt-5 p-6">
+        <h2 className="text-lg font-semibold">Angemeldete Geräte</h2>
+        <p className="mt-1.5 text-[15px] text-ink-soft">
+          Wo du in der OwnSteps-App angemeldet bist. Abmelden wirkt sofort –
+          etwa wenn ein Handy verloren gegangen ist.
+        </p>
+        {devices.length === 0 ? (
+          <p className="mt-4 text-[15px] text-ink-faint">Noch keine.</p>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {devices.map((device) => (
+              <li
+                key={device.id}
+                className="flex items-center justify-between gap-3 rounded-2xl bg-surface-muted px-4 py-3"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{device.deviceName}</span>
+                  <span className="block truncate text-[13px] text-ink-soft">
+                    angemeldet am {formatDateShort(device.createdAt)}
+                    {device.lastUsedAt
+                      ? ` · zuletzt aktiv ${formatDateShort(device.lastUsedAt)}`
+                      : ""}
+                  </span>
+                </span>
+                <form action={revokeDeviceAction}>
+                  <input type="hidden" name="tokenId" value={device.id} />
+                  <button
+                    type="submit"
+                    className="shrink-0 text-sm font-semibold text-ink-soft transition hover:text-accent"
+                  >
+                    Abmelden
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="card mt-5 p-6">
         <h2 className="mb-4 text-lg font-semibold">Passwort ändern</h2>

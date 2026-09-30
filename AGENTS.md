@@ -41,7 +41,13 @@ German for now; English and German UI translations follow before the release
   In the build output the route must be marked `ƒ`, not `○`.
 - **Route handlers must check for themselves.** No layout sits above
   `src/app/api/` that checks sign-in – `getCurrentUser()` or
-  `resolveTripAccess()` belongs in there explicitly.
+  `resolveTripAccess()` belongs in there explicitly. Under `/api/v1` that's
+  `requireAuthor()` / `requireReadableTrip()` from `src/lib/api/principal.ts`,
+  and every new route must also appear in `src/lib/api/openapi.ts` (a test
+  checks both).
+- **Writes to trips, steps, photos and comments go through the data-access
+  functions**, which append to the change log. A write that bypasses them is
+  invisible to the app's change feed.
 - **Never serve photos via `/public`.** They live in `DATA_DIR/uploads` and go
   through `/api/photos/[id]/[variant]`, which checks access.
 - **Take the files along when deleting.** `ON DELETE CASCADE` only removes

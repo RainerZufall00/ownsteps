@@ -7,7 +7,13 @@ import { ServiceError, type ErrorCode } from "@/lib/errors";
 import { reverseGeocode } from "@/lib/geocode";
 import { processUpload, processVideo } from "@/lib/images";
 import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
-import { deletePhoto } from "@/lib/photos";
+import { recordChange } from "@/lib/changes";
+import {
+  deletePhoto,
+  getPhoto,
+  getPhotoByClientUuid,
+  setPhotoCaption,
+} from "@/lib/photos";
 import { updateTrip } from "@/lib/trips";
 import { requireStep } from "./steps";
 import { requireTrip } from "./trips";
@@ -27,6 +33,8 @@ export type IncomingMedia = {
   /** Videos only: the poster frame, created by the client. */
   poster?: { read: () => Promise<Buffer> } | null;
   durationMs?: number | null;
+  /** Set by the app; a retried upload with the same UUID isn't stored twice. */
+  clientUuid?: string | null;
 };
 
 export type MediaFailure = { name: string; code: ErrorCode };
@@ -78,6 +86,15 @@ export async function addMediaToStep(
   let nextOrder = maxOrder + 1;
 
   for (const file of files) {
+    if (file.clientUuid) {
+      const existing = await getPhotoByClientUuid(file.clientUuid);
+      if (existing) {
+        if (existing.stepId !== step.id) throw new ServiceError("invalid_request");
+        created.push(existing);
+        continue;
+      }
+    }
+
     const reason = rejectReason(file);
     if (reason) {
       failed.push({ name: file.name, code: reason });
@@ -122,8 +139,10 @@ export async function addMediaToStep(
             video && Number.isFinite(duration) && duration > 0
               ? Math.round(duration)
               : null,
+          clientUuid: file.clientUuid ?? null,
         })
         .returning();
+      await recordChange(photo.tripId, "photo", photo.id, "upsert");
       created.push(photo);
     } catch (error) {
       console.error("[upload] failed", file.name, error);
@@ -162,6 +181,7 @@ export async function addMediaToStep(
       .update(steps)
       .set({ ...patch, updatedAt: Date.now() })
       .where(eq(steps.id, step.id));
+    await recordChange(step.tripId, "step", step.id, "upsert");
   }
 
   return {
@@ -210,9 +230,22 @@ export async function uploadCover(tripId: number, file: IncomingMedia) {
       sortOrder: -1,
     })
     .returning();
+  await recordChange(tripId, "photo", photo.id, "upsert");
 
   await updateTrip(tripId, { coverPhotoId: photo.id });
   return photo;
+}
+
+export async function requirePhoto(photoId: number) {
+  const photo = Number.isInteger(photoId) ? await getPhoto(photoId) : null;
+  if (!photo) throw new ServiceError("photo_not_found");
+  return photo;
+}
+
+export async function updateCaption(photoId: number, caption: string | null) {
+  await requirePhoto(photoId);
+  await setPhotoCaption(photoId, caption?.trim().slice(0, 500) || null);
+  return (await getPhoto(photoId))!;
 }
 
 /** Deleting is idempotent: a photo that's already gone isn't an error. */

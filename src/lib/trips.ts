@@ -12,6 +12,7 @@ import {
   type Step,
   type Trip,
 } from "@/db/schema";
+import { recordChange } from "./changes";
 import { deletePhotoFilesFor } from "./photos";
 import { newShareToken } from "./share";
 
@@ -213,6 +214,7 @@ export async function createTrip(input: {
       createdBy: input.userId,
     })
     .returning();
+  await recordChange(trip.id, "trip", trip.id, "upsert");
   return trip;
 }
 
@@ -236,6 +238,7 @@ export async function updateTrip(
     .update(trips)
     .set({ ...patch, updatedAt: Date.now() })
     .where(eq(trips.id, tripId));
+  await recordChange(tripId, "trip", tripId, "upsert");
 }
 
 export async function deleteTrip(tripId: number) {
@@ -245,20 +248,52 @@ export async function deleteTrip(tripId: number) {
     .where(eq(photos.tripId, tripId));
   // Rows vanish via ON DELETE CASCADE, the files don't.
   await db.delete(trips).where(eq(trips.id, tripId));
+  // The trip's delete implies its steps, photos and comments.
+  await recordChange(tripId, "trip", tripId, "delete");
   await deletePhotoFilesFor(photoRows);
 }
 
 export async function createDraftStep(tripId: number, userId: number) {
+  return createStep({ tripId, userId, published: false });
+}
+
+/** Creates a step; the app sends content right away, the web editor a draft. */
+export async function createStep(input: {
+  tripId: number;
+  userId: number;
+  published: boolean;
+  clientUuid?: string | null;
+  body?: string;
+  placeName?: string | null;
+  lat?: number | null;
+  lon?: number | null;
+  occurredAt?: number;
+}) {
   const [step] = await db
     .insert(steps)
     .values({
-      tripId,
-      occurredAt: Date.now(),
-      createdBy: userId,
-      published: false,
+      tripId: input.tripId,
+      occurredAt: input.occurredAt ?? Date.now(),
+      createdBy: input.userId,
+      published: input.published,
+      clientUuid: input.clientUuid ?? null,
+      body: input.body ?? "",
+      placeName: input.placeName ?? null,
+      lat: input.lat ?? null,
+      lon: input.lon ?? null,
     })
     .returning();
+  if (step.published) await recordChange(step.tripId, "step", step.id, "upsert");
   return step;
+}
+
+export async function getStepByClientUuid(clientUuid: string) {
+  const rows = await db
+    .select()
+    .from(steps)
+    .where(eq(steps.clientUuid, clientUuid))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 export async function updateStep(
@@ -292,14 +327,22 @@ export async function updateStep(
       .update(trips)
       .set({ updatedAt: Date.now() })
       .where(eq(trips.id, row.tripId));
+    await recordChange(row.tripId, "step", stepId, "upsert");
   }
 }
 
 export async function deleteStep(stepId: number) {
+  const [row] = await db
+    .select({ tripId: steps.tripId })
+    .from(steps)
+    .where(eq(steps.id, stepId))
+    .limit(1);
   const photoRows = await db
     .select({ storageKey: photos.storageKey })
     .from(photos)
     .where(eq(photos.stepId, stepId));
   await db.delete(steps).where(eq(steps.id, stepId));
+  // The step's delete implies its photos and comments.
+  if (row) await recordChange(row.tripId, "step", stepId, "delete");
   await deletePhotoFilesFor(photoRows);
 }

@@ -59,25 +59,25 @@ architecture doc and the phase is ticked off here.
 - [x] Server Actions become thin wrappers. Phase 1 tests stay green.
 
 ### Phase 3 – API v1
-- [ ] Migrations (append only):
+- [x] Migrations (append only):
   - `api_tokens`
   - `viewer_devices` (trip, name, token hash, last seen)
   - `client_uuid` on `steps` and `photos`
   - one-time codes for the app OIDC flow
   - whatever the changes feed needs (see open point O3)
-- [ ] Auth:
+- [x] Auth:
   - `POST /api/v1/auth/token` (password)
   - OIDC app flow with one-time code
   - `PASSWORD_LOGIN`
   - Bearer check as a single helper next to `resolveTripAccess`
-- [ ] `GET /api/v1/info`, `GET /api/v1/openapi.json`
-- [ ] Trips, steps, media upload, comments, viewers (redeem, list, remove), `changes`.
-- [ ] Take the upload route **out of the `src/proxy.ts` matcher** (10 MB cap otherwise).
-- [ ] Guard test: every `/api/v1` route without a token answers 401/404.
-- [ ] Web UI:
+- [x] `GET /api/v1/info`, `GET /api/v1/openapi.json`
+- [x] Trips, steps, media upload, comments, viewers (redeem, list, remove), `changes`.
+- [x] Take the upload route **out of the `src/proxy.ts` matcher** (10 MB cap otherwise).
+- [x] Guard test: every `/api/v1` route without a token answers 401/404.
+- [x] Web UI:
   - device token list in settings
   - viewer device management in trip settings
-  - Smart App Banner, "Open in app" and QR code on the share page (the banner needs the App Store ID, so it stays off until then)
+  - Smart App Banner and "Open in app" on the share page (both only once `APP_STORE_ID` is set), QR code and app link in the trip settings
 
 ### Phase 4 – iOS app (`ios/`)
 - [ ] **4a Skeleton:**
@@ -125,7 +125,7 @@ architecture doc and the phase is ticked off here.
 
 - **O1 – App name and bundle ID.** "OwnSteps" in the App Store (check that it is free). The bundle ID needs a reverse domain you own. URL scheme `ownsteps://`.
 - **O2 – Release details:** Issues and Discussions on, a CLA is not needed (D10 avoids it), versioning scheme.
-- **O3 – Changes feed design:** The feed must also report **deletions**, or cached trips in the app keep ghosts. Options are a tombstone table or a small change log. To be decided at the start of phase 3.
+- ~~**O3 – Changes feed design**~~ – decided: an append-only change log (table `changes`, cursor = `seq`), see ARCHITECTURE.md section 5.
 - **O4 – maplibre-gl advisory vs. [E9]:** `npm audit` reports a critical XSS
   sanitizer bypass (GHSA-jrc7-96c5-q579) for maplibre-gl ≤ 6.4.0; the fix
   needs v6.5+, but [E9] pins v5 because v6's worker breaks after bundling.

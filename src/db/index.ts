@@ -115,6 +115,53 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       ALTER TABLE photos ADD COLUMN video_mime TEXT;
     `,
   },
+  {
+    name: "0004_api",
+    sql: `
+      CREATE TABLE IF NOT EXISTS api_tokens (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        device_name TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+        last_used_at INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS api_tokens_user_idx ON api_tokens(user_id);
+
+      CREATE TABLE IF NOT EXISTS viewer_devices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        device_name TEXT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+        last_seen_at INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS viewer_devices_trip_idx ON viewer_devices(trip_id);
+
+      CREATE TABLE IF NOT EXISTS auth_codes (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        code_challenge TEXT NOT NULL,
+        device_name TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+      );
+
+      ALTER TABLE steps ADD COLUMN client_uuid TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS steps_client_uuid_idx ON steps(client_uuid);
+      ALTER TABLE photos ADD COLUMN client_uuid TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS photos_client_uuid_idx ON photos(client_uuid);
+
+      CREATE TABLE IF NOT EXISTS changes (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        trip_id INTEGER NOT NULL,
+        entity TEXT NOT NULL,
+        entity_id INTEGER NOT NULL,
+        op TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+      );
+      CREATE INDEX IF NOT EXISTS changes_trip_idx ON changes(trip_id, seq);
+    `,
+  },
 ];
 
 function isBusyError(error: unknown) {

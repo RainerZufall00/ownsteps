@@ -38,6 +38,13 @@ const MESSAGES: Record<ErrorCode, string> = {
   media_unprocessable:
     "Bild konnte nicht verarbeitet werden (bei iPhone-Fotos hilft das Format „Maximale Kompatibilität“).",
   invalid_request: "Ungültige Anfrage",
+  author_only: "Nur für angemeldete Autoren.",
+  auth_code_invalid: "Die Anmeldung ist abgelaufen. Bitte erneut versuchen.",
+  password_login_disabled: "Die Anmeldung mit Passwort ist abgeschaltet.",
+  oidc_disabled: "Die Anmeldung über OIDC ist nicht eingerichtet.",
+  too_many_attempts: "Zu viele Versuche. Bitte einen Moment warten.",
+  comment_not_found: "Kommentar nicht gefunden.",
+  viewer_not_found: "Lesegerät nicht gefunden.",
 };
 
 export function messageFor(code: ErrorCode, params: Record<string, string> = {}) {

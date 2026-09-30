@@ -39,6 +39,13 @@ export const ERROR_STATUS = {
   poster_missing: 400,
   media_unprocessable: 422,
   invalid_request: 400,
+  author_only: 403,
+  auth_code_invalid: 400,
+  password_login_disabled: 403,
+  oidc_disabled: 404,
+  too_many_attempts: 429,
+  comment_not_found: 404,
+  viewer_not_found: 404,
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_STATUS;

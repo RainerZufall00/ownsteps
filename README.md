@@ -62,6 +62,21 @@ fallback in case the provider is unreachable.
 If not everyone on your identity provider should get access, use
 `OIDC_ALLOWED_EMAILS=you@example.com,partner@example.com`.
 
+Once OIDC works, `PASSWORD_LOGIN=false` switches password sign-in off in the
+web UI and the app alike.
+
+## API and app
+
+The iOS app talks to `/api/v1`, a versioned REST API with bearer tokens. The
+description is served at `/api/v1/openapi.json`; `/api/v1/info` tells clients
+which sign-in methods and features the server offers. Signed-in app devices
+show up under *Einstellungen* and can be signed out there; readers who follow a
+trip in the app are listed in the trip's settings. Details in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), section 5.
+
+When the app is in the App Store, set `APP_STORE_ID` so shared trips offer to
+open in the app.
+
 ## Reverse proxy
 
 Behind Caddy, Traefik or nginx, restrict the port in `docker-compose.yml` to

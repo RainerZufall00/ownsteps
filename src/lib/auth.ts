@@ -183,6 +183,11 @@ export async function upsertOidcUser(claims: {
   return created;
 }
 
+export async function getUserById(userId: number) {
+  const rows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return rows[0] ?? null;
+}
+
 export async function findUserByEmail(email: string) {
   const rows = await db
     .select()

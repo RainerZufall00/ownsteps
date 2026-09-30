@@ -85,10 +85,11 @@ src/
 | `GET /api/auth/oidc/start` | Start OIDC sign-in |
 | `GET /api/auth/oidc/callback` | Return from the provider, create the session |
 | `GET /api/health` | Healthcheck for Docker |
+| `/api/v1/…` | REST API for the app, see section 5 |
 
-Everything else goes through **Server Actions** – forms therefore work without
-JavaScript too, and there's no hand-written API layer for our own forms. (A
-versioned REST API for the iOS app is planned, see the roadmap.)
+Everything else in the web UI goes through **Server Actions** – forms
+therefore work without JavaScript too. The iOS app uses the versioned REST API
+under `/api/v1` instead (see *REST API* in section 5).
 
 ### Service layer
 
@@ -252,6 +253,54 @@ dead, without the recipients knowing why. The button in the trip settings
 therefore goes through a second step like deleting does (`RotateShareForm`).
 That the confirmation collapses again after the work is done is handled by
 the token as `key` on the component – if it changes, React rebuilds it.
+
+### REST API (`/api/v1`)
+
+The app's interface ([D11]–[D17] in the roadmap). Route handlers live in
+`src/app/api/v1/`, their plumbing in `src/lib/api/`; the use cases are the same
+services the web UI calls.
+
+- **Bearer tokens only, no cookies.** `getPrincipal()`
+  (`src/lib/api/principal.ts`) knows two kinds: **author device tokens**
+  (`osa_…`, table `api_tokens`, one per signed-in device) and **viewer tokens**
+  (`osv_…`, table `viewer_devices`, one per reader and trip). Only SHA-256
+  hashes are stored. `requireReadableTrip()` is the API's `resolveTripAccess`:
+  authors see everything, a viewer its one trip, and only while sharing is on
+  – otherwise 403 `trip_not_shared` (the device stays registered and gets back
+  in when sharing is switched on again). Everything that changes content
+  calls `requireAuthor()`.
+- **Sign-in.** Password: `POST /api/v1/auth/token`, switched off by
+  `PASSWORD_LOGIN=false`. OIDC: the app opens `/api/v1/auth/oidc/start` in an
+  `ASWebAuthenticationSession`; the server runs its normal OIDC flow, and the
+  shared callback – seeing `app` in the flow cookie – ends at
+  `ownsteps://auth?code=…` with a one-time code (table `auth_codes`, 2 minutes,
+  burnt on the first attempt). The app trades it at
+  `/api/v1/auth/oidc/exchange` together with its **own PKCE verifier**, so
+  another app catching the custom-scheme redirect can't redeem it.
+- **Readers.** `POST /api/v1/viewers/redeem` turns a share link (plus the
+  password, once) into a viewer token. Any number of readers can redeem one
+  link. Rotating the share token keeps registered devices; authors remove them
+  in the trip settings.
+- **Idempotency.** Steps and photos carry an optional `client_uuid`. A
+  repeated `POST …/steps` or `POST …/media` with the same UUID returns what the
+  first request created – retries after a dropped connection don't duplicate.
+- **Change feed.** Every write in the data-access functions appends to the
+  table `changes` (`recordChange()` in `src/lib/changes.ts`): trip, step, photo
+  or comment, `upsert` or `delete`. `GET /api/v1/changes?since=<seq>` returns
+  what happened after a cursor; deleting a trip or step implies its children.
+  Viewers only see their trip's entries. **Anything that writes to trips,
+  steps, photos or comments must go through these functions** or record the
+  change itself, otherwise the app never learns about it.
+- **Errors** are `application/problem+json` with `type`
+  `urn:ownsteps:problem:<code>` – the same codes the services throw.
+- **The OpenAPI document** (`src/lib/api/openapi.ts`, served at
+  `/api/v1/openapi.json`) is built from the Zod schemas in
+  `src/lib/api/schemas.ts`; the app's client is generated from it. A test
+  compares it with the route files, and another calls every protected route
+  without a token and expects 401.
+- **Uploads** (`…/steps/{id}/media`, `…/trips/{id}/cover`) are excluded from
+  the proxy matcher like `/api/upload` – checked with a 15 MB upload, which a
+  non-excluded route truncates at 10 MB.
 
 ### Comments
 

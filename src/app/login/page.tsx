@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Logo from "@/components/Logo";
 import { countUsers, getCurrentUser } from "@/lib/auth";
-import { SITE_NAME } from "@/lib/env";
+import { PASSWORD_LOGIN, SITE_NAME } from "@/lib/env";
 import { OIDC_BUTTON_LABEL, oidcEnabled } from "@/lib/oidc";
 import LoginForm from "./LoginForm";
 
@@ -68,15 +68,23 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
                 Mit {OIDC_BUTTON_LABEL} anmelden
               </a>
 
-              <div className="my-5 flex items-center gap-3 text-xs text-ink-faint">
-                <span className="h-px flex-1 bg-line" />
-                oder mit Passwort
-                <span className="h-px flex-1 bg-line" />
-              </div>
+              {PASSWORD_LOGIN && (
+                <div className="my-5 flex items-center gap-3 text-xs text-ink-faint">
+                  <span className="h-px flex-1 bg-line" />
+                  oder mit Passwort
+                  <span className="h-px flex-1 bg-line" />
+                </div>
+              )}
             </>
           )}
 
-          <LoginForm />
+          {PASSWORD_LOGIN && <LoginForm />}
+          {!PASSWORD_LOGIN && !oidcEnabled && (
+            <p className="text-[15px] text-ink-soft">
+              Es ist keine Anmeldung eingerichtet: PASSWORD_LOGIN ist
+              abgeschaltet, aber OIDC nicht konfiguriert.
+            </p>
+          )}
         </div>
       </div>
     </main>

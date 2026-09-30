@@ -5,11 +5,21 @@ import { redirect } from "next/navigation";
 import { failure } from "@/lib/action-result";
 import { destroySession, requireUser } from "@/lib/auth";
 import { addAccount, changePassword } from "@/lib/services/accounts";
+import { revokeApiToken } from "@/lib/tokens";
 import type { ActionState } from "../actions";
 
 export async function logoutAction() {
   await destroySession();
   redirect("/login");
+}
+
+/** Signs one of your app devices out; its token stops working immediately. */
+export async function revokeDeviceAction(formData: FormData) {
+  const user = await requireUser();
+  const tokenId = String(formData.get("tokenId") ?? "");
+  if (!tokenId) return;
+  await revokeApiToken(tokenId, user.id);
+  revalidatePath("/settings");
 }
 
 export async function addUserAction(

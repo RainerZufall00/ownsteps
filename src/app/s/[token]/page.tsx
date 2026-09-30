@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Logo from "@/components/Logo";
 import TripView from "@/components/TripView";
-import { PUBLIC_URL, SITE_NAME } from "@/lib/env";
+import { appJoinLink } from "@/lib/app-link";
+import { APP_STORE_ID, PUBLIC_URL, SITE_NAME } from "@/lib/env";
 import { formatTripRange, pluralize } from "@/lib/format";
 import { getMapStyle } from "@/lib/map";
 import { getTripByShareToken, resolveTripAccess } from "@/lib/share";
@@ -37,6 +38,10 @@ export async function generateMetadata({
       `Eine Reise mit ${pluralize(steps.length, "Station", "Stationen")}.`,
     // The link must not end up in any index.
     robots: { index: false, follow: false },
+    // Smart App Banner in Safari; hands the link to the app when installed.
+    ...(APP_STORE_ID
+      ? { itunes: { appId: APP_STORE_ID, appArgument: `${await baseUrl()}/s/${token}` } }
+      : {}),
     openGraph: {
       title: trip.title,
       description: trip.summary ?? undefined,
@@ -83,12 +88,24 @@ export default async function SharedTripPage({
   }
 
   const steps = await getSteps(trip.id);
+  const shareUrl = `${await baseUrl()}/s/${token}`;
 
   const header = (
     <header className="mb-5">
-      <div className="mb-4 flex items-center gap-2 text-ink-soft">
-        <Logo className="h-5 w-5 text-accent" />
-        <span className="text-sm font-medium">{SITE_NAME}</span>
+      <div className="mb-4 flex items-center justify-between gap-2 text-ink-soft">
+        <span className="flex items-center gap-2">
+          <Logo className="h-5 w-5 text-accent" />
+          <span className="text-sm font-medium">{SITE_NAME}</span>
+        </span>
+        {/* Only once the app is in the store, and hidden on large screens. */}
+        {APP_STORE_ID && (
+          <a
+            href={appJoinLink(shareUrl)}
+            className="rounded-full bg-accent-soft px-3 py-1 text-[13px] font-semibold text-accent xl:hidden"
+          >
+            In der App öffnen
+          </a>
+        )}
       </div>
 
       <h1 className="text-[28px] font-bold leading-tight tracking-tight">

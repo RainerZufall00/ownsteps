@@ -3,6 +3,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { photos, trips } from "@/db/schema";
+import { recordChange } from "./changes";
 import { deletePhotoFiles } from "./images";
 
 export async function getPhoto(photoId: number) {
@@ -20,6 +21,7 @@ export async function deletePhoto(photoId: number) {
   if (!photo) return null;
 
   await db.delete(photos).where(eq(photos.id, photoId));
+  await recordChange(photo.tripId, "photo", photo.id, "delete");
   // The trip's cover must not point at a deleted photo.
   await db
     .update(trips)
@@ -30,7 +32,21 @@ export async function deletePhoto(photoId: number) {
 }
 
 export async function setPhotoCaption(photoId: number, caption: string | null) {
-  await db.update(photos).set({ caption }).where(eq(photos.id, photoId));
+  const [photo] = await db
+    .update(photos)
+    .set({ caption })
+    .where(eq(photos.id, photoId))
+    .returning({ tripId: photos.tripId });
+  if (photo) await recordChange(photo.tripId, "photo", photoId, "upsert");
+}
+
+export async function getPhotoByClientUuid(clientUuid: string) {
+  const rows = await db
+    .select()
+    .from(photos)
+    .where(eq(photos.clientUuid, clientUuid))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 /** Removes the files of several photos, e.g. when a step is deleted. */

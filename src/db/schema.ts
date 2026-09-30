@@ -73,6 +73,8 @@ export const steps = sqliteTable(
     published: integer("published", { mode: "boolean" })
       .notNull()
       .default(false),
+    /** Chosen by the app when a step is created offline; makes retries idempotent. */
+    clientUuid: text("client_uuid").unique(),
     createdBy: integer("created_by").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -113,6 +115,8 @@ export const photos = sqliteTable(
     /** Tiny base64 JPEG used as placeholder while loading. */
     placeholder: text("placeholder"),
     sortOrder: integer("sort_order").notNull().default(0),
+    /** Chosen by the app per upload; a retried upload returns the existing photo. */
+    clientUuid: text("client_uuid").unique(),
     createdAt: integer("created_at").notNull().default(now),
   },
   (t) => [
@@ -139,7 +143,77 @@ export const comments = sqliteTable(
   (t) => [index("comments_step_idx").on(t.stepId, t.createdAt)],
 );
 
+/** Device tokens of signed-in authors, used by the app (`Authorization: Bearer`). */
+export const apiTokens = sqliteTable(
+  "api_tokens",
+  {
+    /** SHA-256 of the token; the token itself is only shown once. */
+    id: text("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    deviceName: text("device_name").notNull(),
+    createdAt: integer("created_at").notNull().default(now),
+    lastUsedAt: integer("last_used_at"),
+  },
+  (t) => [index("api_tokens_user_idx").on(t.userId)],
+);
+
+/**
+ * Readers who redeemed a trip's share link in the app. No account – just a
+ * name and a token that grants read access to this one trip ([D17]).
+ */
+export const viewerDevices = sqliteTable(
+  "viewer_devices",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    tripId: integer("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    /** The name the reader chose; also used for their comments. */
+    name: text("name").notNull(),
+    deviceName: text("device_name"),
+    createdAt: integer("created_at").notNull().default(now),
+    lastSeenAt: integer("last_seen_at"),
+  },
+  (t) => [index("viewer_devices_trip_idx").on(t.tripId)],
+);
+
+/** One-time codes handing an OIDC sign-in over to the app. */
+export const authCodes = sqliteTable("auth_codes", {
+  /** SHA-256 of the code. */
+  id: text("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** PKCE challenge of the app (S256); the exchange needs the verifier. */
+  codeChallenge: text("code_challenge").notNull(),
+  deviceName: text("device_name").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+});
+
+/**
+ * Append-only change log, the basis of `GET /api/v1/changes` ([D16], O3).
+ * `seq` is the cursor. Deleting a trip or step implies its children.
+ */
+export const changes = sqliteTable(
+  "changes",
+  {
+    seq: integer("seq").primaryKey({ autoIncrement: true }),
+    tripId: integer("trip_id").notNull(),
+    entity: text("entity", { enum: ["trip", "step", "photo", "comment"] }).notNull(),
+    entityId: integer("entity_id").notNull(),
+    op: text("op", { enum: ["upsert", "delete"] }).notNull(),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [index("changes_trip_idx").on(t.tripId, t.seq)],
+);
+
 export type User = typeof users.$inferSelect;
+export type ApiToken = typeof apiTokens.$inferSelect;
+export type ViewerDevice = typeof viewerDevices.$inferSelect;
+export type Change = typeof changes.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type Trip = typeof trips.$inferSelect;
 export type Step = typeof steps.$inferSelect;

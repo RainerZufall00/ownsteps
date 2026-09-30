@@ -36,3 +36,11 @@ export const MAPTILER_KEY = process.env.MAPTILER_KEY?.trim() ?? "";
 export const MAP_STYLE = process.env.MAP_STYLE?.trim() || "hybrid";
 export const SITE_NAME = process.env.SITE_NAME?.trim() || "OwnSteps";
 export const PUBLIC_URL = process.env.PUBLIC_URL?.trim().replace(/\/$/, "") ?? "";
+/**
+ * `PASSWORD_LOGIN=false` switches password sign-in off everywhere (web and
+ * app), for instances that only use OIDC. Initial setup is unaffected.
+ */
+export const PASSWORD_LOGIN =
+  process.env.PASSWORD_LOGIN?.trim().toLowerCase() !== "false";
+/** Numeric App Store ID of the iOS app; enables the Smart App Banner. */
+export const APP_STORE_ID = process.env.APP_STORE_ID?.trim() ?? "";

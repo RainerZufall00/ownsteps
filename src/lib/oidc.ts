@@ -8,6 +8,9 @@ import { publicOrigin } from "./origin";
 /** Short-lived cookie holding state, PKCE verifier and the login target. */
 export const OIDC_FLOW_COOKIE = "ownsteps_oidc";
 
+/** Where the app waits for the end of its OIDC sign-in (custom URL scheme). */
+export const APP_CALLBACK_URL = "ownsteps://auth";
+
 /**
  * Must match the callback URL registered with the provider (e.g. Pocket ID)
  * exactly. Without PUBLIC_URL, `publicOrigin` falls back to the proxy's

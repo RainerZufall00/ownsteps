@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { ServiceError } from "@/lib/errors";
 import { removePhoto } from "@/lib/services/media";
 import { removeStep, saveStep, startStep } from "@/lib/services/steps";
+import { removeAllViewers, removeViewer } from "@/lib/services/viewers";
 import {
   createTripFor,
   deleteTripConfirmed,
@@ -190,6 +191,28 @@ export async function updateShareAction(
   revalidatePath(`/trips/${tripId}/settings`);
   revalidatePath("/");
   return { ok: true };
+}
+
+/** Removes one reader's device; the app then loses access to the trip. */
+export async function removeViewerAction(formData: FormData) {
+  await requireUser();
+  const viewerId = Number(formData.get("viewerId"));
+  if (!Number.isInteger(viewerId)) return;
+
+  const device = await removeViewer(viewerId).catch((error) => {
+    if (error instanceof ServiceError) return null;
+    throw error;
+  });
+  if (device) revalidatePath(`/trips/${device.tripId}/settings`);
+}
+
+export async function removeAllViewersAction(formData: FormData) {
+  await requireUser();
+  const tripId = Number(formData.get("tripId"));
+  if (!Number.isInteger(tripId)) return;
+
+  await removeAllViewers(tripId);
+  revalidatePath(`/trips/${tripId}/settings`);
 }
 
 /** Creates a new link – the old one stops working afterwards. */

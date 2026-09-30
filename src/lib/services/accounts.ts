@@ -10,6 +10,7 @@ import {
   hashPassword,
   verifyPassword,
 } from "@/lib/auth";
+import { PASSWORD_LOGIN } from "@/lib/env";
 import { ServiceError } from "@/lib/errors";
 import {
   credentialsInput,
@@ -51,6 +52,7 @@ export async function changePassword(user: User, raw: unknown) {
 
 /** Deliberately no hint as to which part was wrong. */
 export async function authenticate(raw: unknown) {
+  if (!PASSWORD_LOGIN) throw new ServiceError("password_login_disabled");
   const { email, password } = parseInput(credentialsInput, raw);
   const user = await findUserByEmail(email);
   const valid = await verifyPassword(password, user?.passwordHash ?? null);

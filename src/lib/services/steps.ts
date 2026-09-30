@@ -4,7 +4,14 @@ import { ServiceError } from "@/lib/errors";
 import { withDate } from "@/lib/format";
 import { setPhotoCaption } from "@/lib/photos";
 import { parseInput, stepInput } from "@/lib/schemas";
-import { createDraftStep, deleteStep, getStep, updateStep } from "@/lib/trips";
+import {
+  createDraftStep,
+  createStep,
+  deleteStep,
+  getStep,
+  getStepByClientUuid,
+  updateStep,
+} from "@/lib/trips";
 import { requireTrip } from "./trips";
 
 export async function requireStep(stepId: number) {
@@ -49,6 +56,73 @@ export async function saveStep(stepId: number, raw: unknown) {
   }
 
   return step;
+}
+
+/**
+ * Creates a step with content right away – the app's way, often written
+ * offline. A repeated request with the same `clientUuid` returns the step
+ * created the first time instead of a duplicate ([D19]).
+ */
+export async function createStepFromApp(
+  tripId: number,
+  userId: number,
+  input: {
+    clientUuid?: string;
+    body: string;
+    placeName?: string | null;
+    lat?: number | null;
+    lon?: number | null;
+    occurredAt?: string;
+    publish: boolean;
+  },
+) {
+  await requireTrip(tripId);
+  if (input.clientUuid) {
+    const existing = await getStepByClientUuid(input.clientUuid);
+    if (existing) {
+      if (existing.tripId !== tripId) throw new ServiceError("invalid_request");
+      return { step: (await getStep(existing.id))!, created: false };
+    }
+  }
+
+  const body = input.body.trim();
+  const placeName = input.placeName?.trim() || null;
+  if (input.publish && !body && !placeName) throw new ServiceError("step_empty");
+
+  const step = await createStep({
+    tripId,
+    userId,
+    published: input.publish,
+    clientUuid: input.clientUuid ?? null,
+    body,
+    placeName,
+    lat: input.lat ?? null,
+    lon: input.lon ?? null,
+    occurredAt: input.occurredAt ? Date.parse(input.occurredAt) : undefined,
+  });
+  return { step: (await getStep(step.id))!, created: true };
+}
+
+/** Partial update: fields that aren't sent keep their value. */
+export async function patchStep(
+  stepId: number,
+  patch: {
+    body?: string;
+    placeName?: string | null;
+    lat?: number | null;
+    lon?: number | null;
+    occurredDate?: string;
+  },
+) {
+  const step = await requireStep(stepId);
+  await saveStep(stepId, {
+    body: patch.body ?? step.body,
+    placeName: patch.placeName === undefined ? step.placeName : patch.placeName,
+    lat: patch.lat === undefined ? step.lat : patch.lat,
+    lon: patch.lon === undefined ? step.lon : patch.lon,
+    occurredDate: patch.occurredDate ?? null,
+  });
+  return (await getStep(stepId))!;
 }
 
 export async function removeStep(stepId: number) {

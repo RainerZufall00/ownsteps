@@ -63,6 +63,33 @@ export async function updateSharing(tripId: number, raw: unknown) {
   await updateTrip(tripId, patch);
 }
 
+/**
+ * Partial update for the API: fields that aren't sent keep their value. The
+ * share password isn't part of it – that stays in the web UI ([D21]).
+ */
+export async function patchTrip(
+  tripId: number,
+  patch: {
+    title?: string;
+    summary?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    shareEnabled?: boolean;
+  },
+) {
+  const trip = await requireTrip(tripId);
+  await updateTripDetails(tripId, {
+    title: patch.title ?? trip.title,
+    summary: patch.summary === undefined ? trip.summary : patch.summary,
+    startDate: patch.startDate === undefined ? trip.startDate : patch.startDate,
+    endDate: patch.endDate === undefined ? trip.endDate : patch.endDate,
+  });
+  if (patch.shareEnabled !== undefined && patch.shareEnabled !== trip.shareEnabled) {
+    await updateTrip(tripId, { shareEnabled: patch.shareEnabled });
+  }
+  return requireTrip(tripId);
+}
+
 /** Creates a new link – the old one stops working afterwards. */
 export async function rotateShareToken(tripId: number) {
   await requireTrip(tripId);
