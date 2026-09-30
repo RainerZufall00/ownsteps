@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   addComment,
   COMMENT_MAX_LENGTH,
-  darfKommentieren,
+  mayComment,
   deleteComment,
   NAME_MAX_LENGTH,
   stepBelongsToTrip,
@@ -20,12 +20,12 @@ export type CommentState = {
   comment?: ViewComment;
 };
 
-async function kennung() {
+async function clientKey() {
   const store = await headers();
   return (
     store.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     store.get("x-real-ip") ||
-    "unbekannt"
+    "unknown"
   );
 }
 
@@ -50,7 +50,7 @@ export async function addCommentAction(
     return { error: "Der Kommentar ist zu lang." };
   }
 
-  // Kommentieren darf, wer die Reise auch sehen darf.
+  // Whoever may see the trip may comment on it.
   const trip = await getTrip(tripId);
   if (!trip) return { error: "Reise nicht gefunden." };
   const access = await resolveTripAccess(trip);
@@ -61,7 +61,7 @@ export async function addCommentAction(
     return { error: "Beitrag nicht gefunden." };
   }
 
-  if (!darfKommentieren(await kennung())) {
+  if (!mayComment(await clientKey())) {
     return { error: "Bitte einen Moment warten und dann erneut senden." };
   }
 
@@ -80,7 +80,7 @@ export async function addCommentAction(
   };
 }
 
-/** Löschen bleibt den angemeldeten Autoren vorbehalten. */
+/** Deleting is reserved for signed-in authors. */
 export async function deleteCommentAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;

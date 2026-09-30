@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_NAME } from "@/lib/env";
 
-/** Macht die App auf dem Handy als Symbol installierbar. */
+/** Makes the app installable as an icon on phones. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: SITE_NAME,

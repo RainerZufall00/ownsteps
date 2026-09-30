@@ -12,59 +12,60 @@ type Props = {
 
 type Zoom = { scale: number; x: number; y: number };
 
-const OHNE_ZOOM: Zoom = { scale: 1, x: 0, y: 0 };
+const NO_ZOOM: Zoom = { scale: 1, x: 0, y: 0 };
 const MAX_SCALE = 4;
-/** Ab diesem Anteil der Bildschirmbreite rastet das nächste Medium ein. */
-const BLAETTER_SCHWELLE = 0.22;
+/** From this share of the screen width on, the next medium snaps in. */
+const PAGE_THRESHOLD = 0.22;
 /**
- * Höhe der Bedienleiste, die der Browser unten ins Video zeichnet. Gesten, die
- * dort beginnen, gehören dem Video – sonst wird jedes Spulen zum Blättern.
+ * Height of the control bar the browser draws at the bottom of a video.
+ * Gestures starting there belong to the video – otherwise every scrub turns
+ * into paging.
  */
-const STEUERLEISTE = 64;
+const CONTROLS_HEIGHT = 64;
 
-function abstand(a: { x: number; y: number }, b: { x: number; y: number }) {
+function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 export default function Lightbox({ photos, startIndex, onClose }: Props) {
   const base = useMediaBase();
   const [index, setIndex] = useState(startIndex);
-  const [zug, setZug] = useState(0);
-  const [zoom, setZoom] = useState<Zoom>(OHNE_ZOOM);
-  const [animiert, setAnimiert] = useState(true);
+  const [drag, setDrag] = useState(0);
+  const [zoom, setZoom] = useState<Zoom>(NO_ZOOM);
+  const [animated, setAnimated] = useState(true);
 
   const dialog = useRef<HTMLDivElement>(null);
-  const buehne = useRef<HTMLDivElement>(null);
-  const zeiger = useRef(new Map<number, { x: number; y: number }>());
-  const geste = useRef({
-    startAbstand: 0,
+  const stage = useRef<HTMLDivElement>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const gesture = useRef({
+    startDistance: 0,
     startScale: 1,
     startX: 0,
     startY: 0,
-    zoomStart: OHNE_ZOOM,
-    bewegt: false,
-    beginn: 0,
-    letzterTipp: 0,
+    zoomStart: NO_ZOOM,
+    moved: false,
+    startedAt: 0,
+    lastTap: 0,
     /**
-     * Sobald zwei Finger im Spiel waren, wird bis zum Loslassen aller Finger
-     * weder geblättert noch getippt. Ohne das wurde der zuletzt gehobene
-     * Finger einer Zoom-Geste als Wischen gedeutet – die Ansicht sprang dann
-     * ins nächste Bild oder aus dem Zoom heraus.
+     * Once two fingers were involved, there's neither paging nor tapping until
+     * all fingers are lifted. Without this, the last finger lifted after a
+     * zoom gesture was read as a swipe – the view then jumped to the next
+     * image or out of the zoom.
      */
-    warPinch: false,
-    /** Geste in der Bedienleiste eines Videos: komplett ignorieren. */
-    aus: false,
+    wasPinch: false,
+    /** Gesture in a video's control bar: ignore completely. */
+    ignored: false,
   });
 
-  const gezoomt = zoom.scale > 1.01;
+  const zoomed = zoom.scale > 1.01;
   const medium = photos[index];
-  const istVideo = medium?.mediaType === "video";
+  const isVideo = medium?.mediaType === "video";
 
-  const blaettern = useCallback(
+  const flip = useCallback(
     (delta: number) => {
-      setAnimiert(true);
-      setZug(0);
-      setZoom(OHNE_ZOOM);
+      setAnimated(true);
+      setDrag(0);
+      setZoom(NO_ZOOM);
       setIndex((current) => {
         const next = current + delta;
         if (next < 0 || next >= photos.length) return current;
@@ -77,56 +78,54 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
-      if (event.key === "ArrowRight") blaettern(1);
-      if (event.key === "ArrowLeft") blaettern(-1);
+      if (event.key === "ArrowRight") flip(1);
+      if (event.key === "ArrowLeft") flip(-1);
     };
     window.addEventListener("keydown", onKey);
-    const vorher = document.body.style.overflow;
+    const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = vorher;
+      document.body.style.overflow = previous;
     };
-  }, [blaettern, onClose]);
+  }, [flip, onClose]);
 
   /**
-   * Der Browser darf in der Vollbildansicht nicht selbst zoomen. Beim Foto
-   * erledigt das die App, beim Video wäre es eine Sackgasse: Der Seitenzoom
-   * liegt über einem `position: fixed`-Overlay, das nicht mitscrollt – man
-   * sitzt dann in einem vergrößerten Ausschnitt fest und kommt nur über das
-   * Neuladen der Seite wieder heraus.
+   * The browser must not zoom by itself in the fullscreen view. For photos the
+   * app handles that; for videos it would be a dead end: the page zoom sits on
+   * top of a `position: fixed` overlay that doesn't scroll along – you're then
+   * stuck in a magnified section and only get out by reloading the page.
    *
-   * Zwei Wege führen dorthin, beide werden hier geschlossen: das Aufziehen mit
-   * zwei Fingern (auf iOS über eigene `gesture`-Ereignisse) und der
-   * Doppeltipp. Einzelne Berührungen bleiben unangetastet – sie gehören der
-   * Bedienleiste des Videos.
+   * Two paths lead there, both are closed here: pinching with two fingers (on
+   * iOS via separate `gesture` events) and double-tapping. Single touches stay
+   * untouched – they belong to the video's control bar.
    */
   useEffect(() => {
-    const wurzel = dialog.current;
-    if (!wurzel) return;
+    const root = dialog.current;
+    if (!root) return;
 
-    const zweiFinger = (event: TouchEvent) => {
+    const twoFingers = (event: TouchEvent) => {
       if (event.touches.length > 1) event.preventDefault();
     };
-    const iosGeste = (event: Event) => event.preventDefault();
+    const iosGesture = (event: Event) => event.preventDefault();
 
-    wurzel.addEventListener("touchmove", zweiFinger, { passive: false });
-    wurzel.addEventListener("gesturestart", iosGeste);
-    wurzel.addEventListener("gesturechange", iosGeste);
+    root.addEventListener("touchmove", twoFingers, { passive: false });
+    root.addEventListener("gesturestart", iosGesture);
+    root.addEventListener("gesturechange", iosGesture);
     return () => {
-      wurzel.removeEventListener("touchmove", zweiFinger);
-      wurzel.removeEventListener("gesturestart", iosGeste);
-      wurzel.removeEventListener("gesturechange", iosGeste);
+      root.removeEventListener("touchmove", twoFingers);
+      root.removeEventListener("gesturestart", iosGesture);
+      root.removeEventListener("gesturechange", iosGesture);
     };
   }, []);
 
   /**
-   * Beim Wechsel läuft kein Video im Hintergrund weiter. Die Position im
-   * Videofeld ist nicht die Position im Medienstreifen – zwischen den Videos
-   * können Fotos liegen –, deshalb steht sie am Element.
+   * When switching, no video keeps playing in the background. The position
+   * among the videos isn't the position in the media strip – photos can sit
+   * between videos – so it's stored on the element.
    */
   useEffect(() => {
-    buehne.current
+    stage.current
       ?.querySelectorAll<HTMLVideoElement>("video[data-pos]")
       .forEach((video) => {
         if (Number(video.dataset.pos) !== index) video.pause();
@@ -135,176 +134,176 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
 
   if (!medium) return null;
 
-  function begrenze(next: Zoom): Zoom {
+  function clamp(next: Zoom): Zoom {
     const scale = Math.min(Math.max(next.scale, 1), MAX_SCALE);
-    if (scale <= 1.01) return OHNE_ZOOM;
-    const spielraum = 400 * (scale - 1);
+    if (scale <= 1.01) return NO_ZOOM;
+    const slack = 400 * (scale - 1);
     return {
       scale,
-      x: Math.min(Math.max(next.x, -spielraum), spielraum),
-      y: Math.min(Math.max(next.y, -spielraum), spielraum),
+      x: Math.min(Math.max(next.x, -slack), slack),
+      y: Math.min(Math.max(next.y, -slack), slack),
     };
   }
 
-  /** Liegt der Punkt auf der Bedienleiste des Videos? */
-  function inSteuerleiste(event: React.PointerEvent) {
+  /** Is the point on the video's control bar? */
+  function inControls(event: React.PointerEvent) {
     const video = (event.currentTarget as HTMLElement).querySelector("video");
     if (!video) return false;
     const box = video.getBoundingClientRect();
     return (
       event.clientX >= box.left &&
       event.clientX <= box.right &&
-      event.clientY > box.bottom - STEUERLEISTE &&
+      event.clientY > box.bottom - CONTROLS_HEIGHT &&
       event.clientY <= box.bottom
     );
   }
 
   function onPointerDown(event: React.PointerEvent) {
-    const g = geste.current;
-    g.aus = false;
+    const g = gesture.current;
+    g.ignored = false;
 
-    if (istVideo) {
-      // Abspielen, Spulen, Lautstärke: das macht der Browser selbst. Ein
-      // Zeigerfang würde ihm dabei die Ereignisse wegnehmen.
-      if (inSteuerleiste(event)) {
-        g.aus = true;
+    if (isVideo) {
+      // Play, scrub, volume: the browser handles that itself. Pointer capture
+      // would steal its events.
+      if (inControls(event)) {
+        g.ignored = true;
         return;
       }
     } else {
       try {
         (event.target as Element).setPointerCapture?.(event.pointerId);
       } catch {
-        // Ohne Capture funktioniert alles weiter.
+        // Everything keeps working without capture.
       }
     }
 
-    zeiger.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
-    g.bewegt = false;
-    g.beginn = Date.now();
+    g.moved = false;
+    g.startedAt = Date.now();
     g.startX = event.clientX;
     g.startY = event.clientY;
     g.zoomStart = zoom;
-    setAnimiert(false);
+    setAnimated(false);
 
-    if (zeiger.current.size === 2) {
-      const [a, b] = [...zeiger.current.values()];
-      g.startAbstand = abstand(a, b);
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      g.startDistance = distance(a, b);
       g.startScale = zoom.scale;
-      g.warPinch = true;
-      setZug(0);
+      g.wasPinch = true;
+      setDrag(0);
     }
   }
 
   function onPointerMove(event: React.PointerEvent) {
-    const g = geste.current;
-    if (g.aus) return;
-    if (!zeiger.current.has(event.pointerId)) return;
-    zeiger.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const g = gesture.current;
+    if (g.ignored) return;
+    if (!pointers.current.has(event.pointerId)) return;
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
-    if (zeiger.current.size === 2) {
-      // Videos werden nicht gezoomt – dafür gibt es den Vollbildknopf.
-      if (istVideo) return;
-      const [a, b] = [...zeiger.current.values()];
-      if (g.startAbstand > 0) {
-        g.bewegt = true;
-        setZoom(begrenze({ ...zoom, scale: g.startScale * (abstand(a, b) / g.startAbstand) }));
+    if (pointers.current.size === 2) {
+      // Videos aren't zoomed – there's the fullscreen button for that.
+      if (isVideo) return;
+      const [a, b] = [...pointers.current.values()];
+      if (g.startDistance > 0) {
+        g.moved = true;
+        setZoom(clamp({ ...zoom, scale: g.startScale * (distance(a, b) / g.startDistance) }));
       }
       return;
     }
 
-    // Nach einer Zoom-Geste bleibt der verbliebene Finger wirkungslos.
-    if (g.warPinch) return;
+    // After a zoom gesture the remaining finger has no effect.
+    if (g.wasPinch) return;
 
     const dx = event.clientX - g.startX;
     const dy = event.clientY - g.startY;
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) g.bewegt = true;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) g.moved = true;
 
-    if (gezoomt) {
+    if (zoomed) {
       setZoom(
-        begrenze({ scale: g.zoomStart.scale, x: g.zoomStart.x + dx, y: g.zoomStart.y + dy }),
+        clamp({ scale: g.zoomStart.scale, x: g.zoomStart.x + dx, y: g.zoomStart.y + dy }),
       );
       return;
     }
 
-    // Das Medium wandert mit dem Finger, an den Enden gebremst.
-    const amRand =
+    // The medium follows the finger, dampened at the ends.
+    const atEdge =
       (index === 0 && dx > 0) || (index === photos.length - 1 && dx < 0);
-    setZug(amRand ? dx * 0.3 : dx);
+    setDrag(atEdge ? dx * 0.3 : dx);
   }
 
   function onPointerUp(event: React.PointerEvent) {
-    const g = geste.current;
-    if (g.aus) {
-      g.aus = false;
+    const g = gesture.current;
+    if (g.ignored) {
+      g.ignored = false;
       return;
     }
 
     const dx = event.clientX - g.startX;
     const dy = event.clientY - g.startY;
-    const dauer = Date.now() - g.beginn;
+    const duration = Date.now() - g.startedAt;
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const relativ = (event.clientX - rect.left) / rect.width;
+    const relative = (event.clientX - rect.left) / rect.width;
 
-    zeiger.current.delete(event.pointerId);
-    if (zeiger.current.size < 2) g.startAbstand = 0;
+    pointers.current.delete(event.pointerId);
+    if (pointers.current.size < 2) g.startDistance = 0;
 
-    // Erst wenn alle Finger weg sind, zählt wieder eine neue Geste.
-    if (zeiger.current.size > 0) return;
-    if (g.warPinch) {
-      g.warPinch = false;
-      setAnimiert(true);
-      setZug(0);
+    // Only once all fingers are gone does a new gesture count again.
+    if (pointers.current.size > 0) return;
+    if (g.wasPinch) {
+      g.wasPinch = false;
+      setAnimated(true);
+      setDrag(0);
       return;
     }
 
-    setAnimiert(true);
+    setAnimated(true);
 
-    if (gezoomt) {
-      // Im Zoom: kurzer Tipp holt zurück auf die Übersicht.
-      if (!g.bewegt && dauer < 250) setZoom(OHNE_ZOOM);
+    if (zoomed) {
+      // While zoomed: a short tap returns to the overview.
+      if (!g.moved && duration < 250) setZoom(NO_ZOOM);
       return;
     }
 
-    // Nach unten wischen schließt.
-    if (g.bewegt && dy > 90 && Math.abs(dy) > Math.abs(dx)) {
-      setZug(0);
+    // Swiping down closes.
+    if (g.moved && dy > 90 && Math.abs(dy) > Math.abs(dx)) {
+      setDrag(0);
       onClose();
       return;
     }
 
-    if (g.bewegt) {
-      const schwelle = window.innerWidth * BLAETTER_SCHWELLE;
-      if (Math.abs(dx) > schwelle) blaettern(dx < 0 ? 1 : -1);
-      else setZug(0);
+    if (g.moved) {
+      const threshold = window.innerWidth * PAGE_THRESHOLD;
+      if (Math.abs(dx) > threshold) flip(dx < 0 ? 1 : -1);
+      else setDrag(0);
       return;
     }
 
-    // Beim Video bleibt der Tipp dem Abspielen vorbehalten: Weiterschalten
-    // geht dort per Wischen oder über die Pfeile.
-    if (istVideo) return;
+    // For videos a tap is reserved for playback: moving on works by swiping
+    // or via the arrows there.
+    if (isVideo) return;
 
-    // Zwei kurze Tipps zoomen hinein.
-    const jetzt = Date.now();
-    if (dauer < 250 && jetzt - g.letzterTipp < 300) {
-      g.letzterTipp = 0;
-      setZoom(begrenze({ scale: 2.5, x: 0, y: 0 }));
+    // Two short taps zoom in.
+    const now = Date.now();
+    if (duration < 250 && now - g.lastTap < 300) {
+      g.lastTap = 0;
+      setZoom(clamp({ scale: 2.5, x: 0, y: 0 }));
       return;
     }
-    g.letzterTipp = jetzt;
+    g.lastTap = now;
 
-    // Einfacher Tipp: linkes Drittel zurück, sonst weiter.
+    // Single tap: left third goes back, otherwise forward.
     window.setTimeout(() => {
-      if (geste.current.letzterTipp !== jetzt) return;
-      blaettern(relativ < 0.33 ? -1 : 1);
+      if (gesture.current.lastTap !== now) return;
+      flip(relative < 0.33 ? -1 : 1);
     }, 260);
   }
 
   return (
     /**
-     * `100svh` statt `inset-0`: Auf dem Handy rechnet `inset-0` mit dem
-     * Viewport ohne Adressleiste. Der untere Rand – und damit die
-     * Bildunterschrift – lag dann hinter der Browserleiste.
+     * `100svh` instead of `inset-0`: on phones `inset-0` uses the viewport
+     * without the address bar. The bottom edge – and with it the caption –
+     * then sat behind the browser bar.
      */
     <div
       ref={dialog}
@@ -315,10 +314,10 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
     >
       <div className="flex shrink-0 items-center justify-between px-4 py-3 text-white/80">
         <span className="text-sm tabular-nums">
-          {gezoomt ? (
+          {zoomed ? (
             <button
               type="button"
-              onClick={() => setZoom(OHNE_ZOOM)}
+              onClick={() => setZoom(NO_ZOOM)}
               className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/20"
             >
               Zoom zurücksetzen
@@ -339,63 +338,63 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
         </button>
       </div>
 
-      {/* Alle Medien liegen nebeneinander; verschoben wird die ganze Reihe. */}
-      <div ref={buehne} className="min-h-0 flex-1 overflow-hidden">
+      {/* All media sit side by side; the whole row is shifted. */}
+      <div ref={stage} className="min-h-0 flex-1 overflow-hidden">
         <div
           className="flex h-full"
           style={{
-            transform: `translateX(calc(${-index * 100}% + ${zug}px))`,
-            transition: animiert
+            transform: `translateX(calc(${-index * 100}% + ${drag}px))`,
+            transition: animated
               ? "transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)"
               : "none",
           }}
         >
-          {photos.map((eintrag, i) => {
-            const aktiv = i === index;
-            const video = eintrag.mediaType === "video";
+          {photos.map((item, i) => {
+            const active = i === index;
+            const video = item.mediaType === "video";
             return (
               /**
-               * Die Geste hängt am Rahmen, nicht am Medium: Beim Video liegt
-               * darüber die Bedienleiste des Browsers, an der jeder eigene
-               * Zeigerfang scheitert.
+               * The gesture hangs on the frame, not the medium: for videos the
+               * browser's control bar sits on top, where any pointer capture
+               * of our own fails.
                */
               <div
-                key={eintrag.id}
+                key={item.id}
                 className="flex h-full w-full shrink-0 items-center justify-center px-2"
                 /*
-                 * Beim Video bleibt `touch-action` bewusst großzügig, sonst
-                 * verliert die Bedienleiste des Browsers ihre Gesten;
-                 * `manipulation` nimmt ihr allein den Doppeltipp-Zoom.
+                 * For videos `touch-action` deliberately stays generous,
+                 * otherwise the browser's control bar loses its gestures;
+                 * `manipulation` only takes away the double-tap zoom.
                  */
                 style={{ touchAction: video ? "manipulation" : "none" }}
-                onPointerDown={aktiv ? onPointerDown : undefined}
-                onPointerMove={aktiv ? onPointerMove : undefined}
-                onPointerUp={aktiv ? onPointerUp : undefined}
-                onPointerCancel={aktiv ? onPointerUp : undefined}
+                onPointerDown={active ? onPointerDown : undefined}
+                onPointerMove={active ? onPointerMove : undefined}
+                onPointerUp={active ? onPointerUp : undefined}
+                onPointerCancel={active ? onPointerUp : undefined}
               >
                 {video ? (
                   <video
                     data-pos={i}
-                    src={`${base}/${eintrag.id}/video`}
-                    poster={`${base}/${eintrag.id}/medium`}
+                    src={`${base}/${item.id}/video`}
+                    poster={`${base}/${item.id}/medium`}
                     controls
                     playsInline
-                    preload={aktiv ? "metadata" : "none"}
+                    preload={active ? "metadata" : "none"}
                     className="max-h-full max-w-full"
                   />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`${base}/${eintrag.id}/large`}
-                    alt={eintrag.caption ?? ""}
+                    src={`${base}/${item.id}/large`}
+                    alt={item.caption ?? ""}
                     draggable={false}
                     className="max-h-full max-w-full select-none object-contain"
                     style={
-                      aktiv
+                      active
                         ? {
                             transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})`,
-                            transition: animiert ? "transform 0.2s ease-out" : "none",
-                            cursor: gezoomt ? "grab" : "pointer",
+                            transition: animated ? "transform 0.2s ease-out" : "none",
+                            cursor: zoomed ? "grab" : "pointer",
                           }
                         : undefined
                     }
@@ -421,17 +420,17 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
       {photos.length > 1 && (
         <>
           {/*
-            Beim Video schalten die Pfeile auf jedem Gerät sichtbar: Ein Tipp
-            gehört dort dem Abspielen, er kann also nicht weiterblättern.
+            For videos the arrows are visible on every device: a tap belongs
+            to playback there, so it can't page onwards.
           */}
           <button
             type="button"
             aria-label="Vorheriges Medium"
             disabled={index === 0}
             className={`absolute left-2 top-1/2 h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-25 sm:grid ${
-              istVideo ? "grid" : "hidden"
+              isVideo ? "grid" : "hidden"
             }`}
-            onClick={() => blaettern(-1)}
+            onClick={() => flip(-1)}
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
               <path d="m15 5-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
@@ -442,9 +441,9 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
             aria-label="Nächstes Medium"
             disabled={index === photos.length - 1}
             className={`absolute right-2 top-1/2 h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-25 sm:grid ${
-              istVideo ? "grid" : "hidden"
+              isVideo ? "grid" : "hidden"
             }`}
-            onClick={() => blaettern(1)}
+            onClick={() => flip(1)}
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
               <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />

@@ -1,4 +1,4 @@
-/** Serialisierbare Formen, die von Server- an Client-Komponenten gehen. */
+/** Serializable shapes passed from server to client components. */
 
 export type ViewPhoto = {
   id: number;
@@ -6,7 +6,7 @@ export type ViewPhoto = {
   height: number;
   placeholder: string | null;
   caption: string | null;
-  /** Bei "video" zeigen die Bildgrößen das Standbild, die Datei liegt daneben. */
+  /** For "video" the image sizes show the poster frame, the file sits next to them. */
   mediaType: "photo" | "video";
   durationMs: number | null;
 };
@@ -34,11 +34,11 @@ export type ViewTrip = {
   id: number;
   title: string;
   summary: string | null;
-  /** ISO-Datum („2026-07-01"), von Hand gesetzt – bestimmt den ersten Reisetag. */
+  /** ISO date ("2026-07-01"), set by hand – determines the first trip day. */
   startDate: string | null;
 };
 
-/** Nur die für die Anzeige nötigen Felder – hält storage_key, GPS & Co. serverseitig. */
+/** Only the fields needed for display – keeps storage_key, GPS & co. on the server. */
 export function toViewPhoto(p: {
   id: number;
   width: number;

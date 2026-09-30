@@ -19,7 +19,7 @@ export function isVariant(value: string): value is VariantName {
   return value in VARIANTS;
 }
 
-/** Originale aufzuheben kostet Platz, rettet aber die volle Auflösung. */
+/** Keeping originals costs space but preserves the full resolution. */
 const KEEP_ORIGINALS = process.env.KEEP_ORIGINALS !== "false";
 
 export function photoDir(storageKey: string) {
@@ -35,9 +35,9 @@ export function videoPath(storageKey: string) {
 }
 
 /**
- * Legt ein Video ab. Das Standbild kommt als fertiges Bild vom Browser und
- * durchläuft dieselbe Aufbereitung wie ein Foto – so bleibt das Image frei von
- * ffmpeg, und Raster wie Vollbildansicht behandeln beide Medien gleich.
+ * Stores a video. The poster frame arrives as a finished image from the
+ * browser and goes through the same processing as a photo – that keeps the
+ * image free of ffmpeg, and grid and fullscreen view treat both media alike.
  */
 export async function processVideo(
   video: Buffer,
@@ -76,7 +76,7 @@ function toTimestamp(value: Date | string | undefined): number | null {
   const date = value instanceof Date ? value : new Date(value);
   const ms = date.getTime();
   if (Number.isNaN(ms)) return null;
-  // Offensichtlich kaputte Kamera-Uhren aussortieren.
+  // Filter out obviously broken camera clocks.
   if (ms < Date.UTC(1990, 0, 1) || ms > Date.now() + 1000 * 60 * 60 * 24 * 2) {
     return null;
   }
@@ -91,20 +91,20 @@ function isValidCoord(lat: unknown, lon: unknown): lat is number {
     Number.isFinite(lon) &&
     Math.abs(lat) <= 90 &&
     Math.abs(lon) <= 180 &&
-    // 0/0 im Atlantik ist praktisch immer ein Platzhalter, kein echter Ort.
+    // 0/0 in the Atlantic is practically always a placeholder, not a real place.
     !(Math.abs(lat) < 0.0001 && Math.abs(lon) < 0.0001)
   );
 }
 
 /**
- * Nimmt ein hochgeladenes Bild entgegen, legt die Web-Varianten an und liest
- * Aufnahmezeit und GPS-Position aus den EXIF-Daten.
+ * Takes an uploaded image, creates the web variants and reads capture time
+ * and GPS position from the EXIF data.
  */
 export async function processUpload(buffer: Buffer): Promise<ExtractedMeta> {
   const storageKey = crypto.randomUUID();
   const dir = photoDir(storageKey);
 
-  // EXIF vor der Umwandlung lesen – sharp verwirft die Metadaten.
+  // Read EXIF before converting – sharp discards the metadata.
   let exif: ExifResult = {};
   try {
     exif =
@@ -114,13 +114,13 @@ export async function processUpload(buffer: Buffer): Promise<ExtractedMeta> {
         tiff: true,
       })) as ExifResult) ?? {};
   } catch (error) {
-    // Fehlende oder defekte Metadaten sind kein Grund abzubrechen – aber sie
-    // gehören ins Log, sonst sucht man später im Dunkeln.
-    console.warn("[upload] EXIF nicht lesbar:", (error as Error)?.message);
+    // Missing or broken metadata is no reason to abort – but it belongs in
+    // the log, otherwise you're searching in the dark later.
+    console.warn("[upload] EXIF unreadable:", (error as Error)?.message);
   }
 
-  // Manche Kameras und Formate liefern die Position erst über den
-  // spezialisierten GPS-Leser von exifr.
+  // Some cameras and formats only yield the position through exifr's
+  // specialized GPS reader.
   if (!isValidCoord(exif?.latitude, exif?.longitude)) {
     try {
       const gps = await exifr.gps(buffer);
@@ -128,16 +128,16 @@ export async function processUpload(buffer: Buffer): Promise<ExtractedMeta> {
         exif = { ...exif, latitude: gps.latitude, longitude: gps.longitude };
       }
     } catch {
-      // Zweiter Versuch, mehr nicht.
+      // Second attempt, nothing more.
     }
   }
 
   const source = sharp(buffer, { failOn: "none" }).rotate();
   const metadata = await source.metadata();
   if (!metadata.width || !metadata.height) {
-    throw new Error("Datei konnte nicht als Bild gelesen werden.");
+    throw new Error("File could not be read as an image.");
   }
-  // Nach .rotate() tauschen hochkant aufgenommene Bilder Breite und Höhe.
+  // After .rotate() portrait images swap width and height.
   const swap = (metadata.orientation ?? 1) >= 5;
   const width = swap ? metadata.height : metadata.width;
   const height = swap ? metadata.width : metadata.height;
@@ -165,7 +165,7 @@ export async function processUpload(buffer: Buffer): Promise<ExtractedMeta> {
       bytes += buffer.byteLength;
     }
   } catch (error) {
-    // Halbfertige Verzeichnisse nicht liegen lassen.
+    // Don't leave half-finished directories behind.
     await fs.rm(dir, { recursive: true, force: true });
     throw error;
   }
@@ -179,7 +179,7 @@ export async function processUpload(buffer: Buffer): Promise<ExtractedMeta> {
       .toBuffer();
     placeholder = `data:image/jpeg;base64,${tiny.toString("base64")}`;
   } catch {
-    // Platzhalter ist reine Kosmetik.
+    // The placeholder is purely cosmetic.
   }
 
   const hasGps = isValidCoord(exif?.latitude, exif?.longitude);

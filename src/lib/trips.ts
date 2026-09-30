@@ -25,7 +25,7 @@ export type TripSummary = Trip & {
   coverPhoto: Photo | null;
 };
 
-/** Entwürfe entstehen beim Öffnen des Editors – ungenutzte irgendwann wegräumen. */
+/** Drafts are created when the editor opens – clean up unused ones eventually. */
 const DRAFT_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 
 export async function cleanupStaleDrafts() {
@@ -57,11 +57,11 @@ export async function listTrips(): Promise<TripSummary[]> {
   const photoStats = await db
     .select({ tripId: photos.tripId, photoCount: sql<number>`count(*)` })
     .from(photos)
-    // Das Titelbild hängt an keiner Station und zählt nicht als Reisefoto.
+    // The cover isn't attached to any step and doesn't count as a trip photo.
     .where(isNotNull(photos.stepId))
     .groupBy(photos.tripId);
 
-  // Fehlt ein gesetztes Titelbild, dient das erste Foto der Reise als Aufmacher.
+  // Without an explicit cover, the trip's first photo serves as the lead image.
   const allPhotos = await db
     .select()
     .from(photos)
@@ -243,7 +243,7 @@ export async function deleteTrip(tripId: number) {
     .select({ storageKey: photos.storageKey })
     .from(photos)
     .where(eq(photos.tripId, tripId));
-  // Zeilen verschwinden per ON DELETE CASCADE, die Dateien nicht.
+  // Rows vanish via ON DELETE CASCADE, the files don't.
   await db.delete(trips).where(eq(trips.id, tripId));
   await deletePhotoFilesFor(photoRows);
 }

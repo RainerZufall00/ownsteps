@@ -13,9 +13,9 @@ type Props = {
 };
 
 /**
- * Die Varianten sind bereits als WebP vorgerechnet, deshalb kein next/image.
- * Der winzige EXIF-Platzhalter liegt als Hintergrund darunter und füllt die
- * Fläche, bis das eigentliche Bild geladen ist – ganz ohne JavaScript.
+ * The variants are precomputed as WebP, hence no next/image. The tiny
+ * placeholder sits underneath as background and fills the area until the
+ * actual image has loaded – without any JavaScript.
  */
 export default function PhotoImg({
   photo,

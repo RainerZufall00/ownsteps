@@ -8,32 +8,31 @@ export const COMMENT_MAX_LENGTH = 1500;
 export const NAME_MAX_LENGTH = 60;
 
 /**
- * Einfache Bremse gegen versehentliche Doppelklicks und stumpfes Zumüllen.
- * Bewusst im Arbeitsspeicher: Bei einer Instanz für zwei Familien wäre eine
- * Tabelle dafür überzogen, und nach einem Neustart darf ruhig wieder bei null
- * angefangen werden.
+ * Simple brake against accidental double clicks and blunt spamming.
+ * Deliberately in memory: for an instance serving two families a table would
+ * be overkill, and after a restart it may just as well start from zero.
  */
-const letzteEintraege = new Map<string, number[]>();
-const FENSTER_MS = 60_000;
-const MAX_PRO_FENSTER = 5;
+const recentEntries = new Map<string, number[]>();
+const WINDOW_MS = 60_000;
+const MAX_PER_WINDOW = 5;
 
-export function darfKommentieren(kennung: string) {
-  const jetzt = Date.now();
-  const bisher = (letzteEintraege.get(kennung) ?? []).filter(
-    (zeit) => jetzt - zeit < FENSTER_MS,
+export function mayComment(key: string) {
+  const now = Date.now();
+  const recent = (recentEntries.get(key) ?? []).filter(
+    (time) => now - time < WINDOW_MS,
   );
-  if (bisher.length >= MAX_PRO_FENSTER) {
-    letzteEintraege.set(kennung, bisher);
+  if (recent.length >= MAX_PER_WINDOW) {
+    recentEntries.set(key, recent);
     return false;
   }
-  bisher.push(jetzt);
-  letzteEintraege.set(kennung, bisher);
+  recent.push(now);
+  recentEntries.set(key, recent);
 
-  // Der Speicher soll nicht unbegrenzt wachsen.
-  if (letzteEintraege.size > 500) {
-    for (const [key, zeiten] of letzteEintraege) {
-      if (zeiten.every((zeit) => jetzt - zeit >= FENSTER_MS)) {
-        letzteEintraege.delete(key);
+  // Memory must not grow without bound.
+  if (recentEntries.size > 500) {
+    for (const [entryKey, times] of recentEntries) {
+      if (times.every((time) => now - time >= WINDOW_MS)) {
+        recentEntries.delete(entryKey);
       }
     }
   }
@@ -62,7 +61,7 @@ export async function deleteComment(commentId: number) {
   await db.delete(comments).where(eq(comments.id, commentId));
 }
 
-/** Prüft, ob der Beitrag wirklich zu dieser Reise gehört. */
+/** Checks that the step really belongs to this trip. */
 export async function stepBelongsToTrip(stepId: number, tripId: number) {
   const rows = await db
     .select({ id: steps.id })

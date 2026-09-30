@@ -5,19 +5,19 @@ import SubmitButton from "@/components/SubmitButton";
 import { rotateShareTokenAction } from "../../../actions";
 
 /**
- * Ein neuer Link macht den alten ungültig – wer ihn schon verschickt hat,
- * sperrt damit alle Mitleser aus, und zwar ohne Rückweg: Der alte Token ist
- * danach weg. Deshalb steht wie beim Löschen ein zweiter Schritt davor.
+ * A new link invalidates the old one – anyone who already sent it out locks
+ * all readers out, with no way back: the old token is gone afterwards. That's
+ * why, like deleting, it sits behind a second step.
  */
 export default function RotateShareForm({ tripId }: { tripId: number }) {
-  const [offen, setOffen] = useState(false);
+  const [open, setOpen] = useState(false);
 
-  if (!offen) {
+  if (!open) {
     return (
       <div className="mt-5 border-t border-line pt-4">
         <button
           type="button"
-          onClick={() => setOffen(true)}
+          onClick={() => setOpen(true)}
           className="text-sm font-medium text-ink-soft transition hover:text-accent"
         >
           Neuen Link erzeugen
@@ -46,7 +46,7 @@ export default function RotateShareForm({ tripId }: { tripId: number }) {
       <div className="mt-3 flex gap-2">
         <button
           type="button"
-          onClick={() => setOffen(false)}
+          onClick={() => setOpen(false)}
           className="btn btn-secondary flex-1 px-4 py-2.5 text-sm"
         >
           Abbrechen

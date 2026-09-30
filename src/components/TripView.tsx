@@ -15,15 +15,15 @@ type Props = {
   trip: ViewTrip;
   steps: ViewStep[];
   mapStyle: string | StyleSpecification;
-  /** Zeigt Bearbeiten-Links an den Beiträgen. */
+  /** Shows edit links on the steps. */
   editable?: boolean;
   /**
-   * Woher die Medien kommen. Angemeldet über `/api/photos`, über einen
-   * Share-Link über `/api/share-media/<token>`, damit der Token in den
-   * Bild-URLs steckt und die Fotos nicht ohne ihn erreichbar sind.
+   * Where the media come from. Signed in via `/api/photos`, through a share
+   * link via `/api/share-media/<token>`, so the token is part of the image
+   * URLs and the photos can't be reached without it.
    */
   mediaBase?: string;
-  /** Kopfbereich, den die jeweilige Seite beisteuert (Titel, Aktionen). */
+  /** Header contributed by the respective page (title, actions). */
   header: ReactNode;
 };
 
@@ -40,10 +40,10 @@ export default function TripView({
     steps.at(-1)?.id ?? null,
   );
   const articleRefs = useRef(new Map<number, HTMLElement>());
-  // Nach einem Marker-Klick soll das Scroll-Tracking kurz stillhalten.
+  // After a marker click, scroll tracking should hold still briefly.
   const suppressObserver = useRef(false);
-  const kartenBox = useRef<HTMLDivElement>(null);
-  const [kartenHoehe, setKartenHoehe] = useState<number | null>(null);
+  const mapBox = useRef<HTMLDivElement>(null);
+  const [mapHeight, setMapHeight] = useState<number | null>(null);
 
   const mapSteps = useMemo<MapStep[]>(
     () =>
@@ -61,22 +61,22 @@ export default function TripView({
   );
 
   /**
-   * Tag 1 ist der eingetragene Reisebeginn, sonst der erste Beitrag. Wer den
-   * Zeitraum angibt, will „Tag 3" lesen, wenn er am dritten Tag zum ersten Mal
-   * etwas schreibt – nicht wieder „Tag 1".
+   * Day 1 is the entered trip start, otherwise the first step. Whoever sets
+   * the date range wants to read "day 3" when writing for the first time on
+   * the third day – not "day 1" again.
    */
   const firstDay = fromDateInput(trip.startDate) ?? steps[0]?.occurredAt ?? null;
 
   /**
-   * In der Timeline steht der neueste Beitrag oben – wer mitliest, will das
-   * Neue sehen und nicht erst an den Anfang der Reise scrollen. Umgedreht wird
-   * nur die Anzeige: `steps` bleibt chronologisch, weil Tageszählung,
-   * Routenlinie und die Leiste über der Karte daran hängen. Eine rückwärts
-   * gezeichnete Route wäre keine Route mehr.
+   * The timeline shows the newest step on top – readers following along want
+   * to see what's new, not scroll to the start of the trip first. Only the
+   * display is reversed: `steps` stays chronological because day counting,
+   * the route line and the strip over the map depend on it. A route drawn
+   * backwards wouldn't be a route anymore.
    */
   const timelineSteps = useMemo(() => [...steps].reverse(), [steps]);
 
-  // Beim Scrollen mitverfolgen, welcher Beitrag gerade gelesen wird.
+  // While scrolling, track which step is currently being read.
   useEffect(() => {
     const elements = [...articleRefs.current.values()];
     if (elements.length === 0) return;
@@ -91,7 +91,7 @@ export default function TripView({
         const id = Number((visible.target as HTMLElement).dataset.stepId);
         if (Number.isInteger(id)) setActiveStepId(id);
       },
-      // Fenster im oberen Drittel: der Beitrag dort gilt als "aktiv".
+      // Window in the upper third: the step there counts as "active".
       { rootMargin: "-15% 0px -60% 0px", threshold: 0 },
     );
 
@@ -100,33 +100,33 @@ export default function TripView({
   }, [steps]);
 
   /**
-   * Auf dem Handy soll die Karte bis zum unteren Rand reichen. Wie viel Platz
-   * über ihr liegt, hängt von der Ansicht ab – die angemeldete hat eine
-   * Kopfleiste, der Share-Link nicht. Deshalb wird gemessen statt gerechnet.
+   * On phones the map should reach down to the bottom edge. How much space
+   * sits above it depends on the view – the signed-in one has a header bar,
+   * the share link doesn't. So it's measured instead of calculated.
    */
   useEffect(() => {
     if (mobileView !== "map") return;
-    const messen = () => {
-      const box = kartenBox.current;
+    const measure = () => {
+      const box = mapBox.current;
       if (!box) return;
-      // Ab der zweispaltigen Ansicht regelt das Stylesheet die Höhe.
+      // From the two-column layout on, the stylesheet handles the height.
       if (window.matchMedia("(min-width: 1280px)").matches) {
-        setKartenHoehe(null);
+        setMapHeight(null);
         return;
       }
-      const oben = box.getBoundingClientRect().top;
-      setKartenHoehe(Math.max(320, window.innerHeight - oben - 12));
+      const top = box.getBoundingClientRect().top;
+      setMapHeight(Math.max(320, window.innerHeight - top - 12));
     };
-    messen();
-    window.addEventListener("resize", messen);
-    window.addEventListener("orientationchange", messen);
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
     return () => {
-      window.removeEventListener("resize", messen);
-      window.removeEventListener("orientationchange", messen);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
     };
   }, [mobileView]);
 
-  // Beim Aufruf mit #step-123 direkt dorthin springen.
+  // When opened with #step-123, jump straight there.
   useEffect(() => {
     const hash = window.location.hash;
     if (!hash.startsWith("#step-")) return;
@@ -138,12 +138,12 @@ export default function TripView({
     });
   }, []);
 
-  /** Zum Beitrag springen – aus der Kartenansicht heraus in die Timeline. */
+  /** Jump to the step – out of the map view into the timeline. */
   const openStep = (stepId: number) => {
     setActiveStepId(stepId);
     setMobileView("timeline");
     suppressObserver.current = true;
-    // Auf dem Handy erst nach dem Umschalten scrollen.
+    // On phones only scroll after switching views.
     requestAnimationFrame(() => {
       articleRefs.current
         .get(stepId)
@@ -158,28 +158,28 @@ export default function TripView({
     <MediaBaseProvider value={mediaBase}>
     <div
       /*
-       * Unterhalb der zweispaltigen Ansicht bestimmt der Modus die Breite: Die
-       * Timeline bekommt eine Lesespalte, die Karte den ganzen Platz. Ohne den
-       * Deckel liefen die Zeilen auf einem Tablet über 1150 px.
+       * Below the two-column layout the mode decides the width: the timeline
+       * gets a reading column, the map all the space. Without the cap, lines
+       * on a tablet ran over 1150 px.
        */
       /*
-       * `w-full` ist Pflicht: `<body>` ist ein Flex-Container, und ein
-       * Flex-Kind mit `margin: auto` auf der Querachse dehnt sich nicht mehr,
-       * sondern schrumpft auf seinen Inhalt. Die Karte hat keine eigene
-       * Breite – ohne diese Zeile fiel sie auf gut hundert Pixel zusammen.
+       * `w-full` is mandatory: `<body>` is a flex container, and a flex child
+       * with `margin: auto` on the cross axis no longer stretches but shrinks
+       * to its content. The map has no width of its own – without this line
+       * it collapsed to a hundred-odd pixels.
        */
       className={`mx-auto w-full px-4 pt-5 xl:max-w-7xl xl:pb-10 ${
         mobileView === "map" ? "max-w-6xl pb-0" : "max-w-3xl pb-24"
       }`}
     >
-      {/* Im Kartenmodus tritt der Kopfbereich auf dem Handy zurück, damit die
-          Karte den Bildschirm bekommt. */}
+      {/* In map mode the header steps back on phones so the map gets the
+          screen. */}
       <div className={mobileView === "map" ? "hidden xl:block" : ""}>
         {header}
       </div>
 
-      {/* Umschalter nur auf schmalen Bildschirmen. Bewusst nicht mitlaufend:
-          eine mitscrollende Leiste über der Timeline wirkt unruhig. */}
+      {/* Toggle only on narrow screens. Deliberately not sticky: a bar
+          scrolling along above the timeline feels restless. */}
       <div className="mb-4 xl:hidden">
         <div className="flex rounded-full border border-line bg-surface p-1">
           {(["timeline", "map"] as const).map((view) => (
@@ -201,10 +201,10 @@ export default function TripView({
       </div>
 
       {/*
-        Nebeneinander erst ab `xl`. Auf einem Tablet im Querformat (rund
-        1194 px) blieben für die Timeline 628 px und für die Karte 460 px –
-        beides zu wenig, beides wirkte gedrängt. Darunter bekommt jede Ansicht
-        über den Umschalter die ganze Breite.
+        Side by side only from `xl`. On a tablet in landscape (around 1194 px)
+        the timeline got 628 px and the map 460 px – both too little, both
+        felt cramped. Below that, each view gets the full width via the
+        toggle.
       */}
       <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)] xl:items-start xl:gap-8">
         <div className={mobileView === "map" ? "hidden xl:block" : ""}>
@@ -224,7 +224,7 @@ export default function TripView({
             </div>
           ) : (
             <ol className="relative">
-              {/* Durchgehende Linie hinter den Punkten. */}
+              {/* Continuous line behind the dots. */}
               <span
                 aria-hidden="true"
                 className="absolute bottom-6 left-[7px] top-3 w-0.5 bg-line"
@@ -334,8 +334,8 @@ export default function TripView({
           } xl:sticky xl:top-20 xl:block`}
         >
           <div
-            ref={kartenBox}
-            style={kartenHoehe ? { height: kartenHoehe } : undefined}
+            ref={mapBox}
+            style={mapHeight ? { height: mapHeight } : undefined}
             className="relative h-[70dvh] overflow-hidden rounded-3xl border border-line shadow-card xl:h-[calc(100dvh-7rem)]"
           >
             <MapCanvas
@@ -346,7 +346,7 @@ export default function TripView({
               className="h-full w-full"
             />
 
-            {/* Blättern über der Karte, ohne die Marker treffen zu müssen. */}
+            {/* Page through steps over the map without having to hit the markers. */}
             <MapTimelineStrip
               steps={steps.filter((s) => s.lat !== null && s.lon !== null)}
               firstDay={firstDay}

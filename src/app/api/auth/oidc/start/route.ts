@@ -11,12 +11,12 @@ import {
 
 export async function GET(request: Request) {
   if (!oidcEnabled) {
-    return new Response("OIDC ist nicht konfiguriert.", { status: 404 });
+    return new Response("OIDC is not configured.", { status: 404 });
   }
 
   const { searchParams } = new URL(request.url);
-  // Nur seiteninterne Ziele zulassen, damit der Login nicht als Weiterleitung
-  // auf fremde Domains missbraucht werden kann.
+  // Only allow same-site targets so the login can't be abused as a redirect
+  // to foreign domains.
   const requestedNext = searchParams.get("next") ?? "/";
   const next =
     requestedNext.startsWith("/") && !requestedNext.startsWith("//")
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     });
     return Response.redirect(url, 302);
   } catch (error) {
-    console.error("[oidc] Start fehlgeschlagen", error);
+    console.error("[oidc] Start failed", error);
     return redirectTo("/login?error=oidc_unreachable");
   }
 }

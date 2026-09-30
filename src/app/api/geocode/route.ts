@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { reverseGeocode } from "@/lib/geocode";
 
-/** Ortsnamen nachschlagen, wenn der Pin im Editor von Hand gesetzt wurde. */
+/** Look up the place name when the pin was set by hand in the editor. */
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Nicht angemeldet" }, { status: 401 });

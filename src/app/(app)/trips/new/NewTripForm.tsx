@@ -2,87 +2,87 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { MAX_BILD_BYTES } from "@/lib/limits";
+import { MAX_IMAGE_BYTES } from "@/lib/limits";
 import { createTripAction } from "../../actions";
 
 export default function NewTripForm() {
   const router = useRouter();
 
-  const [titel, setTitel] = useState("");
-  const [von, setVon] = useState("");
-  const [bis, setBis] = useState("");
-  const [beschreibung, setBeschreibung] = useState("");
-  const [titelbild, setTitelbild] = useState<File | null>(null);
-  const [vorschau, setVorschau] = useState<string | null>(null);
-  const [fehler, setFehler] = useState<string | null>(null);
-  const [laeuft, setLaeuft] = useState(false);
+  const [title, setTitle] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [summary, setSummary] = useState("");
+  const [cover, setCover] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  // Die Objekt-URL der Vorschau wieder freigeben, sobald sie nicht mehr gilt.
+  // Release the preview's object URL as soon as it's no longer valid.
   useEffect(() => {
-    if (!titelbild) {
-      setVorschau(null);
+    if (!cover) {
+      setPreview(null);
       return;
     }
-    const url = URL.createObjectURL(titelbild);
-    setVorschau(url);
+    const url = URL.createObjectURL(cover);
+    setPreview(url);
     return () => URL.revokeObjectURL(url);
-  }, [titelbild]);
+  }, [cover]);
 
-  function waehleBild(datei: File | null) {
-    if (datei && datei.size > MAX_BILD_BYTES) {
-      setFehler("Das Titelbild ist größer als 25 MB.");
+  function pickCover(file: File | null) {
+    if (file && file.size > MAX_IMAGE_BYTES) {
+      setError("Das Titelbild ist größer als 25 MB.");
       return;
     }
-    setFehler(null);
-    setTitelbild(datei);
+    setError(null);
+    setCover(file);
   }
 
-  async function absenden(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (laeuft) return;
-    setFehler(null);
-    setLaeuft(true);
+    if (busy) return;
+    setError(null);
+    setBusy(true);
 
-    const felder = new FormData();
-    felder.set("title", titel);
-    felder.set("startDate", von);
-    felder.set("endDate", bis);
-    felder.set("summary", beschreibung);
+    const fields = new FormData();
+    fields.set("title", title);
+    fields.set("startDate", from);
+    fields.set("endDate", to);
+    fields.set("summary", summary);
 
-    let ergebnis;
+    let result;
     try {
-      ergebnis = await createTripAction({}, felder);
+      result = await createTripAction({}, fields);
     } catch {
-      setFehler("Die Reise konnte nicht angelegt werden.");
-      setLaeuft(false);
+      setError("Die Reise konnte nicht angelegt werden.");
+      setBusy(false);
       return;
     }
-    if (ergebnis.error || !ergebnis.tripId) {
-      setFehler(ergebnis.error ?? "Die Reise konnte nicht angelegt werden.");
-      setLaeuft(false);
+    if (result.error || !result.tripId) {
+      setError(result.error ?? "Die Reise konnte nicht angelegt werden.");
+      setBusy(false);
       return;
     }
 
-    // Das Titelbild ist optional; klappt der Upload nicht, ist die Reise
-    // trotzdem da – dann eben ohne Bild, das lässt sich später nachholen.
-    if (titelbild) {
+    // The cover is optional; if the upload fails, the trip exists anyway –
+    // just without an image, which can be added later.
+    if (cover) {
       try {
-        const bild = new FormData();
-        bild.set("file", titelbild);
-        await fetch(`/api/trips/${ergebnis.tripId}/cover`, {
+        const coverForm = new FormData();
+        coverForm.set("file", cover);
+        await fetch(`/api/trips/${result.tripId}/cover`, {
           method: "POST",
-          body: bild,
+          body: coverForm,
         });
       } catch {
-        // Ignorieren – die Reise steht, das Bild ist Beiwerk.
+        // Ignore – the trip exists, the image is an extra.
       }
     }
 
-    router.push(`/trips/${ergebnis.tripId}`);
+    router.push(`/trips/${result.tripId}`);
   }
 
   return (
-    <form onSubmit={absenden} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4">
       <div>
         <label className="label" htmlFor="title">
           Name der Reise
@@ -95,12 +95,12 @@ export default function NewTripForm() {
           className="field"
           placeholder="Norwegen mit dem Bulli"
           autoFocus
-          value={titel}
-          onChange={(event) => setTitel(event.target.value)}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
         />
       </div>
 
-      {/* Der Zeitraum darf offen bleiben – oft steht das Ende noch nicht fest. */}
+      {/* The date range may stay open – often the end isn't fixed yet. */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="label" htmlFor="startDate">
@@ -111,8 +111,8 @@ export default function NewTripForm() {
             name="startDate"
             type="date"
             className="field"
-            value={von}
-            onChange={(event) => setVon(event.target.value)}
+            value={from}
+            onChange={(event) => setFrom(event.target.value)}
           />
         </div>
         <div>
@@ -124,8 +124,8 @@ export default function NewTripForm() {
             name="endDate"
             type="date"
             className="field"
-            value={bis}
-            onChange={(event) => setBis(event.target.value)}
+            value={to}
+            onChange={(event) => setTo(event.target.value)}
           />
         </div>
       </div>
@@ -141,8 +141,8 @@ export default function NewTripForm() {
           maxLength={500}
           className="field resize-none"
           placeholder="Drei Wochen von Oslo bis zum Nordkap."
-          value={beschreibung}
-          onChange={(event) => setBeschreibung(event.target.value)}
+          value={summary}
+          onChange={(event) => setSummary(event.target.value)}
         />
       </div>
 
@@ -156,17 +156,17 @@ export default function NewTripForm() {
           sichtbar.
         </p>
 
-        {vorschau ? (
+        {preview ? (
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={vorschau}
+              src={preview}
               alt=""
               className="h-20 w-20 rounded-xl object-cover"
             />
             <button
               type="button"
-              onClick={() => waehleBild(null)}
+              onClick={() => pickCover(null)}
               className="text-sm font-semibold text-accent"
             >
               Entfernen
@@ -179,19 +179,19 @@ export default function NewTripForm() {
             type="file"
             accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,image/tiff"
             className="field"
-            onChange={(event) => waehleBild(event.target.files?.[0] ?? null)}
+            onChange={(event) => pickCover(event.target.files?.[0] ?? null)}
           />
         )}
       </div>
 
-      {fehler && <p className="text-sm font-medium text-accent">{fehler}</p>}
+      {error && <p className="text-sm font-medium text-accent">{error}</p>}
 
       <button
         type="submit"
-        disabled={laeuft}
+        disabled={busy}
         className="btn btn-primary w-full disabled:opacity-60"
       >
-        {laeuft ? "Wird angelegt …" : "Reise anlegen"}
+        {busy ? "Wird angelegt …" : "Reise anlegen"}
       </button>
     </form>
   );

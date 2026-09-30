@@ -10,59 +10,62 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # OwnSteps
 
-Selbst gehostetes Reisetagebuch (Polarsteps-Ersatz). Ein Container, SQLite,
-Fotos auf der Platte. Zwei Autoren, die gemeinsam an denselben Reisen
-schreiben. Sprache im Code, in Kommentaren und in der Oberfläche: **Deutsch.**
+Self-hosted travel journal (a Polarsteps replacement). One container, SQLite,
+photos on disk. Several authors writing together on the same trips. Language
+of code, comments, docs and commits: **English.** The user interface is still
+German for now; English and German UI translations follow before the release
+(see `docs/ROADMAP.md`).
 
-> **Vor größeren Änderungen `docs/ARCHITEKTUR.md` lesen.** Dort stehen das
-> Datenmodell, die Abläufe und vor allem die Begründungen zu allen
-> Entscheidungen – inklusive dem, was bewusst *nicht* gebaut wurde.
+> **Read `docs/ARCHITECTURE.md` before larger changes.** It covers the data
+> model, the flows and above all the reasoning behind every decision –
+> including what was deliberately *not* built. `docs/ROADMAP.md` holds the
+> agreed plan for the API, the iOS app and the open source release.
 
-## Aufbau
+## Layout
 
-- `src/db/` – Drizzle-Schema und SQLite-Verbindung. Migrationen sind das Array
-  `MIGRATIONS` in `src/db/index.ts`.
-- `src/lib/` – Serverlogik (`server-only`): Auth, OIDC, Bildverarbeitung,
-  Zugriff auf Reisen. `view-types.ts`, `format.ts` und `limits.ts` sind die
-  Grenze zum Client und bewusst frei von `server-only`.
-- `src/components/TripView.tsx` – Timeline plus Karte, wird sowohl von der
-  angemeldeten Ansicht als auch vom öffentlichen Share-Link benutzt.
-- `src/app/(app)/` – alles hinter dem Login, `src/app/s/[token]/` der
-  Share-Link, `src/app/api/` die Route Handler.
+- `src/db/` – Drizzle schema and SQLite connection. Migrations are the
+  `MIGRATIONS` array in `src/db/index.ts`.
+- `src/lib/` – server logic (`server-only`): auth, OIDC, image processing,
+  trip access. `view-types.ts`, `format.ts` and `limits.ts` are the boundary
+  to the client and deliberately free of `server-only`.
+- `src/components/TripView.tsx` – timeline plus map, used by both the
+  signed-in view and the public share link.
+- `src/app/(app)/` – everything behind sign-in, `src/app/s/[token]/` the share
+  link, `src/app/api/` the route handlers.
 
-## Harte Regeln
+## Hard rules
 
-- **Seiten, die den Anmeldestand lesen, brauchen `dynamic = "force-dynamic"`.**
-  Sonst rendert der Build sie vor und backt den Zustand der Bau-Datenbank ein
-  (war bei `/setup` so und machte die Ersteinrichtung unmöglich). In der
-  Build-Ausgabe muss vor der Route ein `ƒ` stehen, kein `○`.
-- **Route Handler müssen selbst prüfen.** Über `src/app/api/` liegt kein
-  Layout, das die Anmeldung kontrolliert – dort gehört `getCurrentUser()`
-  bzw. `resolveTripAccess()` explizit hinein.
-- **Fotos nie über `/public` ausliefern.** Sie liegen in `DATA_DIR/uploads` und
-  laufen über `/api/photos/[id]/[variant]`, das den Zugriff prüft.
-- **Beim Löschen die Dateien mitnehmen.** `ON DELETE CASCADE` räumt nur
-  Datenbankzeilen ab, nicht die Ordner unter `uploads/`.
-- **`MIGRATIONS` nur anhängen**, nie einen bestehenden Eintrag ändern – bei
-  laufenden Installationen ist er längst abgehakt. Schemaänderung in
-  `schema.ts` heißt immer auch: neuer Migrationseintrag.
-- **maplibre-gl auf v5 halten.** In v6 zeigt der Worker-Pfad nach dem Bündeln
-  ins Leere; die Karte bleibt dann ohne Fehlermeldung stehen.
-- **Der MapTiler-Key bleibt auf dem Server.** Kartenabrufe gehen über
-  `/api/map/[...path]`, siehe `src/lib/maptiler-rewrite.ts`.
-- **`src/proxy.ts` darf `/api/upload` nicht anfassen.** Sobald der Proxy eine
-  Anfrage sieht, puffert Next deren Rumpf und kappt ihn bei 10 MB – jeder
-  Video-Upload stirbt dann an `Failed to parse body as FormData`. Wer einen
-  weiteren Weg für große Uploads baut, nimmt ihn ebenfalls aus dem `matcher`.
-- **Die Timeline zeigt neueste zuerst, die Daten bleiben chronologisch.**
-  `getSteps()` sortiert aufsteigend; nur `TripView` dreht die Liste beim
-  Rendern. Global umzudrehen zerlegt Tageszählung, Zeitraum und Routenlinie
-  (siehe [E13]).
-- **Keine Rechteverwaltung einführen.** Dass jeder angemeldete Account alles
-  darf, ist so gewollt (siehe [E2] in der Architekturdoku).
+- **Pages that read the sign-in state need `dynamic = "force-dynamic"`.**
+  Otherwise the build prerenders them and bakes in the state of the build
+  database (that happened with `/setup` and made initial setup impossible).
+  In the build output the route must be marked `ƒ`, not `○`.
+- **Route handlers must check for themselves.** No layout sits above
+  `src/app/api/` that checks sign-in – `getCurrentUser()` or
+  `resolveTripAccess()` belongs in there explicitly.
+- **Never serve photos via `/public`.** They live in `DATA_DIR/uploads` and go
+  through `/api/photos/[id]/[variant]`, which checks access.
+- **Take the files along when deleting.** `ON DELETE CASCADE` only removes
+  database rows, not the folders under `uploads/`.
+- **Only append to `MIGRATIONS`**, never change an existing entry – running
+  installations have long since checked it off. A schema change in
+  `schema.ts` always means a new migration entry too.
+- **Keep maplibre-gl on v5.** In v6 the worker path points nowhere after
+  bundling; the map then hangs without an error message.
+- **The MapTiler key stays on the server.** Map requests go through
+  `/api/map/[...path]`, see `src/lib/maptiler-rewrite.ts`.
+- **`src/proxy.ts` must not touch `/api/upload`.** As soon as the proxy sees a
+  request, Next buffers its body and caps it at 10 MB – every video upload
+  then dies with `Failed to parse body as FormData`. Anyone building another
+  path for large uploads must exclude it from the `matcher` as well.
+- **The timeline shows newest first, the data stays chronological.**
+  `getSteps()` sorts ascending; only `TripView` reverses the list when
+  rendering. Reversing globally breaks day counting, date range and route
+  line (see [E13]).
+- **Don't introduce permission management.** That every signed-in account may
+  do everything is intended (see [E2] in the architecture doc).
 
-## Was nie im Browser geprüft wurde
+## Never checked in a browser
 
-Kartenkacheln, das Docker-Image und der OIDC-Fluss gegen eine echte Instanz –
-Einzelheiten in Abschnitt 13 von `docs/ARCHITEKTUR.md`. Wer daran arbeitet,
-sollte das Ergebnis wirklich ansehen und nicht auf den Build vertrauen.
+Map tiles, the Docker image and the OIDC flow against a real instance –
+details in section 13 of `docs/ARCHITECTURE.md`. Whoever works on these
+should actually look at the result and not trust the build.

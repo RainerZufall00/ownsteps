@@ -25,7 +25,7 @@ export async function loginAction(
   const user = await findUserByEmail(email);
   const valid = await verifyPassword(password, user?.passwordHash ?? null);
   if (!user || !valid) {
-    // Bewusst keine Auskunft darüber, welcher Teil falsch war.
+    // Deliberately no hint as to which part was wrong.
     return { error: "E-Mail oder Passwort stimmt nicht." };
   }
 
@@ -37,7 +37,7 @@ export async function setupAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  // Die Ersteinrichtung steht nur offen, solange es keinen einzigen Account gibt.
+  // Initial setup is only open as long as not a single account exists.
   if ((await countUsers()) > 0) {
     return { error: "Es existiert bereits ein Account." };
   }

@@ -1,16 +1,16 @@
 # syntax=docker/dockerfile:1
 
-# Debian statt Alpine: better-sqlite3 und sharp bringen fertige Binaries für
-# glibc mit, auf musl müssten sie erst kompiliert werden.
+# Debian instead of Alpine: better-sqlite3 and sharp ship ready-made binaries
+# for glibc; on musl they would have to be compiled first.
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-# --ignore-scripts: better-sqlite3 bringt eine binding.gyp mit, worauf npm von
-# sich aus "node-gyp rebuild" startet – das bräuchte Python und einen Compiler,
-# die es im slim-Image nicht gibt. Nötig ist der Bau nicht: Das Paket liefert
-# fertige Binaries für linux-x64/arm64 mit, sharp ebenso über @img/*.
-# Kommt später ein Paket dazu, das wirklich ein install-Script braucht, muss
-# hier stattdessen "python3 make g++" installiert werden.
+# --ignore-scripts: better-sqlite3 ships a binding.gyp, which makes npm run
+# "node-gyp rebuild" on its own – that would need Python and a compiler, which
+# the slim image doesn't have. The build isn't needed: the package ships
+# ready-made binaries for linux-x64/arm64, and so does sharp via @img/*.
+# If a package that really needs an install script is added later, install
+# "python3 make g++" here instead.
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
 FROM node:22-bookworm-slim AS builder
@@ -29,7 +29,7 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     DATA_DIR=/data
 
-# Der standalone-Build enthält nur die tatsächlich benötigten Module.
+# The standalone build only contains the modules actually needed.
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
@@ -37,9 +37,9 @@ COPY docker-entrypoint.js ./
 
 RUN mkdir -p /data/uploads && chown -R node:node /data /app
 
-# Bewusst kein "USER node": Der Entrypoint braucht kurz root-Rechte, um das
-# gemountete Datenverzeichnis zu übereignen, und wechselt dann selbst auf
-# den Benutzer node. Der Serverprozess läuft also unprivilegiert.
+# Deliberately no "USER node": the entrypoint briefly needs root to take
+# ownership of the mounted data directory and then switches to the node user
+# by itself. The server process therefore runs unprivileged.
 EXPOSE 2555
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

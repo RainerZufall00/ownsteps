@@ -24,26 +24,24 @@ export type MapStep = {
 
 type Props = {
   steps: MapStep[];
-  /** Style-URL des Proxys oder – ohne MapTiler-Key – ein fertiges Style-Objekt. */
+  /** The proxy's style URL or – without a MapTiler key – a ready-made style object. */
   mapStyle: string | StyleSpecification;
   activeStepId?: number | null;
   onSelect?: (stepId: number) => void;
-  /** Im Editor: Tippen auf die Karte setzt den Ort des Beitrags. */
+  /** In the editor: tapping the map sets the step's place. */
   onMapClick?: (lat: number, lon: number) => void;
   className?: string;
-  /** Karte in der Übersicht: keine Bedienung, nur Anschauen. */
+  /** Map in the overview: no interaction, just looking. */
   static?: boolean;
   /**
-   * Ob die Karte dem Inhalt folgen soll. In der Timeline ja – dort wandert
-   * die Ansicht mit den Stationen mit. Im Editor nur beim ersten Mal: Wer
-   * dort gerade einen Ort sucht, will nicht bei jedem Klick zurückgesetzt
-   * werden.
+   * Whether the map should follow the content. In the timeline yes – the view
+   * moves along with the steps there. In the editor only the first time:
+   * someone searching for a place doesn't want to be reset on every click.
    */
   autoFit?: boolean;
   /**
-   * Gezieltes Anfliegen einer Stelle – etwa nach einem Treffer der Ortssuche.
-   * Ausgelöst wird über `key`, damit dieselbe Stelle erneut angesteuert
-   * werden kann.
+   * Fly to a specific spot – e.g. after a place search hit. Triggered via
+   * `key`, so the same spot can be targeted again.
    */
   focusPoint?: { lat: number; lon: number; key: number } | null;
 };
@@ -122,9 +120,9 @@ export default function TripMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<number, Marker>>(new Map());
-  // Merkt sich, auf welche Punkte die Ansicht zuletzt ausgerichtet wurde.
+  // Remembers which points the view was last fitted to.
   const lastFitRef = useRef<string | null>(null);
-  // In Callbacks von MapLibre soll immer der aktuelle Handler landen.
+  // MapLibre callbacks should always reach the current handler.
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const onMapClickRef = useRef(onMapClick);
@@ -158,13 +156,13 @@ export default function TripMap({
       onMapClickRef.current?.(event.lngLat.lat, event.lngLat.lng);
     });
 
-    // Fehler beim Laden von Style oder Kacheln sonst still verschluckt.
+    // Errors loading the style or tiles would otherwise be swallowed silently.
     map.on("error", (event) => {
-      console.error("[Karte]", event.error?.message ?? event.error);
+      console.error("[map]", event.error?.message ?? event.error);
     });
 
-    // Der Container wechselt auf dem Handy zwischen sichtbar und versteckt –
-    // ohne resize() bliebe die Karte auf der alten Größe stehen.
+    // On phones the container toggles between visible and hidden – without
+    // resize() the map would keep its old size.
     const observer = new ResizeObserver(() => map.resize());
     observer.observe(containerRef.current);
 
@@ -175,17 +173,17 @@ export default function TripMap({
       map.remove();
       mapRef.current = null;
     };
-    // Karte einmal aufbauen; Daten werden in den Effekten darunter gepflegt.
+    // Build the map once; data is maintained in the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Marker und Route aktualisieren, wenn sich die Stationen ändern.
+  // Update markers and route when the steps change.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    // Marker sind gewöhnliche DOM-Elemente und brauchen kein geladenes Style –
-    // sie erscheinen deshalb auch dann, wenn die Kacheln nicht durchkommen.
+    // Markers are plain DOM elements and need no loaded style – so they show
+    // up even when the tiles don't get through.
     const seen = new Set<number>();
     steps.forEach((step, index) => {
       seen.add(step.id);
@@ -216,12 +214,12 @@ export default function TripMap({
       }
     }
 
-    // Die Kamera nur bewegen, wenn sich die Punkte wirklich geändert haben –
-    // sonst springt die Ansicht bei jedem Tastendruck im Formular zurück.
+    // Only move the camera when the points really changed – otherwise the view
+    // jumps back on every keystroke in the form.
     const signature = steps.map((s) => `${s.id}@${s.lat},${s.lon}`).join("|");
-    const darfFolgen = autoFit || lastFitRef.current === null;
+    const mayFollow = autoFit || lastFitRef.current === null;
 
-    if (steps.length > 0 && darfFolgen && signature !== lastFitRef.current) {
+    if (steps.length > 0 && mayFollow && signature !== lastFitRef.current) {
       lastFitRef.current = signature;
       if (steps.length === 1) {
         map.jumpTo({ center: [steps[0].lon, steps[0].lat], zoom: 9 });
@@ -241,7 +239,7 @@ export default function TripMap({
       }
     }
 
-    // Die Routenlinie ist ein Style-Layer und kann erst dazu, wenn das Style steht.
+    // The route line is a style layer and can only be added once the style is ready.
     const syncRoute = () => {
       if (!map.isStyleLoaded()) return;
       const source = map.getSource("route") as GeoJSONSource | undefined;
@@ -250,10 +248,10 @@ export default function TripMap({
         return;
       }
       map.addSource("route", { type: "geojson", data: routeGeoJson(steps) });
-      // Zwei Linien übereinander: ein dunkler Saum trägt die weiße Route auch
-      // über hellem Gelände, ohne dass eine Signalfarbe nötig wäre.
+      // Two lines on top of each other: a dark casing carries the white route
+      // even over bright terrain without needing a signal color.
       map.addLayer({
-        id: "route-saum",
+        id: "route-casing",
         type: "line",
         source: "route",
         layout: { "line-cap": "round", "line-join": "round" },
@@ -277,8 +275,8 @@ export default function TripMap({
     };
 
     syncRoute();
-    // Je nachdem, wie weit das Style beim Rendern war, greift das eine oder
-    // das andere Ereignis – syncRoute darf deshalb mehrfach laufen.
+    // Depending on how far the style was when rendering, one event or the
+    // other fires – so syncRoute may run several times.
     map.on("load", syncRoute);
     map.on("styledata", syncRoute);
     return () => {
@@ -287,7 +285,7 @@ export default function TripMap({
     };
   }, [steps, activeStepId]);
 
-  // Auf Zuruf eine Stelle anfliegen (Ortssuche im Editor).
+  // Fly to a spot on request (place search in the editor).
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focusPoint) return;
@@ -296,11 +294,11 @@ export default function TripMap({
       zoom: Math.max(map.getZoom(), 11),
       duration: 700,
     });
-    // Nur der Zähler entscheidet, sonst würde jedes Rendern erneut fliegen.
+    // Only the counter decides, otherwise every render would fly again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusPoint?.key]);
 
-  // Aktive Station hervorheben und sanft anfahren.
+  // Highlight the active step and ease towards it.
   useEffect(() => {
     for (const [id, marker] of markersRef.current) {
       marker.getElement().dataset.active = String(id === activeStepId);

@@ -22,12 +22,12 @@ export default function TripDetailsForm({
   const [state, action] = useActionState(updateTripAction, initial);
 
   /**
-   * Kontrolliert, weil React 19 das Formular nach jeder Aktion leert. Wird der
-   * Zeitraum abgelehnt, sollen die getippten Werte stehen bleiben.
+   * Controlled because React 19 resets the form after every action. If the
+   * date range is rejected, the typed values should stay put.
    */
   const [name, setName] = useState(title);
-  const [von, setVon] = useState(startDate);
-  const [bis, setBis] = useState(endDate);
+  const [from, setFrom] = useState(startDate);
+  const [to, setTo] = useState(endDate);
   const [text, setText] = useState(summary);
 
   return (
@@ -58,8 +58,8 @@ export default function TripDetailsForm({
             id="trip-start"
             name="startDate"
             type="date"
-            value={von}
-            onChange={(event) => setVon(event.target.value)}
+            value={from}
+            onChange={(event) => setFrom(event.target.value)}
             className="field"
           />
         </div>
@@ -71,8 +71,8 @@ export default function TripDetailsForm({
             id="trip-end"
             name="endDate"
             type="date"
-            value={bis}
-            onChange={(event) => setBis(event.target.value)}
+            value={to}
+            onChange={(event) => setTo(event.target.value)}
             className="field"
           />
         </div>

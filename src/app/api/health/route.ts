@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 
-/** Für den Healthcheck im Docker-Compose. */
+/** For the healthcheck in Docker Compose. */
 export async function GET() {
   try {
     await db.get(sql`SELECT 1`);

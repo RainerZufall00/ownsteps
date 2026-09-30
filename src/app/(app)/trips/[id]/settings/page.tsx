@@ -62,8 +62,8 @@ export default async function TripSettingsPage({
           hasPassword={Boolean(trip.sharePasswordHash)}
         />
 
-        {/* Der Token als `key`: Sobald ein neuer Link steht, baut React die
-            Komponente neu auf und die Rückfrage klappt von selbst zu. */}
+        {/* The token as `key`: as soon as a new link exists, React rebuilds
+            the component and the confirmation collapses by itself. */}
         {trip.shareEnabled && (
           <RotateShareForm key={trip.shareToken} tripId={trip.id} />
         )}

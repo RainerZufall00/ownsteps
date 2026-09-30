@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  // Damit der Inhalt auf iPhones bis in die abgerundeten Ecken reicht.
+  // So the content reaches into the rounded corners on iPhones.
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fbf9f6" },

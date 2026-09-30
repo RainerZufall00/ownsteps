@@ -9,7 +9,7 @@ import { getCurrentUser } from "./auth";
 import { APP_SECRET } from "./env";
 
 export function newShareToken() {
-  // 32 Byte Zufall – nicht erratbar, auch wenn der Link öffentlich kursiert.
+  // 24 random bytes – unguessable, even if the link circulates publicly.
   return crypto.randomBytes(24).toString("base64url");
 }
 
@@ -17,7 +17,7 @@ function unlockCookieName(tripId: number) {
   return `ownsteps_unlock_${tripId}`;
 }
 
-/** Signatur, mit der ein entsperrter Browser sich wieder ausweist. */
+/** Signature an unlocked browser uses to identify itself again. */
 function unlockSignature(tripId: number, passwordHash: string) {
   return crypto
     .createHmac("sha256", APP_SECRET)
@@ -70,8 +70,8 @@ export type TripAccess =
   | { kind: "denied" };
 
 /**
- * Entscheidet, ob der aktuelle Request eine Reise sehen darf – entweder als
- * angemeldeter Nutzer oder über einen freigeschalteten Share-Link.
+ * Decides whether the current request may see a trip – either as a signed-in
+ * user or through an enabled share link.
  */
 export async function resolveTripAccess(trip: Trip): Promise<TripAccess> {
   if (await getCurrentUser()) return { kind: "owner" };

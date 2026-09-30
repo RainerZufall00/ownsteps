@@ -21,11 +21,10 @@ import {
 export type ActionState = { error?: string; ok?: boolean; tripId?: number };
 
 /**
- * Der Reisezeitraum ist freiwillig – man legt eine Reise auch mal an, bevor
- * feststeht, wann sie endet. Nur wenn beide Daten stehen, müssen sie
- * zueinander passen.
+ * The trip's date range is optional – sometimes a trip is created before it's
+ * clear when it ends. Only when both dates are set must they fit together.
  */
-function leseZeitraum(formData: FormData):
+function readDateRange(formData: FormData):
   | { startDate: string | null; endDate: string | null }
   | { error: string } {
   const startDate = String(formData.get("startDate") ?? "").trim() || null;
@@ -44,19 +43,19 @@ export async function createTripAction(
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { error: "Die Reise braucht einen Namen." };
 
-  const zeitraum = leseZeitraum(formData);
-  if ("error" in zeitraum) return zeitraum;
+  const dateRange = readDateRange(formData);
+  if ("error" in dateRange) return dateRange;
 
   const trip = await createTrip({
     title,
     summary: String(formData.get("summary") ?? ""),
-    ...zeitraum,
+    ...dateRange,
     userId: user.id,
   });
 
   revalidatePath("/");
-  // Kein redirect: Das Formular lädt danach noch das optionale Titelbild über
-  // `/api/trips/[id]/cover` hoch und springt erst dann in die Reise.
+  // No redirect: the form still uploads the optional cover via
+  // `/api/trips/[id]/cover` afterwards and only then jumps into the trip.
   return { ok: true, tripId: trip.id };
 }
 
@@ -70,13 +69,13 @@ export async function updateTripAction(
   if (!Number.isInteger(tripId)) return { error: "Reise nicht gefunden." };
   if (!title) return { error: "Die Reise braucht einen Namen." };
 
-  const zeitraum = leseZeitraum(formData);
-  if ("error" in zeitraum) return zeitraum;
+  const dateRange = readDateRange(formData);
+  if ("error" in dateRange) return dateRange;
 
   await updateTrip(tripId, {
     title,
     summary: String(formData.get("summary") ?? "").trim() || null,
-    ...zeitraum,
+    ...dateRange,
   });
 
   revalidatePath(`/trips/${tripId}`);
@@ -85,8 +84,8 @@ export async function updateTripAction(
 }
 
 /**
- * Löscht die Reise samt Fotos – aber erst, wenn der Name abgetippt wurde.
- * Ein einzelner Fehlklick soll keine Reise auslöschen können.
+ * Deletes the trip including its photos – but only once its name has been
+ * typed in. A single misclick must not be able to wipe out a trip.
  */
 export async function deleteTripAction(
   _prev: ActionState,
@@ -99,8 +98,8 @@ export async function deleteTripAction(
   const trip = await getTrip(tripId);
   if (!trip) return { error: "Reise nicht gefunden." };
 
-  const bestaetigung = String(formData.get("confirmTitle") ?? "").trim();
-  if (bestaetigung !== trip.title.trim()) {
+  const confirmation = String(formData.get("confirmTitle") ?? "").trim();
+  if (confirmation !== trip.title.trim()) {
     return {
       error: `Zum Löschen bitte „${trip.title}“ genau so eintippen.`,
     };
@@ -111,7 +110,7 @@ export async function deleteTripAction(
   redirect("/");
 }
 
-/** Legt einen leeren Beitrag an und springt direkt in den Editor. */
+/** Creates an empty step and jumps straight into the editor. */
 export async function startStepAction(formData: FormData) {
   const user = await requireUser();
   const tripId = Number(formData.get("tripId"));
@@ -138,8 +137,8 @@ export async function saveStepAction(
     return { error: "Bitte einen Ort, Text oder ein Foto hinzufügen." };
   }
 
-  // Nur das Datum ist einstellbar; die Uhrzeit aus den EXIF-Daten bleibt
-  // erhalten und sortiert mehrere Beiträge desselben Tages.
+  // Only the date is adjustable; the time of day from the EXIF data is kept
+  // and orders several steps on the same day.
   const occurredRaw = String(formData.get("occurredDate") ?? "");
   const occurredAt = occurredRaw
     ? withDate(step.occurredAt, occurredRaw)
@@ -159,11 +158,11 @@ export async function saveStepAction(
     published: true,
   });
 
-  // Bildunterschriften reisen im selben Formular mit.
+  // Captions travel along in the same form.
   for (const photo of step.photos) {
-    const feld = formData.get(`caption_${photo.id}`);
-    if (feld === null) continue;
-    const caption = String(feld).trim().slice(0, 500);
+    const field = formData.get(`caption_${photo.id}`);
+    if (field === null) continue;
+    const caption = String(field).trim().slice(0, 500);
     if ((photo.caption ?? "") !== caption) {
       await setPhotoCaption(photo.id, caption || null);
     }
@@ -240,7 +239,7 @@ export async function updateShareAction(
   return { ok: true };
 }
 
-/** Erzeugt einen neuen Link – der alte funktioniert danach nicht mehr. */
+/** Creates a new link – the old one stops working afterwards. */
 export async function rotateShareTokenAction(formData: FormData) {
   await requireUser();
   const tripId = Number(formData.get("tripId"));

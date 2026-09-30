@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   }
 
   if (searchParams.get("error")) {
-    console.warn("[oidc] Anbieter meldet", searchParams.get("error"));
+    console.warn("[oidc] Provider reports", searchParams.get("error"));
     return fail("oidc_denied");
   }
 
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     });
 
     if (!isEmailAllowed(claims.email)) {
-      console.warn("[oidc] Anmeldung abgelehnt für", claims.email);
+      console.warn("[oidc] Sign-in rejected for", claims.email);
       return fail("oidc_not_allowed");
     }
 
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     await createSession(user.id);
     return redirectTo(flow.next);
   } catch (error) {
-    console.error("[oidc] Callback fehlgeschlagen", error);
+    console.error("[oidc] Callback failed", error);
     return fail("oidc_failed");
   }
 }

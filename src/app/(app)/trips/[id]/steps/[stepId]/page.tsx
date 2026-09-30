@@ -15,7 +15,7 @@ export default async function StepEditorPage({
   const tripId = Number(id);
   const step = await getStep(Number(stepId));
 
-  // Der Beitrag muss wirklich zu dieser Reise gehören.
+  // The step must really belong to this trip.
   if (!step || step.tripId !== tripId) notFound();
   if (!(await getTrip(tripId))) notFound();
 

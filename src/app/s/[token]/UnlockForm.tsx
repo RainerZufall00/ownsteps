@@ -11,7 +11,7 @@ export default function UnlockForm({ token }: { token: string }) {
   const [state, action, pending] = useActionState(unlockAction, initial);
   const router = useRouter();
 
-  // Nach erfolgreicher Eingabe steht das Cookie – die Seite neu laden.
+  // After a successful entry the cookie is set – reload the page.
   useEffect(() => {
     if (!pending && state.ok) router.refresh();
   }, [state, pending, router]);

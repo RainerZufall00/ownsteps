@@ -5,14 +5,14 @@ import { countUsers } from "@/lib/auth";
 import { SITE_NAME } from "@/lib/env";
 import SetupForm from "./SetupForm";
 
-// Ohne das würde die Seite beim Build vorgerendert und der dabei ermittelte
-// Account-Stand fest eingebacken – die Ersteinrichtung liefe ins Leere.
+// Without this the page would be prerendered at build time with the account
+// state of that moment baked in – initial setup would lead nowhere.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Ersteinrichtung" };
 
 export default async function SetupPage() {
-  // Sobald ein Account existiert, ist diese Seite dicht.
+  // As soon as an account exists, this page is closed.
   if ((await countUsers()) > 0) redirect("/login");
 
   return (

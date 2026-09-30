@@ -3,11 +3,11 @@
 import { createContext, useContext } from "react";
 
 /**
- * Woher die Bild- und Video-URLs kommen. In der angemeldeten Ansicht ist das
- * `/api/photos` (die Sitzung weist aus). Über einen Share-Link steht hier
- * `/api/share-media/<token>`, damit der geheime Token in der URL steckt und die
- * Bilder nicht ohne ihn erreichbar sind. Bausteine bauen ihre URL als
- * `${base}/${photoId}/${variante}`.
+ * Where image and video URLs come from. In the signed-in view that's
+ * `/api/photos` (the session authenticates). Through a share link it's
+ * `/api/share-media/<token>`, so the secret token is part of the URL and the
+ * images can't be reached without it. Components build their URL as
+ * `${base}/${photoId}/${variant}`.
  */
 const MediaBaseContext = createContext<string>("/api/photos");
 

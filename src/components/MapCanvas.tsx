@@ -6,7 +6,7 @@ import type TripMap from "./TripMap";
 
 export type { MapStep } from "./TripMap";
 
-// MapLibre greift beim Import auf window zu und darf deshalb nicht serverseitig laufen.
+// MapLibre touches window on import and therefore must not run on the server.
 const LazyMap = dynamic(() => import("./TripMap"), {
   ssr: false,
   loading: () => (

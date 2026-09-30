@@ -1,10 +1,10 @@
-// Bleibt hier greifbar, weil die Kartenroute beides zusammen braucht.
+// Kept available here because the map route needs both together.
 export { publicOrigin } from "./origin";
 
 const UPSTREAM = "https://api.maptiler.com";
 const MAPTILER_URL_RE = /https:\/\/api\.maptiler\.com\/([^"'\s\\]*)/g;
 
-/** Entfernt den API-Key aus einer weitergereichten URL-Query. */
+/** Removes the API key from a forwarded URL query. */
 function stripKey(query: string) {
   return query
     .split("&")
@@ -13,16 +13,16 @@ function stripKey(query: string) {
 }
 
 /**
- * Biegt alle MapTiler-URLs in einer JSON-Antwort (style.json, tiles.json,
- * sprite.json) auf den eigenen Proxy um und wirft den API-Key heraus.
+ * Points every MapTiler URL in a JSON response (style.json, tiles.json,
+ * sprite.json) at our own proxy and strips the API key.
  *
- * Das Ergebnis muss eine vollständige Adresse sein, kein bloßer Pfad:
- * MapLibre lädt die Vektorkacheln in einem Worker, der aus einem Blob
- * erzeugt wird. Dessen `location` ist eine `blob:`-URL und eignet sich nicht
- * als Basis, um `/api/map/…` aufzulösen – die Kacheln kämen nie an.
+ * The result must be a full address, not a bare path: MapLibre loads the
+ * vector tiles in a worker created from a blob. Its `location` is a `blob:`
+ * URL and can't serve as a base to resolve `/api/map/…` – the tiles would
+ * never arrive.
  *
- * Bewusst rein textbasiert: Platzhalter wie {z}/{x}/{y} oder {fontstack}
- * müssen unverändert bleiben, ein URL-Objekt würde die Klammern kodieren.
+ * Deliberately text-based: placeholders like {z}/{x}/{y} or {fontstack} must
+ * stay untouched, a URL object would encode the braces.
  */
 export function rewriteMapTilerJson(text: string, origin: string) {
   return text.replace(MAPTILER_URL_RE, (_full, rest: string) => {

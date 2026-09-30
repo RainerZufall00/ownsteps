@@ -2,8 +2,8 @@ import type { StyleSpecification } from "maplibre-gl";
 import { MAP_STYLE, MAPTILER_KEY } from "./env";
 
 /**
- * Notfall-Karte, damit die App auch ohne MapTiler-Key etwas Sinnvolles zeigt.
- * Für dauerhaften Betrieb ist ein Key deutlich schöner und sauberer lizenziert.
+ * Fallback map so the app shows something useful even without a MapTiler key.
+ * For permanent use a key looks much nicer and is licensed more cleanly.
  */
 const OSM_FALLBACK: StyleSpecification = {
   version: 8,
@@ -22,7 +22,7 @@ const OSM_FALLBACK: StyleSpecification = {
 
 export type MapStyleConfig = string | StyleSpecification;
 
-/** Wird serverseitig aufgelöst und an die Karten-Komponente gereicht. */
+/** Resolved on the server and handed to the map component. */
 export function getMapStyle(): MapStyleConfig {
   if (!MAPTILER_KEY) return OSM_FALLBACK;
   return `/api/map/maps/${MAP_STYLE}/style.json`;

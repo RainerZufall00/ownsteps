@@ -14,14 +14,14 @@ export default function DeleteTripForm({
   title: string;
 }) {
   const [state, action] = useActionState(deleteTripAction, initial);
-  const [offen, setOffen] = useState(false);
-  const [eingabe, setEingabe] = useState("");
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
 
-  if (!offen) {
+  if (!open) {
     return (
       <button
         type="button"
-        onClick={() => setOffen(true)}
+        onClick={() => setOpen(true)}
         className="btn border border-accent px-5 py-2.5 text-sm text-accent"
       >
         Reise löschen
@@ -40,8 +40,8 @@ export default function DeleteTripForm({
         <input
           id="confirmTitle"
           name="confirmTitle"
-          value={eingabe}
-          onChange={(event) => setEingabe(event.target.value)}
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
           autoComplete="off"
           autoFocus
           className="field"
@@ -57,8 +57,8 @@ export default function DeleteTripForm({
         <button
           type="button"
           onClick={() => {
-            setOffen(false);
-            setEingabe("");
+            setOpen(false);
+            setInput("");
           }}
           className="btn btn-secondary flex-1"
         >

@@ -9,16 +9,16 @@ type Props = {
   steps: ViewStep[];
   firstDay: number | null;
   activeStepId: number | null;
-  /** Beim Durchwischen: nur die Karte mitziehen. */
+  /** While swiping through: only move the map along. */
   onFocus: (stepId: number) => void;
-  /** Beim Antippen: zum Beitrag in der Timeline springen. */
+  /** On tap: jump to the step in the timeline. */
   onOpen: (stepId: number) => void;
 };
 
 /**
- * Leiste über der Karte, mit der man die Stationen durchblättert. Beim
- * Wischen rastet jeweils eine Karte ein und die Karte fliegt mit – so lässt
- * sich eine Reise abfahren, ohne auf die Marker zielen zu müssen.
+ * Strip over the map for paging through the steps. While swiping, one card
+ * snaps in at a time and the map flies along – so a trip can be traveled
+ * without having to aim at the markers.
  */
 export default function MapTimelineStrip({
   steps,
@@ -27,73 +27,73 @@ export default function MapTimelineStrip({
   onFocus,
   onOpen,
 }: Props) {
-  const leiste = useRef<HTMLDivElement>(null);
-  const eintraege = useRef(new Map<number, HTMLButtonElement>());
-  // Verhindert, dass das Nachführen der Leiste selbst wieder einen Wechsel auslöst.
-  const scrolltSelbst = useRef(false);
+  const strip = useRef<HTMLDivElement>(null);
+  const items = useRef(new Map<number, HTMLButtonElement>());
+  // Prevents the strip's own scrolling from triggering another switch.
+  const selfScrolling = useRef(false);
 
-  // Von außen gewählte Station (z.B. Marker-Klick) in den Blick holen.
+  // Bring a step chosen from outside (e.g. marker click) into view.
   useEffect(() => {
     if (activeStepId === null) return;
-    const ziel = eintraege.current.get(activeStepId);
-    if (!ziel || !leiste.current) return;
-    scrolltSelbst.current = true;
-    ziel.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    const target = items.current.get(activeStepId);
+    if (!target || !strip.current) return;
+    selfScrolling.current = true;
+    target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
     const timer = window.setTimeout(() => {
-      scrolltSelbst.current = false;
+      selfScrolling.current = false;
     }, 600);
     return () => window.clearTimeout(timer);
   }, [activeStepId]);
 
   function onScroll() {
-    if (scrolltSelbst.current || !leiste.current) return;
-    const kasten = leiste.current.getBoundingClientRect();
-    const mitte = kasten.left + kasten.width / 2;
+    if (selfScrolling.current || !strip.current) return;
+    const box = strip.current.getBoundingClientRect();
+    const center = box.left + box.width / 2;
 
-    let naechste: number | null = null;
-    let kleinsterAbstand = Number.POSITIVE_INFINITY;
-    for (const [id, element] of eintraege.current) {
+    let nearest: number | null = null;
+    let smallestDistance = Number.POSITIVE_INFINITY;
+    for (const [id, element] of items.current) {
       const r = element.getBoundingClientRect();
-      const abstand = Math.abs(r.left + r.width / 2 - mitte);
-      if (abstand < kleinsterAbstand) {
-        kleinsterAbstand = abstand;
-        naechste = id;
+      const distance = Math.abs(r.left + r.width / 2 - center);
+      if (distance < smallestDistance) {
+        smallestDistance = distance;
+        nearest = id;
       }
     }
-    if (naechste !== null && naechste !== activeStepId) onFocus(naechste);
+    if (nearest !== null && nearest !== activeStepId) onFocus(nearest);
   }
 
   if (steps.length === 0) return null;
 
   return (
     /*
-     * Abstand nach unten: Am Bildschirmrand liegt bei iPhone und iPad die
-     * Wischfläche des Systems – dort landete jedes Blättern im App-Wechsel
-     * statt in der Leiste. Die 2,5 rem halten sie darüber, `safe-area-inset`
-     * kommt für Geräte mit Home-Indikator obendrauf.
+     * Bottom spacing: on iPhone and iPad the system's swipe area sits at the
+     * screen edge – every swipe there ended up in the app switcher instead of
+     * the strip. The 2.5 rem keep it above that, `safe-area-inset` is added on
+     * top for devices with a home indicator.
      */
     <div
       className="pointer-events-none absolute inset-x-0 bottom-0 z-10"
       style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 2.5rem)" }}
     >
       <div
-        ref={leiste}
+        ref={strip}
         onScroll={onScroll}
         className="pointer-events-auto flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-[calc(50%-8.5rem)] pb-1 [scrollbar-width:none] sm:px-[calc(50%-10rem)] [&::-webkit-scrollbar]:hidden"
       >
         {steps.map((step, index) => {
-          const aktiv = step.id === activeStepId;
+          const active = step.id === activeStepId;
           return (
             <button
               key={step.id}
               type="button"
               ref={(element) => {
-                if (element) eintraege.current.set(step.id, element);
-                else eintraege.current.delete(step.id);
+                if (element) items.current.set(step.id, element);
+                else items.current.delete(step.id);
               }}
-              onClick={() => (aktiv ? onOpen(step.id) : onFocus(step.id))}
+              onClick={() => (active ? onOpen(step.id) : onFocus(step.id))}
               className={`flex w-[17rem] shrink-0 snap-center items-center gap-3 rounded-2xl p-2.5 text-left transition sm:w-80 ${
-                aktiv
+                active
                   ? "bg-surface shadow-float"
                   : "bg-surface/80 shadow-card backdrop-blur"
               }`}
@@ -122,7 +122,7 @@ export default function MapTimelineStrip({
                 <span className="block truncate text-[17px] font-semibold leading-tight">
                   {step.placeName ?? formatDateShort(step.occurredAt)}
                 </span>
-                {aktiv && (
+                {active && (
                   <span className="block text-[12px] text-ink-faint">
                     Antippen zum Lesen
                   </span>

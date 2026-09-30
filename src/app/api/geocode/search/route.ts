@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { searchPlaces } from "@/lib/geocode";
 
-/** Vorschläge für die Ortssuche im Editor. */
+/** Suggestions for the place search in the editor. */
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Nicht angemeldet" }, { status: 401 });

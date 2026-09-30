@@ -2,19 +2,18 @@ import { db } from "@/db";
 import { photos } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { processUpload } from "@/lib/images";
-import { MAX_BILD_BYTES } from "@/lib/limits";
+import { MAX_IMAGE_BYTES } from "@/lib/limits";
 import { getTrip, updateTrip } from "@/lib/trips";
 
 const ACCEPTED = /^image\/(jpeg|png|webp|avif|heic|heif|tiff)$/i;
 
 /**
- * Optionales Titelbild einer Reise. Läuft wie jeder große Upload bewusst über
- * eine eigene Route (nicht über eine Server Action) und ist im Proxy
- * ausgenommen – sonst würde der Rumpf gepuffert und bei 10 MB gekappt.
+ * A trip's optional cover image. Like every large upload it deliberately runs
+ * through its own route (not a Server Action) and is excluded from the proxy –
+ * otherwise the body would be buffered and capped at 10 MB.
  *
- * Das Titelbild ist das öffentliche Aushängeschild: `/api/photos` liefert es
- * ohne Anmeldung aus, sobald die Reise freigegeben ist. Alle übrigen Fotos
- * bleiben hinter dem Share-Link.
+ * The cover is the public showcase: `/api/photos` serves it without sign-in as
+ * soon as the trip is shared. All other photos stay behind the share link.
  */
 export async function POST(
   request: Request,
@@ -36,7 +35,7 @@ export async function POST(
   if (!(file instanceof File)) {
     return Response.json({ error: "Keine Datei erhalten" }, { status: 400 });
   }
-  if (file.size > MAX_BILD_BYTES) {
+  if (file.size > MAX_IMAGE_BYTES) {
     return Response.json({ error: "Datei ist größer als 25 MB." }, { status: 400 });
   }
   if (file.type && !ACCEPTED.test(file.type)) {
@@ -47,14 +46,14 @@ export async function POST(
   try {
     meta = await processUpload(Buffer.from(await file.arrayBuffer()));
   } catch (error) {
-    console.error("[cover] fehlgeschlagen", file.name, error);
+    console.error("[cover] failed", file.name, error);
     return Response.json(
       { error: "Bild konnte nicht verarbeitet werden." },
       { status: 422 },
     );
   }
 
-  // Titelbild hängt an keiner Station (step_id bleibt leer).
+  // The cover isn't attached to any step (step_id stays empty).
   const [photo] = await db
     .insert(photos)
     .values({

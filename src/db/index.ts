@@ -6,16 +6,16 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
 
-// Der Pfad steht erst zur Laufzeit fest; ohne den Hinweis würde Turbopack
-// versuchen, das ganze Projektverzeichnis mit ins Bundle zu spuren.
+// The path is only known at runtime; without the hint Turbopack would try to
+// trace the whole project directory into the bundle.
 export const DATA_DIR = path.resolve(
   /* turbopackIgnore: true */ process.env.DATA_DIR ?? "./data",
 );
 export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 
 /**
- * Schema-Migrationen. Nur anhängen, nie bestehende Einträge ändern –
- * beim Start wird alles ausgeführt, was noch nicht in `_migrations` steht.
+ * Schema migrations. Append only, never change existing entries – on startup
+ * everything not yet listed in `_migrations` is executed.
  */
 const MIGRATIONS: { name: string; sql: string }[] = [
   {
@@ -121,16 +121,16 @@ function isBusyError(error: unknown) {
   return /SQLITE_BUSY|database is locked/i.test(String(error));
 }
 
-/** Synchron warten – better-sqlite3 ist synchron, ein await hilft hier nicht. */
+/** Wait synchronously – better-sqlite3 is synchronous, an await won't help here. */
 function sleepSync(ms: number) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 /**
- * Beim Start können mehrere Prozesse gleichzeitig auf dieselbe Datei
- * zugreifen – Next startet für den Build mehrere Worker, und beim Neustart
- * eines Containers überlappen sich alt und neu. Gesperrte Zugriffe werden
- * deshalb wiederholt statt sofort aufzugeben.
+ * On startup several processes may access the same file at once – Next
+ * starts multiple workers for the build, and when a container restarts the
+ * old and new one overlap. Locked accesses are therefore retried instead of
+ * failing right away.
  */
 function retryWhileBusy<T>(fn: () => T, attempts = 12): T {
   for (let attempt = 0; ; attempt++) {
@@ -148,16 +148,16 @@ function createDb() {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
   const sqlite = new Database(path.join(DATA_DIR, "ownsteps.db"));
-  // Als Erstes: schon das Umschalten auf WAL braucht kurz eine exklusive Sperre.
+  // First thing: even switching to WAL briefly needs an exclusive lock.
   sqlite.pragma("busy_timeout = 15000");
-  // Der Journal-Modus steht in der Datei und gilt danach für alle Verbindungen.
-  // SQLite lässt den Wechsel scheitern, solange eine andere Verbindung aktiv
-  // ist – der busy_timeout greift hier ausdrücklich nicht.
+  // The journal mode is stored in the file and then applies to all
+  // connections. SQLite fails the switch while another connection is active –
+  // busy_timeout explicitly does not apply here.
   try {
     retryWhileBusy(() => sqlite.pragma("journal_mode = WAL"), 6);
   } catch (error) {
     if (!isBusyError(error)) throw error;
-    // Ein anderer Prozess war schneller; sein WAL-Modus gilt bereits.
+    // Another process was faster; its WAL mode is already in effect.
   }
   sqlite.pragma("foreign_keys = ON");
 
@@ -170,9 +170,9 @@ function createDb() {
     ),
   );
 
-  // Die Migration läuft in einer sofort schreibsperrenden Transaktion, und der
-  // Abgleich passiert darin – sonst sehen zwei Prozesse dieselbe Migration als
-  // offen an und tragen sie beide ein.
+  // Migrating runs in an immediately write-locking transaction, and the check
+  // happens inside it – otherwise two processes see the same migration as
+  // pending and both record it.
   const migrate = sqlite.transaction(() => {
     const applied = new Set(
       sqlite
@@ -187,7 +187,7 @@ function createDb() {
       sqlite
         .prepare("INSERT OR IGNORE INTO _migrations (name) VALUES (?)")
         .run(migration.name);
-      console.log(`[db] Migration angewendet: ${migration.name}`);
+      console.log(`[db] Migration applied: ${migration.name}`);
     }
   });
   retryWhileBusy(() => migrate.immediate());
@@ -195,8 +195,8 @@ function createDb() {
   return drizzle(sqlite, { schema });
 }
 
-// Im Dev-Modus wird das Modul bei jedem Hot-Reload neu ausgewertet – ohne
-// Singleton würde jedes Mal ein neuer SQLite-Handle geöffnet.
+// In dev mode the module is re-evaluated on every hot reload – without a
+// singleton a new SQLite handle would be opened each time.
 const globalForDb = globalThis as unknown as {
   __ownstepsDb?: ReturnType<typeof createDb>;
 };

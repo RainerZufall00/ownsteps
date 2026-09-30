@@ -5,11 +5,11 @@ import { serveMediaVariant } from "@/lib/serve-media";
 import { getTripByShareToken, hasUnlock } from "@/lib/share";
 
 /**
- * Medien für Gäste einer geteilten Reise. Der geheime Token steht im Pfad und
- * ist hier der Ausweis – anders als bei `/api/photos` genügt es nicht, dass
- * eine Reise überhaupt freigegeben ist. So bleibt der Link das Geheimnis: Wer
- * ihn nicht hat, kommt an kein Foto, und ein neuer Token macht alte Bild-URLs
- * sofort ungültig. Bei Passwortschutz muss zusätzlich entsperrt sein.
+ * Media for guests of a shared trip. The secret token is in the path and acts
+ * as the credential here – unlike `/api/photos`, it isn't enough that a trip
+ * is shared at all. That keeps the link the secret: without it you get no
+ * photo, and a new token invalidates old image URLs immediately. With password
+ * protection the trip must be unlocked as well.
  */
 export async function GET(
   request: Request,
@@ -18,14 +18,14 @@ export async function GET(
   const { token, id, variant } = await context.params;
 
   const trip = await getTripByShareToken(token);
-  if (!trip) return new Response("Nicht gefunden", { status: 404 });
+  if (!trip) return new Response("Not found", { status: 404 });
   if (!(await hasUnlock(trip))) {
-    return new Response("Kein Zugriff", { status: 403 });
+    return new Response("Forbidden", { status: 403 });
   }
 
   const photoId = Number(id);
   if (!Number.isInteger(photoId)) {
-    return new Response("Nicht gefunden", { status: 404 });
+    return new Response("Not found", { status: 404 });
   }
 
   const rows = await db
@@ -34,10 +34,10 @@ export async function GET(
     .where(eq(photos.id, photoId))
     .limit(1);
   const photo = rows[0];
-  // Das Foto muss zu genau dieser Reise gehören – sonst wäre der Token einer
-  // Reise ein Generalschlüssel für die Fotos aller anderen.
+  // The photo must belong to exactly this trip – otherwise one trip's token
+  // would be a master key for every other trip's photos.
   if (!photo || photo.tripId !== trip.id) {
-    return new Response("Nicht gefunden", { status: 404 });
+    return new Response("Not found", { status: 404 });
   }
 
   return serveMediaVariant({

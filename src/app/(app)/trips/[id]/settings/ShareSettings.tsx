@@ -22,13 +22,13 @@ export default function ShareSettings({
   const [copied, setCopied] = useState(false);
 
   async function share() {
-    // Auf dem Handy das native Teilen-Menü, sonst die Zwischenablage.
+    // On phones the native share sheet, otherwise the clipboard.
     if (navigator.share) {
       try {
         await navigator.share({ url: shareUrl });
         return;
       } catch {
-        // Abgebrochen – dann eben kopieren.
+        // Cancelled – copy instead.
       }
     }
     try {

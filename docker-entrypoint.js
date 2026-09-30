@@ -1,23 +1,22 @@
 #!/usr/bin/env node
 /**
- * Startet den Next-Server und sorgt vorher dafür, dass das Datenverzeichnis
- * beschreibbar ist.
+ * Starts the Next server and first makes sure the data directory is writable.
  *
- * Hintergrund: DATA_DIR ist ein Bind-Mount vom Host. Das `chown` aus dem
- * Dockerfile greift dort nicht – ein Mount verdeckt den Image-Inhalt samt
- * seiner Besitzverhältnisse, und Docker legt fehlende Host-Verzeichnisse als
- * root an. Der Container startet deshalb als root, richtet die Rechte und
- * wechselt anschließend auf den unprivilegierten Nutzer.
+ * Background: DATA_DIR is a bind mount from the host. The `chown` from the
+ * Dockerfile doesn't apply there – a mount hides the image content including
+ * its ownership, and Docker creates missing host directories as root. The
+ * container therefore starts as root, fixes the permissions and then switches
+ * to the unprivileged user.
  *
- * Wird der Container mit festem `user:` gestartet, entfällt der Wechsel; dann
- * muss das Verzeichnis auf dem Host bereits dem passenden Benutzer gehören.
+ * If the container is started with a fixed `user:`, the switch is skipped;
+ * the directory on the host must then already belong to the right user.
  */
 const fs = require("node:fs");
 const path = require("node:path");
 
 const DATA_DIR = process.env.DATA_DIR || "/data";
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
-// Entspricht dem Benutzer "node" in den offiziellen Node-Images.
+// Matches the "node" user in the official Node images.
 const RUN_UID = Number(process.env.RUN_UID || 1000);
 const RUN_GID = Number(process.env.RUN_GID || 1000);
 
@@ -36,7 +35,7 @@ function chownRecursive(target, uid, gid) {
       try {
         fs.chownSync(child, uid, gid);
       } catch {
-        // Einzelne Dateien dürfen scheitern, ohne den Start zu verhindern.
+        // Individual files may fail without preventing startup.
       }
     }
   }
@@ -47,14 +46,14 @@ const isRoot = typeof process.getuid === "function" && process.getuid() === 0;
 if (isRoot) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-  // Nur durchlaufen, wenn oben etwas nicht stimmt – bei vielen Fotos wäre ein
-  // rekursiver Lauf bei jedem Start sonst pure Wartezeit.
+  // Only walk the tree if something is off at the top – with many photos a
+  // recursive pass on every start would be pure waiting time.
   const needsFix = [DATA_DIR, UPLOAD_DIR].some((dir) => {
     const stat = fs.statSync(dir);
     return stat.uid !== RUN_UID || stat.gid !== RUN_GID;
   });
   if (needsFix) {
-    console.log(`[start] Rechte auf ${DATA_DIR} werden gesetzt …`);
+    console.log(`[start] Fixing permissions on ${DATA_DIR} …`);
     chownRecursive(DATA_DIR, RUN_UID, RUN_GID);
   }
 
@@ -62,21 +61,21 @@ if (isRoot) {
   process.setuid(RUN_UID);
 
   if (process.getuid() !== RUN_UID) {
-    console.error("[start] Wechsel auf den unprivilegierten Benutzer schlug fehl.");
+    console.error("[start] Switching to the unprivileged user failed.");
     process.exit(1);
   }
 } else {
-  // Fester Benutzer von außen vorgegeben: nur prüfen, ob geschrieben werden darf.
+  // Fixed user given from outside: only check that writing is allowed.
   try {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
     fs.accessSync(UPLOAD_DIR, fs.constants.W_OK);
   } catch (error) {
     console.error(
       [
-        `[start] ${DATA_DIR} ist für Benutzer ${process.getuid?.()} nicht beschreibbar.`,
+        `[start] ${DATA_DIR} is not writable for user ${process.getuid?.()}.`,
         `        ${error.message}`,
-        "        Auf dem Host beheben mit:",
-        `          sudo chown -R ${RUN_UID}:${RUN_GID} <dein-data-Verzeichnis>`,
+        "        Fix it on the host with:",
+        `          sudo chown -R ${RUN_UID}:${RUN_GID} <your-data-directory>`,
       ].join("\n"),
     );
     process.exit(1);

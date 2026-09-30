@@ -13,9 +13,9 @@ export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
-  /** Leer bei Accounts, die ausschließlich über OIDC angelegt wurden. */
+  /** Empty for accounts created exclusively via OIDC. */
   passwordHash: text("password_hash"),
-  /** `sub` aus dem ID-Token, stabil auch wenn sich die E-Mail ändert. */
+  /** `sub` from the ID token, stable even if the email changes. */
   oidcSubject: text("oidc_subject").unique(),
   avatarUrl: text("avatar_url"),
   createdAt: integer("created_at").notNull().default(now),
@@ -60,16 +60,16 @@ export const steps = sqliteTable(
     tripId: integer("trip_id")
       .notNull()
       .references(() => trips.id, { onDelete: "cascade" }),
-    /** Veraltet: Die Timeline zeigt den Ort als Überschrift, nicht diesen Text. */
+    /** Deprecated: the timeline shows the place as heading, not this text. */
     title: text("title").notNull().default(""),
     body: text("body").notNull().default(""),
     lat: real("lat"),
     lon: real("lon"),
     placeName: text("place_name"),
     countryCode: text("country_code"),
-    /** Zeitpunkt des Erlebnisses (unix ms) – bestimmt die Reihenfolge der Timeline. */
+    /** When it happened (unix ms) – determines the timeline order. */
     occurredAt: integer("occurred_at").notNull(),
-    /** Entwürfe entstehen beim Öffnen des Editors und tauchen erst nach dem Speichern auf. */
+    /** Drafts are created when the editor opens and only appear after saving. */
     published: integer("published", { mode: "boolean" })
       .notNull()
       .default(false),
@@ -92,16 +92,16 @@ export const photos = sqliteTable(
     stepId: integer("step_id").references(() => steps.id, {
       onDelete: "cascade",
     }),
-    /** Verzeichnisname unterhalb von uploads/, enthält die abgeleiteten Größen. */
+    /** Directory name below uploads/, holds the derived sizes. */
     storageKey: text("storage_key").notNull(),
     originalName: text("original_name"),
-    /** Optionale Bildunterschrift, erscheint in der Vollbildansicht. */
+    /** Optional caption, shown in the fullscreen view. */
     caption: text("caption"),
-    /** "photo" oder "video" – bei Videos sind die Bildgrößen das Standbild. */
+    /** "photo" or "video" – for videos the image sizes are the poster frame. */
     mediaType: text("media_type", { enum: ["photo", "video"] })
       .notNull()
       .default("photo"),
-    /** Nur bei Videos: Länge in Millisekunden und der Typ der Datei. */
+    /** Videos only: length in milliseconds and the file's MIME type. */
     durationMs: integer("duration_ms"),
     videoMime: text("video_mime"),
     width: integer("width").notNull(),
@@ -110,7 +110,7 @@ export const photos = sqliteTable(
     takenAt: integer("taken_at"),
     lat: real("lat"),
     lon: real("lon"),
-    /** Winziges base64-JPEG als Platzhalter beim Laden. */
+    /** Tiny base64 JPEG used as placeholder while loading. */
     placeholder: text("placeholder"),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: integer("created_at").notNull().default(now),
@@ -131,7 +131,7 @@ export const comments = sqliteTable(
     stepId: integer("step_id")
       .notNull()
       .references(() => steps.id, { onDelete: "cascade" }),
-    /** Frei gewählter Name – Kommentare brauchen keinen Account. */
+    /** Freely chosen name – comments don't need an account. */
     authorName: text("author_name").notNull(),
     body: text("body").notNull(),
     createdAt: integer("created_at").notNull().default(now),

@@ -1,5 +1,5 @@
 /**
- * Läuft einmal beim Start des Servers – vor dem ersten Request.
+ * Runs once when the server starts – before the first request.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
@@ -11,6 +11,6 @@ export async function register() {
     await seedAdminFromEnv();
     await cleanupStaleDrafts();
   } catch (error) {
-    console.error("[start] Initialisierung fehlgeschlagen", error);
+    console.error("[start] Initialization failed", error);
   }
 }

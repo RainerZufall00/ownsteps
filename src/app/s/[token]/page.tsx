@@ -35,15 +35,15 @@ export async function generateMetadata({
     description:
       trip.summary ??
       `Eine Reise mit ${pluralize(steps.length, "Station", "Stationen")}.`,
-    // Der Link soll nirgends im Index landen.
+    // The link must not end up in any index.
     robots: { index: false, follow: false },
     openGraph: {
       title: trip.title,
       description: trip.summary ?? undefined,
       type: "article",
-      // Nur das eigens hochgeladene Titelbild ist öffentlich; ob die Reise
-      // eines hat, entscheidet die Foto-Route (sie liefert sonst 403 und die
-      // Vorschau bleibt einfach leer). Andere Fotos gehen nie an einen Crawler.
+      // Only the separately uploaded cover is public; whether the trip has
+      // one is decided by the photo route (otherwise it returns 403 and the
+      // preview simply stays empty). Other photos never go to a crawler.
       images: trip.coverPhotoId
         ? [`${await baseUrl()}/api/photos/${trip.coverPhotoId}/medium`]
         : undefined,

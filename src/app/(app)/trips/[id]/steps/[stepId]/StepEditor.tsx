@@ -7,7 +7,7 @@ import MapCanvas from "@/components/MapCanvas";
 import PhotoImg from "@/components/PhotoImg";
 import SubmitButton from "@/components/SubmitButton";
 import { toDateInput } from "@/lib/format";
-import { MAX_BILD_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
+import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
 import type { ViewPhoto } from "@/lib/view-types";
 import {
   deletePhotoAction,
@@ -34,7 +34,7 @@ type UploadState = {
   done: number;
   total: number;
   current: number;
-  hinweis?: string;
+  hint?: string;
 } | null;
 type PlaceHit = { id: string; name: string; lat: number; lon: number };
 
@@ -56,19 +56,19 @@ export default function StepEditor({
   const [upload, setUpload] = useState<UploadState>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [locating, setLocating] = useState<string | null>(null);
-  const [coverHinweis, setCoverHinweis] = useState<number | null>(null);
-  const [vorschlaege, setVorschlaege] = useState<PlaceHit[]>([]);
-  const [sucht, setSucht] = useState(false);
+  const [coverSetFor, setCoverSetFor] = useState<number | null>(null);
+  const [suggestions, setSuggestions] = useState<PlaceHit[]>([]);
+  const [searching, setSearching] = useState(false);
   const [focusPoint, setFocusPoint] = useState<{
     lat: number;
     lon: number;
     key: number;
   } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const suchTimer = useRef<number | undefined>(undefined);
+  const searchTimer = useRef<number | undefined>(undefined);
 
-  /** Einfarbiges Ersatzbild, falls sich aus dem Video keines gewinnen lässt. */
-  async function ersatzStandbild() {
+  /** Plain fallback image in case none can be extracted from the video. */
+  async function fallbackPoster() {
     const canvas = document.createElement("canvas");
     canvas.width = 1280;
     canvas.height = 720;
@@ -81,22 +81,22 @@ export default function StepEditor({
       ctx.textAlign = "center";
       ctx.fillText("Video", canvas.width / 2, canvas.height / 2 + 22);
     }
-    const blob = await new Promise<Blob | null>((fertig) =>
-      canvas.toBlob(fertig, "image/jpeg", 0.8),
+    const blob = await new Promise<Blob | null>((settle) =>
+      canvas.toBlob(settle, "image/jpeg", 0.8),
     );
     return new File([blob ?? new Blob()], "poster.jpg", { type: "image/jpeg" });
   }
 
   /**
-   * Holt ein Standbild aus einem Video. Der Browser kann das Video ohnehin
-   * dekodieren – so bleibt ffmpeg aus dem Docker-Image heraus.
+   * Grabs a poster frame from a video. The browser can decode the video
+   * anyway – that keeps ffmpeg out of the Docker image.
    *
-   * Wichtig ist die Reihenfolge: Erst auf die Metadaten warten, dann an eine
-   * Stelle springen. Auf `loadeddata` zu warten führte ins Leere, weil bei
-   * `preload="metadata"` gar keine Bilddaten geladen werden – der Upload lief
-   * dadurch in eine Zeitüberschreitung, ohne je zu starten.
+   * The order matters: first wait for the metadata, then seek to a position.
+   * Waiting for `loadeddata` led nowhere, because with `preload="metadata"` no
+   * image data is loaded at all – the upload then ran into a timeout without
+   * ever starting.
    */
-  async function videoStandbild(file: File) {
+  async function extractPoster(file: File) {
     const url = URL.createObjectURL(file);
     const video = document.createElement("video");
     video.src = url;
@@ -104,14 +104,14 @@ export default function StepEditor({
     video.playsInline = true;
     video.preload = "metadata";
 
-    const warte = (ereignis: string, grenze: number) =>
-      new Promise<boolean>((fertig) => {
-        const timer = window.setTimeout(() => fertig(false), grenze);
+    const waitFor = (eventName: string, limit: number) =>
+      new Promise<boolean>((settle) => {
+        const timer = window.setTimeout(() => settle(false), limit);
         video.addEventListener(
-          ereignis,
+          eventName,
           () => {
             window.clearTimeout(timer);
-            fertig(true);
+            settle(true);
           },
           { once: true },
         );
@@ -119,27 +119,27 @@ export default function StepEditor({
           "error",
           () => {
             window.clearTimeout(timer);
-            fertig(false);
+            settle(false);
           },
           { once: true },
         );
       });
 
     try {
-      const hatMetadaten = await warte("loadedmetadata", 20000);
-      const dauerMs =
-        hatMetadaten && Number.isFinite(video.duration)
+      const hasMetadata = await waitFor("loadedmetadata", 20000);
+      const durationMs =
+        hasMetadata && Number.isFinite(video.duration)
           ? Math.round(video.duration * 1000)
           : 0;
 
-      if (hatMetadaten && video.videoWidth > 0) {
-        // Etwas hineinspringen – das erste Bild ist oft schwarz. Der Browser
-        // lädt dafür genau den benötigten Ausschnitt nach.
-        const zielZeit = Number.isFinite(video.duration)
+      if (hasMetadata && video.videoWidth > 0) {
+        // Seek in a bit – the first frame is often black. The browser loads
+        // exactly the section needed for that.
+        const seekTime = Number.isFinite(video.duration)
           ? Math.min(1, video.duration / 3)
           : 0;
-        video.currentTime = zielZeit;
-        await warte("seeked", 10000);
+        video.currentTime = seekTime;
+        await waitFor("seeked", 10000);
 
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
@@ -148,29 +148,29 @@ export default function StepEditor({
           .getContext("2d")
           ?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        const blob = await new Promise<Blob | null>((fertig) =>
-          canvas.toBlob(fertig, "image/jpeg", 0.85),
+        const blob = await new Promise<Blob | null>((settle) =>
+          canvas.toBlob(settle, "image/jpeg", 0.85),
         );
         if (blob && blob.size > 0) {
           return {
             poster: new File([blob], "poster.jpg", { type: "image/jpeg" }),
-            durationMs: dauerMs,
+            durationMs: durationMs,
           };
         }
       }
 
-      // Kein Standbild möglich (etwa bei einem Codec, den der Browser nicht
-      // dekodiert). Das Video soll trotzdem hochgeladen werden.
-      console.warn("[upload] Kein Standbild aus dem Video, nehme Ersatzbild");
-      return { poster: await ersatzStandbild(), durationMs: dauerMs };
+      // No poster frame possible (e.g. with a codec the browser can't
+      // decode). The video should be uploaded anyway.
+      console.warn("[upload] No poster frame from the video, using fallback");
+      return { poster: await fallbackPoster(), durationMs: durationMs };
     } finally {
       URL.revokeObjectURL(url);
     }
   }
 
   /**
-   * Dateien gehen einzeln raus: das hält den Speicherbedarf auf dem VPS klein
-   * und zeigt unterwegs einen ehrlichen Fortschritt.
+   * Files go out one by one: that keeps memory use on the VPS small and shows
+   * honest progress along the way.
    */
   async function uploadFiles(files: File[]) {
     if (files.length === 0) return;
@@ -179,15 +179,15 @@ export default function StepEditor({
 
     for (const [index, file] of files.entries()) {
       try {
-        const istVideo = file.type.startsWith("video/");
-        const grenze = istVideo ? MAX_VIDEO_BYTES : MAX_BILD_BYTES;
-        if (file.size > grenze) {
-          // Vor dem Hochladen abfangen: Sonst wandern hundert Megabyte durchs
-          // Netz, nur damit der Server sie am Ende ablehnt.
+        const isVideo = file.type.startsWith("video/");
+        const limit = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+        if (file.size > limit) {
+          // Catch it before uploading: otherwise a hundred megabytes travel
+          // over the network only for the server to reject them.
           setProblems((current) => [
             ...current,
             `${file.name}: ${Math.round(file.size / 1024 / 1024)} MB – erlaubt sind ` +
-              `${Math.round(grenze / 1024 / 1024)} MB.`,
+              `${Math.round(limit / 1024 / 1024)} MB.`,
           ]);
           setUpload({ done: index + 1, total: files.length, current: 0 });
           continue;
@@ -197,18 +197,18 @@ export default function StepEditor({
         body.append("stepId", String(step.id));
         body.append("files", file);
 
-        if (istVideo) {
-          // Das Standbild braucht einen Moment – ohne Hinweis wirkt das wie
-          // ein Hänger, weil der Fortschrittsbalken noch bei null steht.
+        if (isVideo) {
+          // The poster frame takes a moment – without a hint this looks like a
+          // hang, because the progress bar is still at zero.
           setUpload({
             done: index,
             total: files.length,
             current: 0,
-            hinweis: "Video wird vorbereitet …",
+            hint: "Video wird vorbereitet …",
           });
-          const standbild = await videoStandbild(file);
-          body.append("poster0", standbild.poster);
-          body.append("duration0", String(standbild.durationMs));
+          const posterFrame = await extractPoster(file);
+          body.append("poster0", posterFrame.poster);
+          body.append("duration0", String(posterFrame.durationMs));
         }
 
         const result = await new Promise<{
@@ -246,7 +246,7 @@ export default function StepEditor({
             ...result.failed.map((f) => `${f.name}: ${f.reason}`),
           ]);
         }
-        // Der erste Treffer mit GPS bestimmt den Ort des Beitrags.
+        // The first hit with GPS determines the step's place.
         if (result.derived.lat !== null && lat === null) {
           setLat(result.derived.lat);
           setLon(result.derived.lon);
@@ -266,39 +266,39 @@ export default function StepEditor({
     if (fileInput.current) fileInput.current.value = "";
   }
 
-  /** Tippen im Ortsfeld startet die Suche, ohne bei jedem Zeichen zu funken. */
-  function onOrtEingabe(wert: string) {
-    setPlaceName(wert);
-    window.clearTimeout(suchTimer.current);
-    if (wert.trim().length < 2) {
-      setVorschlaege([]);
+  /** Typing in the place field starts the search without firing on every keystroke. */
+  function onPlaceInput(value: string) {
+    setPlaceName(value);
+    window.clearTimeout(searchTimer.current);
+    if (value.trim().length < 2) {
+      setSuggestions([]);
       return;
     }
-    suchTimer.current = window.setTimeout(async () => {
-      setSucht(true);
+    searchTimer.current = window.setTimeout(async () => {
+      setSearching(true);
       try {
         const response = await fetch(
-          `/api/geocode/search?q=${encodeURIComponent(wert)}`,
+          `/api/geocode/search?q=${encodeURIComponent(value)}`,
         );
         if (!response.ok) return;
-        const daten = (await response.json()) as { hits: PlaceHit[] };
-        setVorschlaege(daten.hits ?? []);
+        const data = (await response.json()) as { hits: PlaceHit[] };
+        setSuggestions(data.hits ?? []);
       } catch {
-        setVorschlaege([]);
+        setSuggestions([]);
       } finally {
-        setSucht(false);
+        setSearching(false);
       }
     }, 350);
   }
 
-  /** Einen Vorschlag übernehmen: Name, Koordinaten und Kartenausschnitt. */
-  function waehleOrt(hit: PlaceHit) {
-    window.clearTimeout(suchTimer.current);
+  /** Adopt a suggestion: name, coordinates and map section. */
+  function pickPlace(hit: PlaceHit) {
+    window.clearTimeout(searchTimer.current);
     setPlaceName(hit.name);
     setLat(hit.lat);
     setLon(hit.lon);
     setFocusPoint({ lat: hit.lat, lon: hit.lon, key: Date.now() });
-    setVorschlaege([]);
+    setSuggestions([]);
     setLocating(null);
   }
 
@@ -315,13 +315,14 @@ export default function StepEditor({
       const place = (await response.json()) as { placeName: string | null };
       if (place.placeName) setPlaceName(place.placeName);
     } catch {
-      // Ohne Ortsnamen ist der Pin trotzdem gesetzt.
+      // Without a place name the pin is set anyway.
     }
   }
 
   /**
-   * Rettungsanker für Fotos ohne GPS – iOS entfernt die Position beim Teilen
-   * je nach Weg. Wer noch vor Ort ist, übernimmt sie einfach vom Gerät.
+   * Lifeline for photos without GPS – iOS strips the position when sharing,
+   * depending on the route. Whoever is still on site simply takes it from the
+   * device.
    */
   function applyDeviceLocation() {
     if (!navigator.geolocation) {
@@ -345,8 +346,8 @@ export default function StepEditor({
     );
   }
 
-  // Ohne feste Referenz bekäme die Karte bei jedem Tastendruck neue Daten
-  // gereicht und würde ihre Ansicht zurücksetzen.
+  // Without a stable reference the map would get new data on every keystroke
+  // and reset its view.
   const mapSteps = useMemo(
     () =>
       lat !== null && lon !== null
@@ -361,8 +362,8 @@ export default function StepEditor({
             },
           ]
         : [],
-    // placeName absichtlich nicht enthalten: Der Titel steht nur im
-    // Marker-Label und ist kein Grund, die Karte neu zu bespielen.
+    // placeName deliberately left out: the title only appears in the marker
+    // label and is no reason to feed the map again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [lat, lon, step.id, step.occurredAt, photos[0]?.id],
   );
@@ -411,10 +412,8 @@ export default function StepEditor({
         Ort und Zeitpunkt kommen automatisch aus den Fotos.
       </p>
 
-      {/* Fotos liegen außerhalb des Formulars: sie werden sofort gespeichert. */}
-      {/* Die Fotos stehen mit im Formular, damit die Bildunterschriften
-          zusammen mit dem Beitrag gespeichert werden. Die Bilder selbst sind
-          schon beim Hochladen gesichert. */}
+      {/* The photos sit inside the form so the captions are saved together
+          with the step. The images themselves are already stored on upload. */}
       <form action={action} className="mt-6 space-y-5">
         <input type="hidden" name="stepId" value={step.id} />
         <input type="hidden" name="lat" value={lat ?? ""} />
@@ -463,11 +462,11 @@ export default function StepEditor({
                           body.append("tripId", String(step.tripId));
                           body.append("photoId", String(photo.id));
                           await setCoverPhotoAction(body);
-                          setCoverHinweis(photo.id);
+                          setCoverSetFor(photo.id);
                         }}
                         className="text-ink-soft transition hover:text-accent"
                       >
-                        {coverHinweis === photo.id ? "Titelbild ✓" : "Titelbild"}
+                        {coverSetFor === photo.id ? "Titelbild ✓" : "Titelbild"}
                       </button>
                       <button
                         type="button"
@@ -581,24 +580,24 @@ export default function StepEditor({
               id="placeName"
               name="placeName"
               value={placeName}
-              onChange={(event) => onOrtEingabe(event.target.value)}
+              onChange={(event) => onPlaceInput(event.target.value)}
               autoComplete="off"
               className="field pr-10"
               placeholder="Ort suchen, z.B. Ulm"
             />
-            {sucht && (
+            {searching && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-ink-faint">
                 sucht …
               </span>
             )}
 
-            {vorschlaege.length > 0 && (
+            {suggestions.length > 0 && (
               <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-float">
-                {vorschlaege.map((hit) => (
+                {suggestions.map((hit) => (
                   <li key={hit.id}>
                     <button
                       type="button"
-                      onClick={() => waehleOrt(hit)}
+                      onClick={() => pickPlace(hit)}
                       className="flex w-full items-start gap-2 px-4 py-2.5 text-left text-[15px] transition hover:bg-surface-muted"
                     >
                       <svg
@@ -684,7 +683,7 @@ export default function StepEditor({
           <p className="text-sm font-medium text-accent">{state.error}</p>
         )}
 
-        {/* Speichern bleibt beim Tippen immer sichtbar. */}
+        {/* Saving stays visible while typing. */}
         <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper/90 px-4 pt-3 backdrop-blur-lg">
           <div className="mx-auto flex max-w-2xl gap-3">
             <Link

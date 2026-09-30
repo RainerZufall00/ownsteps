@@ -59,7 +59,7 @@ export async function changePasswordAction(
   if (next.length < 10) {
     return { error: "Das neue Passwort braucht mindestens 10 Zeichen." };
   }
-  // Accounts ohne Passwort (nur OIDC) dürfen eines setzen, ohne das alte zu kennen.
+  // Accounts without a password (OIDC only) may set one without knowing the old one.
   if (user.passwordHash && !(await verifyPassword(current, user.passwordHash))) {
     return { error: "Das aktuelle Passwort stimmt nicht." };
   }

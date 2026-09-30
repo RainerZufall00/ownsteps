@@ -5,14 +5,14 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { PUBLIC_URL } from "./env";
 import { publicOrigin } from "./origin";
 
-/** Kurzlebiges Cookie, das State, PKCE-Verifier und Ziel des Logins hält. */
+/** Short-lived cookie holding state, PKCE verifier and the login target. */
 export const OIDC_FLOW_COOKIE = "ownsteps_oidc";
 
 /**
- * Muss exakt der in Pocket ID hinterlegten Callback-URL entsprechen. Ohne
- * PUBLIC_URL zieht `publicOrigin` die Weiterleitungs-Header des Proxys heran –
- * die nackte Anfrage-URL wäre im Container `http://0.0.0.0:2555`, und der
- * Anbieter lehnte den Rückweg als unbekannt ab.
+ * Must match the callback URL registered with the provider (e.g. Pocket ID)
+ * exactly. Without PUBLIC_URL, `publicOrigin` falls back to the proxy's
+ * forwarding headers – the bare request URL would be `http://0.0.0.0:2555`
+ * inside the container, and the provider would reject the return as unknown.
  */
 export function redirectUriFor(request: Request) {
   return `${publicOrigin(request, PUBLIC_URL)}/api/auth/oidc/callback`;
@@ -25,7 +25,7 @@ export const OIDC_BUTTON_LABEL =
   process.env.OIDC_BUTTON_LABEL?.trim() || "Pocket ID";
 const OIDC_SCOPES = process.env.OIDC_SCOPES?.trim() || "openid profile email";
 
-/** Optionale Zusatzsperre: nur diese Adressen dürfen sich anmelden. */
+/** Optional extra restriction: only these addresses may sign in. */
 const ALLOWED_EMAILS = (process.env.OIDC_ALLOWED_EMAILS ?? "")
   .split(",")
   .map((entry) => entry.trim().toLowerCase())
@@ -68,7 +68,7 @@ export async function discover(): Promise<Discovery> {
   );
   if (!response.ok) {
     throw new Error(
-      `OIDC-Discovery fehlgeschlagen (${response.status}) – OIDC_ISSUER prüfen.`,
+      `OIDC discovery failed (${response.status}) – check OIDC_ISSUER.`,
     );
   }
   const value = (await response.json()) as Discovery;
@@ -148,7 +148,7 @@ export async function exchangeCode(input: {
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     throw new Error(
-      `Token-Austausch fehlgeschlagen (${response.status}): ${detail.slice(0, 200)}`,
+      `Token exchange failed (${response.status}): ${detail.slice(0, 200)}`,
     );
   }
 
@@ -156,7 +156,7 @@ export async function exchangeCode(input: {
     id_token?: string;
     access_token?: string;
   };
-  if (!tokens.id_token) throw new Error("Antwort enthält kein id_token.");
+  if (!tokens.id_token) throw new Error("Response contains no id_token.");
 
   const { payload } = await jwtVerify(tokens.id_token, jwks(config.jwks_uri), {
     issuer: config.issuer,
@@ -164,7 +164,7 @@ export async function exchangeCode(input: {
   });
 
   if (payload.nonce !== input.nonce) {
-    throw new Error("Nonce stimmt nicht überein.");
+    throw new Error("Nonce mismatch.");
   }
 
   let email = typeof payload.email === "string" ? payload.email : "";
@@ -176,7 +176,7 @@ export async function exchangeCode(input: {
         : null;
   let picture = typeof payload.picture === "string" ? payload.picture : null;
 
-  // Manche Provider liefern die Profildaten erst über userinfo.
+  // Some providers only deliver profile data via userinfo.
   if ((!email || !name) && config.userinfo_endpoint && tokens.access_token) {
     try {
       const info = await fetch(config.userinfo_endpoint, {
@@ -192,13 +192,13 @@ export async function exchangeCode(input: {
         }
       }
     } catch {
-      // Profildaten sind optional.
+      // Profile data is optional.
     }
   }
 
   if (!email) {
     throw new Error(
-      "Der Anbieter hat keine E-Mail-Adresse geliefert – Scope „email“ freigeben.",
+      "The provider returned no email address – grant the \"email\" scope.",
     );
   }
 

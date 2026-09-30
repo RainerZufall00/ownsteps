@@ -6,7 +6,7 @@ export default function Logo({ className = "h-8 w-8" }: { className?: string }) 
       className={className}
       aria-hidden="true"
     >
-      {/* Gestrichelte Route, wie sie auch auf der Karte gezeichnet wird. */}
+      {/* Dotted route, like the one drawn on the map. */}
       <path
         d="M7 25c4.5 0 3-8 8-8s3.5-8 9-8"
         stroke="currentColor"

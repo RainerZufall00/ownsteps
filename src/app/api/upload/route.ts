@@ -4,7 +4,7 @@ import { photos, steps } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { reverseGeocode } from "@/lib/geocode";
 import { processUpload, processVideo } from "@/lib/images";
-import { MAX_BILD_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
+import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
 import { deletePhoto } from "@/lib/photos";
 
 const ACCEPTED = /^image\/(jpeg|png|webp|avif|heic|heif|tiff)$/i;
@@ -43,24 +43,24 @@ export async function POST(request: Request) {
   let nextOrder = maxOrder + 1;
 
   for (const [position, file] of files.entries()) {
-    const istVideo = ACCEPTED_VIDEO.test(file.type);
+    const isVideo = ACCEPTED_VIDEO.test(file.type);
 
-    if (istVideo && file.size > MAX_VIDEO_BYTES) {
+    if (isVideo && file.size > MAX_VIDEO_BYTES) {
       failed.push({ name: file.name, reason: "Video ist größer als 400 MB." });
       continue;
     }
-    if (!istVideo && file.size > MAX_BILD_BYTES) {
+    if (!isVideo && file.size > MAX_IMAGE_BYTES) {
       failed.push({ name: file.name, reason: "Datei ist größer als 25 MB." });
       continue;
     }
-    if (file.type && !istVideo && !ACCEPTED.test(file.type)) {
+    if (file.type && !isVideo && !ACCEPTED.test(file.type)) {
       failed.push({ name: file.name, reason: "Kein unterstütztes Format." });
       continue;
     }
 
-    // Das Standbild eines Videos erzeugt der Browser beim Auswählen.
+    // The browser creates a video's poster frame when the file is picked.
     const poster = form.get(`poster${position}`);
-    if (istVideo && !(poster instanceof File)) {
+    if (isVideo && !(poster instanceof File)) {
       failed.push({
         name: file.name,
         reason: "Vorschaubild fehlt – Video konnte nicht gelesen werden.",
@@ -69,24 +69,24 @@ export async function POST(request: Request) {
     }
 
     try {
-      const daten = Buffer.from(await file.arrayBuffer());
-      const meta = istVideo
+      const data = Buffer.from(await file.arrayBuffer());
+      const meta = isVideo
         ? await processVideo(
-            daten,
+            data,
             Buffer.from(await (poster as File).arrayBuffer()),
           )
-        : await processUpload(daten);
+        : await processUpload(data);
 
-      // Nachvollziehbar machen, was aus der Datei gelesen wurde – ohne das
-      // rät man bei "kein GPS gefunden" nur herum.
+      // Make traceable what was read from the file – without this, "no GPS
+      // found" leaves you guessing.
       console.log(
-        `[upload] ${file.name} (${file.type || "unbekannt"}, ` +
+        `[upload] ${file.name} (${file.type || "unknown"}, ` +
           `${Math.round(file.size / 1024)} kB): ` +
-          `Ort ${meta.lat !== null ? `${meta.lat.toFixed(5)},${meta.lon?.toFixed(5)}` : "keiner"}, ` +
-          `Zeit ${meta.takenAt ? new Date(meta.takenAt).toISOString() : "keine"}`,
+          `place ${meta.lat !== null ? `${meta.lat.toFixed(5)},${meta.lon?.toFixed(5)}` : "none"}, ` +
+          `time ${meta.takenAt ? new Date(meta.takenAt).toISOString() : "none"}`,
       );
 
-      const dauerRoh = Number(form.get(`duration${position}`));
+      const rawDuration = Number(form.get(`duration${position}`));
       const [photo] = await db
         .insert(photos)
         .values({
@@ -102,17 +102,17 @@ export async function POST(request: Request) {
           lon: meta.lon,
           placeholder: meta.placeholder,
           sortOrder: nextOrder++,
-          mediaType: istVideo ? "video" : "photo",
-          videoMime: istVideo ? file.type || "video/mp4" : null,
+          mediaType: isVideo ? "video" : "photo",
+          videoMime: isVideo ? file.type || "video/mp4" : null,
           durationMs:
-            istVideo && Number.isFinite(dauerRoh) && dauerRoh > 0
-              ? Math.round(dauerRoh)
+            isVideo && Number.isFinite(rawDuration) && rawDuration > 0
+              ? Math.round(rawDuration)
               : null,
         })
         .returning();
       created.push(photo);
     } catch (error) {
-      console.error("[upload] fehlgeschlagen", file.name, error);
+      console.error("[upload] failed", file.name, error);
       failed.push({
         name: file.name,
         reason:
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // Ort und Zeit des Beitrags aus den Fotos übernehmen, solange nichts gesetzt ist.
+  // Take the step's place and time from the photos as long as nothing is set.
   const withGps = created.find((p) => p.lat !== null && p.lon !== null);
   const patch: Record<string, unknown> = {};
   if (withGps && step.lat === null) {
@@ -141,8 +141,8 @@ export async function POST(request: Request) {
     patch.occurredAt = earliest;
   }
 
-  // Sobald ein Foto drin ist, wird der Beitrag sichtbar – sonst wäre die
-  // Arbeit weg, wenn jemand den Editor ohne Speichern verlässt.
+  // As soon as a photo is in, the step becomes visible – otherwise the work
+  // would be lost if someone leaves the editor without saving.
   if (created.length > 0 && !step.published) {
     patch.published = true;
   }

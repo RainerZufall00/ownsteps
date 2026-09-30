@@ -9,9 +9,9 @@ import { db } from "@/db";
 import { sessions, users, type User } from "@/db/schema";
 
 const SESSION_COOKIE = "ownsteps_session";
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 60; // 60 Tage – Handy bleibt eingeloggt
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 60; // 60 days – keeps the phone signed in
 
-/** In der DB liegt nur der Hash des Tokens, nicht das Token selbst. */
+/** The DB only stores the token's hash, never the token itself. */
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -21,8 +21,8 @@ export async function hashPassword(password: string) {
 }
 
 export async function verifyPassword(password: string, hash: string | null) {
-  // Reine OIDC-Accounts haben kein Passwort – Vergleich trotzdem durchführen,
-  // damit die Antwortzeit nichts über die Existenz des Accounts verrät.
+  // OIDC-only accounts have no password – compare anyway so the response
+  // time doesn't reveal whether the account exists.
   if (!hash) {
     await bcrypt.compare(password, DUMMY_HASH);
     return false;
@@ -30,7 +30,7 @@ export async function verifyPassword(password: string, hash: string | null) {
   return bcrypt.compare(password, hash);
 }
 
-// bcrypt-Hash von "ownsteps-dummy", nur für den Zeitausgleich oben.
+// bcrypt hash of "ownsteps-dummy", only for the timing equalization above.
 const DUMMY_HASH =
   "$2b$12$Y6XjwpokXcHol2kz/kLrJO0JnOer8IHBWyngsw24108QbJUeqz.Rq";
 
@@ -39,7 +39,7 @@ export async function createSession(userId: number) {
   const expiresAt = Date.now() + SESSION_TTL_MS;
 
   await db.insert(sessions).values({ id: hashToken(token), userId, expiresAt });
-  // Abgelaufene Sitzungen bei Gelegenheit wegräumen.
+  // Clean up expired sessions while we're at it.
   await db.delete(sessions).where(lt(sessions.expiresAt, Date.now()));
 
   const store = await cookies();
@@ -61,7 +61,7 @@ export async function destroySession() {
   store.delete(SESSION_COOKIE);
 }
 
-/** Pro Request nur einmal auflösen. */
+/** Resolve only once per request. */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
@@ -84,8 +84,8 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
 });
 
 /**
- * Für Server Actions und Route Handler. Wirft, wenn nicht eingeloggt –
- * es gibt bewusst keine Rollen: wer angemeldet ist, darf alle Reisen bearbeiten.
+ * For Server Actions and Route Handlers. Throws when not signed in – there are
+ * deliberately no roles: whoever is signed in may edit every trip.
  */
 export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
@@ -125,9 +125,9 @@ export async function createUser(input: {
 }
 
 /**
- * Verknüpft eine OIDC-Identität mit einem lokalen Account: erst über `sub`,
- * sonst über die E-Mail (damit ein vorhandener Passwort-Account übernommen
- * wird), sonst wird ein neuer Account angelegt.
+ * Links an OIDC identity to a local account: first via `sub`, then via email
+ * (so an existing password account is taken over), otherwise a new account
+ * is created.
  */
 export async function upsertOidcUser(claims: {
   subject: string;
@@ -192,8 +192,8 @@ export async function findUserByEmail(email: string) {
 }
 
 /**
- * Legt beim allerersten Start den Account aus ADMIN_EMAIL/ADMIN_PASSWORD an.
- * Ohne diese Variablen übernimmt die Setup-Seite die Ersteinrichtung.
+ * On the very first start, creates the account from ADMIN_EMAIL/ADMIN_PASSWORD.
+ * Without these variables the setup page handles the initial setup.
  */
 export async function seedAdminFromEnv() {
   const email = process.env.ADMIN_EMAIL?.trim();
@@ -206,5 +206,5 @@ export async function seedAdminFromEnv() {
     name: process.env.ADMIN_NAME?.trim() || email.split("@")[0],
     password,
   });
-  console.log(`[auth] Admin-Account angelegt: ${email}`);
+  console.log(`[auth] Admin account created: ${email}`);
 }

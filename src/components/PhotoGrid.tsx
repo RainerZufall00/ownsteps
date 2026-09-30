@@ -7,8 +7,8 @@ import Lightbox from "./Lightbox";
 import PhotoImg from "./PhotoImg";
 
 /**
- * Legt die Fotos je nach Anzahl unterschiedlich an: ein einzelnes Bild
- * bekommt die volle Breite, mehrere ordnen sich zu einem Raster.
+ * Lays out the photos depending on their count: a single image gets the full
+ * width, several arrange themselves into a grid.
  */
 export default function PhotoGrid({
   photos,
@@ -34,7 +34,7 @@ export default function PhotoGrid({
         }
       >
         {visible.map((photo, index) => {
-          // Bei drei Fotos bekommt das erste die ganze obere Reihe.
+          // With three photos the first one gets the whole top row.
           const wide = photos.length === 3 && index === 0;
           return (
             <button

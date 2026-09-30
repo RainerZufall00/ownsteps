@@ -20,7 +20,7 @@ const ERRORS: Record<string, string> = {
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (await getCurrentUser()) redirect("/");
-  // Ohne Account führt der Weg zuerst durch die Ersteinrichtung.
+  // Without an account the way leads through initial setup first.
   if ((await countUsers()) === 0 && !oidcEnabled) redirect("/setup");
 
   const params = await searchParams;

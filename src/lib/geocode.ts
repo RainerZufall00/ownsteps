@@ -12,16 +12,16 @@ export type PlaceHit = {
 };
 
 /**
- * Ortssuche für den Editor. Liefert Vorschläge samt Koordinaten, damit sich
- * ein Ort auch dann setzen lässt, wenn im Foto keine Position steckt.
+ * Place search for the editor. Returns suggestions with coordinates so a
+ * place can be set even when the photo carries no position.
  */
 export async function searchPlaces(query: string): Promise<PlaceHit[]> {
-  const suche = query.trim();
-  if (!MAPTILER_KEY || suche.length < 2) return [];
+  const term = query.trim();
+  if (!MAPTILER_KEY || term.length < 2) return [];
 
   try {
     const url = new URL(
-      `https://api.maptiler.com/geocoding/${encodeURIComponent(suche)}.json`,
+      `https://api.maptiler.com/geocoding/${encodeURIComponent(term)}.json`,
     );
     url.searchParams.set("key", MAPTILER_KEY);
     url.searchParams.set("language", "de");
@@ -61,9 +61,9 @@ type GeocodeFeature = {
 };
 
 /**
- * Wandelt die GPS-Koordinaten aus den Fotos in einen lesbaren Ort um
- * ("Lissabon, Portugal"). Ohne MapTiler-Key bleibt das Feld leer und kann
- * im Editor von Hand gefüllt werden.
+ * Turns the GPS coordinates from the photos into a readable place
+ * ("Lissabon, Portugal"). Without a MapTiler key the field stays empty and
+ * can be filled by hand in the editor.
  */
 export async function reverseGeocode(
   lat: number,
@@ -108,7 +108,7 @@ export async function reverseGeocode(
         null,
     };
   } catch {
-    // Ein fehlender Ortsname ist kein Grund, den Upload scheitern zu lassen.
+    // A missing place name is no reason to fail the upload.
     return { placeName: null, countryCode: null };
   }
 }

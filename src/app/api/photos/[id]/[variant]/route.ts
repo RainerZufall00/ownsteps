@@ -5,14 +5,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { serveMediaVariant } from "@/lib/serve-media";
 
 /**
- * Medien für die angemeldete Ansicht. Angemeldete dürfen alles sehen; für
- * alle anderen ist hier nur das Titelbild einer freigegebenen Reise frei –
- * es dient als öffentliches Aushängeschild (Übersicht, Link-Vorschau).
+ * Media for the signed-in view. Signed-in users may see everything; for
+ * everyone else only the cover of a shared trip is available here – it serves
+ * as the public showcase (overview, link preview).
  *
- * Gäste einer geteilten Reise laden ihre Bilder NICHT hierüber, sondern über
- * `/api/share-media/[token]/…`. Diese Route darf deshalb keinen Zugriff allein
- * daraus ableiten, dass eine Reise freigegeben ist – sonst ließen sich alle
- * Fotos jeder geteilten Reise über die fortlaufende ID abgreifen.
+ * Guests of a shared trip do NOT load their images through here but through
+ * `/api/share-media/[token]/…`. This route must therefore never derive access
+ * merely from a trip being shared – otherwise every photo of every shared
+ * trip could be scraped via the sequential ID.
  */
 export async function GET(
   request: Request,
@@ -22,7 +22,7 @@ export async function GET(
 
   const photoId = Number(id);
   if (!Number.isInteger(photoId)) {
-    return new Response("Nicht gefunden", { status: 404 });
+    return new Response("Not found", { status: 404 });
   }
 
   const rows = await db
@@ -33,19 +33,18 @@ export async function GET(
     .limit(1);
 
   const row = rows[0];
-  if (!row) return new Response("Nicht gefunden", { status: 404 });
+  if (!row) return new Response("Not found", { status: 404 });
 
   const user = await getCurrentUser();
-  // Öffentlich ist nur ein eigens hochgeladenes Titelbild (hängt an keiner
-  // Station, step_id ist leer). Ein zum Titelbild erklärtes Stationsfoto bleibt
-  // geschützt – sonst würde „als Titelbild setzen" heimlich ein Foto öffentlich
-  // machen.
-  const istTitelbild =
+  // Only a separately uploaded cover is public (not attached to any step,
+  // step_id is empty). A step photo declared as cover stays protected –
+  // otherwise "set as cover" would quietly make a photo public.
+  const isPublicCover =
     row.trip.shareEnabled &&
     row.trip.coverPhotoId === row.photo.id &&
     row.photo.stepId === null;
-  if (!user && !istTitelbild) {
-    return new Response("Kein Zugriff", { status: 403 });
+  if (!user && !isPublicCover) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   return serveMediaVariant({

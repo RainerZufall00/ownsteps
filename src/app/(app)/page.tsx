@@ -88,7 +88,7 @@ export default async function TripsPage() {
         </ul>
       )}
 
-      {/* Auf dem Handy immer erreichbar. */}
+      {/* Always within reach on phones. */}
       <Link
         href="/trips/new"
         className="fixed bottom-6 right-5 z-40 grid h-14 w-14 place-items-center rounded-full bg-accent text-accent-ink shadow-float transition active:scale-95 sm:hidden"

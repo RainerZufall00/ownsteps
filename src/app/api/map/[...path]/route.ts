@@ -6,27 +6,27 @@ import {
 } from "@/lib/maptiler-rewrite";
 
 /**
- * Reicht Kartenanfragen an MapTiler weiter und hängt den API-Key serverseitig an.
- * Dadurch taucht der Key weder im Style noch in den Tile-URLs auf – öffentlich
- * geteilte Reisen würden ihn sonst jedem Besucher offenlegen.
+ * Forwards map requests to MapTiler and appends the API key on the server.
+ * That way the key shows up neither in the style nor in the tile URLs –
+ * publicly shared trips would otherwise expose it to every visitor.
  */
 export async function GET(request: Request) {
   if (!MAPTILER_KEY) {
-    return new Response("Keine Kartenquelle konfiguriert", { status: 503 });
+    return new Response("No map source configured", { status: 503 });
   }
 
-  // Hier stand einmal eine Sperre gegen "Sec-Fetch-Site: cross-site". Sie hat
-  // nichts gebracht – wer den Header weglässt, kam ohnehin durch – konnte aber
-  // Anfragen blockieren, die MapLibre aus seinem Worker heraus stellt. Der
-  // Proxy ist bewusst so offen wie die Instanz selbst.
+  // There used to be a block against "Sec-Fetch-Site: cross-site" here. It
+  // achieved nothing – anyone omitting the header got through anyway – but it
+  // could block requests MapLibre makes from its worker. The proxy is
+  // deliberately as open as the instance itself.
 
   const incoming = new URL(request.url);
-  // Den rohen Pfad verwenden, damit die Kodierung exakt so bleibt,
-  // wie MapLibre sie erzeugt hat (z.B. Leerzeichen in Font-Namen).
+  // Use the raw path so the encoding stays exactly as MapLibre produced it
+  // (e.g. spaces in font names).
   const rawPath = incoming.pathname.slice("/api/map/".length);
   const target = new URL(`${UPSTREAM}/${rawPath}`);
   if (target.origin !== UPSTREAM) {
-    return new Response("Ungültiges Ziel", { status: 400 });
+    return new Response("Invalid target", { status: 400 });
   }
   incoming.searchParams.forEach((value, key) => {
     if (key !== "key") target.searchParams.set(key, value);
@@ -37,15 +37,15 @@ export async function GET(request: Request) {
   try {
     upstream = await fetch(target, {
       headers: { Accept: request.headers.get("accept") ?? "*/*" },
-      // Kartendaten ändern sich selten.
+      // Map data rarely changes.
       next: { revalidate: 60 * 60 * 24 },
     });
   } catch {
-    return new Response("Kartenquelle nicht erreichbar", { status: 502 });
+    return new Response("Map source unreachable", { status: 502 });
   }
 
   if (!upstream.ok) {
-    return new Response(`Kartenquelle antwortete mit ${upstream.status}`, {
+    return new Response(`Map source responded with ${upstream.status}`, {
       status: upstream.status === 403 ? 502 : upstream.status,
     });
   }
@@ -53,8 +53,8 @@ export async function GET(request: Request) {
   const contentType = upstream.headers.get("content-type") ?? "";
   const cacheControl = "public, max-age=86400, stale-while-revalidate=604800";
 
-  // In JSON-Antworten (style.json, tiles.json, sprite.json) stecken weitere
-  // MapTiler-URLs samt Key – die müssen ebenfalls über den Proxy laufen.
+  // JSON responses (style.json, tiles.json, sprite.json) contain further
+  // MapTiler URLs including the key – those must go through the proxy too.
   if (contentType.includes("json")) {
     const text = await upstream.text();
     const rewritten = rewriteMapTilerJson(
@@ -64,11 +64,11 @@ export async function GET(request: Request) {
     return new Response(rewritten, {
       headers: {
         "Content-Type": "application/json",
-        // Bewusst kurzlebig: In diesen Antworten stecken die umgeschriebenen
-        // Adressen, die von PUBLIC_URL und den Proxy-Headern abhängen. Mit
-        // langer Frist hielte der Browser nach einem Umzug oder einer
-        // Konfigurationsänderung tagelang an toten URLs fest – die Karte
-        // bliebe leer, obwohl der Server längst das Richtige liefert.
+        // Deliberately short-lived: these responses contain the rewritten
+        // addresses, which depend on PUBLIC_URL and the proxy headers. With a
+        // long lifetime the browser would cling to dead URLs for days after a
+        // move or config change – the map would stay empty although the
+        // server has long been delivering the right thing.
         "Cache-Control": "no-cache",
       },
     });

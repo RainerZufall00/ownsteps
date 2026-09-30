@@ -108,7 +108,7 @@ export default async function TripPage({ params }: PageProps<"/trips/[id]">) {
         header={header}
       />
 
-      {/* Auf dem Handy bleibt das Hinzufügen immer in Daumennähe. */}
+      {/* On phones, adding stays within thumb's reach. */}
       <form
         action={startStepAction}
         className="fixed bottom-6 right-5 z-40 sm:hidden"

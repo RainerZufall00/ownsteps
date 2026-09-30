@@ -8,7 +8,10 @@ import type { ViewComment } from "@/lib/view-types";
 
 const initial: CommentState = {};
 
-/** Merkt sich den Namen, damit ihn niemand bei jedem Kommentar neu tippt. */
+/**
+ * Remembers the name so nobody has to retype it for every comment. The German
+ * key predates the switch to English; it stays so saved names survive.
+ */
 const NAME_KEY = "ownsteps_kommentar_name";
 
 export default function CommentSection({
@@ -23,31 +26,31 @@ export default function CommentSection({
   canDelete: boolean;
 }) {
   const [state, action, pending] = useActionState(addCommentAction, initial);
-  const [liste, setListe] = useState<ViewComment[]>(comments);
-  const [offen, setOffen] = useState(false);
+  const [list, setList] = useState<ViewComment[]>(comments);
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
 
   useEffect(() => {
     setName(window.localStorage.getItem(NAME_KEY) ?? "");
   }, []);
 
-  // Neu abgeschickte Kommentare sofort anzeigen, ohne die Seite neu zu laden.
+  // Show newly sent comments right away without reloading the page.
   useEffect(() => {
     if (!state.comment) return;
-    setListe((current) =>
+    setList((current) =>
       current.some((c) => c.id === state.comment!.id)
         ? current
         : [...current, state.comment!],
     );
-    setOffen(false);
+    setOpen(false);
     window.localStorage.setItem(NAME_KEY, name);
   }, [state.comment, name]);
 
   return (
     <section className="mt-4 border-t border-line pt-3">
-      {liste.length > 0 && (
+      {list.length > 0 && (
         <ul className="mb-3 space-y-2.5">
-          {liste.map((comment) => (
+          {list.map((comment) => (
             <li key={comment.id} className="flex gap-2.5">
               <span
                 className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-surface-muted text-[11px] font-bold text-ink-soft"
@@ -69,7 +72,7 @@ export default function CommentSection({
               {canDelete && (
                 <form
                   action={async (formData) => {
-                    setListe((c) => c.filter((x) => x.id !== comment.id));
+                    setList((c) => c.filter((x) => x.id !== comment.id));
                     await deleteCommentAction(formData);
                   }}
                 >
@@ -96,7 +99,7 @@ export default function CommentSection({
         </ul>
       )}
 
-      {offen ? (
+      {open ? (
         <form action={action} className="space-y-2">
           <input type="hidden" name="tripId" value={tripId} />
           <input type="hidden" name="stepId" value={stepId} />
@@ -125,7 +128,7 @@ export default function CommentSection({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setOffen(false)}
+              onClick={() => setOpen(false)}
               className="btn btn-ghost flex-1 py-2 text-sm"
             >
               Abbrechen
@@ -142,7 +145,7 @@ export default function CommentSection({
       ) : (
         <button
           type="button"
-          onClick={() => setOffen(true)}
+          onClick={() => setOpen(true)}
           className="flex items-center gap-1.5 text-sm font-semibold text-ink-soft transition hover:text-accent"
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -154,7 +157,7 @@ export default function CommentSection({
               fill="none"
             />
           </svg>
-          {liste.length > 0 ? "Auch etwas sagen" : "Kommentar schreiben"}
+          {list.length > 0 ? "Auch etwas sagen" : "Kommentar schreiben"}
         </button>
       )}
     </section>

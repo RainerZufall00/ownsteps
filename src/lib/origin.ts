@@ -1,17 +1,16 @@
 /**
- * Die öffentliche Adresse dieser Instanz herausfinden.
+ * Figures out this instance's public address.
  *
- * Hinter einem Reverse Proxy ist `request.url` **nicht** brauchbar: Der Server
- * im Container kennt nur seine eigene Bindung und meldet je nach Aufbau
- * `http://0.0.0.0:2555` oder `http://127.0.0.1:2555`. Wer daraus eine
- * Weiterleitung baut, schickt den Browser ins Leere („0.0.0.0 refused to
- * connect"), und wer daraus eine Callback-URL baut, bekommt vom
- * OIDC-Anbieter eine Fehlermeldung. Selbst wenn die Adresse stimmt, ist sie
- * hinter einem Proxy `http://` – denn dort endet TLS –, und der Browser
- * blockiert das auf einer HTTPS-Seite als Mixed Content.
+ * Behind a reverse proxy `request.url` is **not** usable: the server in the
+ * container only knows its own binding and reports `http://0.0.0.0:2555` or
+ * `http://127.0.0.1:2555` depending on the setup. A redirect built from that
+ * sends the browser nowhere ("0.0.0.0 refused to connect"), and a callback
+ * URL built from it gets an error from the OIDC provider. Even when the
+ * address is right, behind a proxy it is `http://` – TLS ends there – and the
+ * browser blocks it on an HTTPS page as mixed content.
  *
- * Reihenfolge: `PUBLIC_URL` schlägt alles, danach die Weiterleitungs-Header
- * des Proxys, und erst zum Schluss die Herkunft der Anfrage selbst.
+ * Order: `PUBLIC_URL` beats everything, then the proxy's forwarding headers,
+ * and only last the request's own origin.
  */
 export function originFromHeaders(
   headers: Headers,
@@ -20,7 +19,7 @@ export function originFromHeaders(
 ) {
   if (configured) return configured.replace(/\/$/, "");
 
-  // Bei mehreren Proxys stehen die Werte kommagetrennt; der erste zählt.
+  // With several proxies the values are comma-separated; the first one counts.
   const proto =
     headers.get("x-forwarded-proto")?.split(",")[0].trim() || "http";
   const host =
@@ -39,11 +38,11 @@ export function publicOrigin(request: Request, configured: string) {
 }
 
 /**
- * Weiterleitung innerhalb der eigenen Seite. Der `Location`-Header bleibt
- * bewusst relativ: Den löst der Browser gegen die Adresse auf, die er selbst
- * aufgerufen hat – die öffentliche also. Damit hängt der Rücksprung nach dem
- * Login an keiner Einstellung mehr. `Response.redirect()` geht dafür nicht,
- * es verlangt eine vollständige Adresse.
+ * Redirect within our own site. The `Location` header deliberately stays
+ * relative: the browser resolves it against the address it called itself –
+ * the public one. That way the return after login no longer depends on any
+ * setting. `Response.redirect()` doesn't work for this, it demands a full
+ * address.
  */
 export function redirectTo(path: string) {
   return new Response(null, { status: 302, headers: { Location: path } });

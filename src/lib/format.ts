@@ -17,37 +17,37 @@ export function formatTime(ms: number) {
   return format(new Date(ms), "HH:mm", { locale: de });
 }
 
-/** Wert für <input type="date"> in lokaler Zeit. */
+/** Value for <input type="date"> in local time. */
 export function toDateInput(ms: number) {
   return format(new Date(ms), "yyyy-MM-dd");
 }
 
 /**
- * Umkehrung von `toDateInput`: „2026-07-01" wird zum Tagesbeginn in der
- * Zeitzone des Servers. Bewusst nicht über `new Date(iso)` – das liest den
- * String als UTC und verschiebt das Datum je nach Zeitzone um einen Tag.
+ * Inverse of `toDateInput`: "2026-07-01" becomes the start of that day in the
+ * server's time zone. Deliberately not via `new Date(iso)` – that parses the
+ * string as UTC and shifts the date by a day depending on the time zone.
  */
 export function fromDateInput(iso: string | null): number | null {
   if (!iso) return null;
-  const [jahr, monat, tag] = iso.split("-").map(Number);
-  if (!jahr || !monat || !tag) return null;
-  return new Date(jahr, monat - 1, tag).getTime();
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day).getTime();
 }
 
 /**
- * Setzt das Datum neu und behält die Uhrzeit des Originals. Die Uhrzeit wird
- * nirgends angezeigt, bestimmt aber die Reihenfolge mehrerer Beiträge an
- * einem Tag – sie stammt aus den EXIF-Daten und soll nicht verloren gehen.
+ * Sets a new date and keeps the original's time of day. The time isn't shown
+ * anywhere, but it determines the order of several steps on the same day –
+ * it comes from the EXIF data and must not get lost.
  */
 export function withDate(originalMs: number, isoDate: string) {
-  const [jahr, monat, tag] = isoDate.split("-").map(Number);
-  if (!jahr || !monat || !tag) return originalMs;
-  const datum = new Date(originalMs);
-  datum.setFullYear(jahr, monat - 1, tag);
-  return datum.getTime();
+  const [year, month, day] = isoDate.split("-").map(Number);
+  if (!year || !month || !day) return originalMs;
+  const date = new Date(originalMs);
+  date.setFullYear(year, month - 1, day);
+  return date.getTime();
 }
 
-/** Reisetag wie bei Polarsteps: der erste Beitrag ist Tag 1. */
+/** Trip day like on Polarsteps: the first step is day 1. */
 export function tripDay(startMs: number, stepMs: number) {
   return differenceInCalendarDays(new Date(stepMs), new Date(startMs)) + 1;
 }
@@ -68,19 +68,19 @@ export function formatRange(from: number | null, to: number | null) {
 }
 
 /**
- * Zeitraum einer Reise für die Kopfzeile. Ein von Hand gesetztes Datum hat
- * Vorrang vor den Beiträgen: Es beschreibt die Reise, während die Beiträge nur
- * zeigen, wie weit geschrieben wurde. Wer „1.–20. Juli" einträgt, soll nicht
- * „1.–3. Juli" lesen, bloß weil der Rest noch fehlt.
+ * A trip's date range for the header. A date set by hand takes precedence over
+ * the steps: it describes the trip, while the steps only show how far writing
+ * has got. Whoever enters "July 1–20" shouldn't read "July 1–3" just because
+ * the rest is still missing.
  */
 export function formatTripRange(
   trip: { startDate: string | null; endDate: string | null },
   firstStepAt: number | null,
   lastStepAt: number | null,
 ) {
-  const von = fromDateInput(trip.startDate) ?? firstStepAt;
-  const bis = fromDateInput(trip.endDate) ?? lastStepAt;
-  return formatRange(von, bis);
+  const from = fromDateInput(trip.startDate) ?? firstStepAt;
+  const to = fromDateInput(trip.endDate) ?? lastStepAt;
+  return formatRange(from, to);
 }
 
 export function formatDuration(from: number | null, to: number | null) {
@@ -89,16 +89,16 @@ export function formatDuration(from: number | null, to: number | null) {
   return days === 1 ? "1 Tag" : `${days} Tage`;
 }
 
-/** Länge eines Videos als m:ss – bei über einer Stunde als h:mm:ss. */
+/** A video's length as m:ss – over an hour as h:mm:ss. */
 export function formatMediaDuration(ms: number) {
-  const gesamt = Math.round(ms / 1000);
-  const stunden = Math.floor(gesamt / 3600);
-  const minuten = Math.floor((gesamt % 3600) / 60);
-  const sekunden = gesamt % 60;
-  const zwei = (n: number) => String(n).padStart(2, "0");
-  return stunden > 0
-    ? `${stunden}:${zwei(minuten)}:${zwei(sekunden)}`
-    : `${minuten}:${zwei(sekunden)}`;
+  const total = Math.round(ms / 1000);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return hours > 0
+    ? `${hours}:${pad(minutes)}:${pad(seconds)}`
+    : `${minutes}:${pad(seconds)}`;
 }
 
 export function pluralize(count: number, one: string, many: string) {
