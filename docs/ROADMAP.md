@@ -126,3 +126,9 @@ architecture doc and the phase is ticked off here.
 - **O1 – App name and bundle ID.** "OwnSteps" in the App Store (check that it is free). The bundle ID needs a reverse domain you own. URL scheme `ownsteps://`.
 - **O2 – Release details:** Issues and Discussions on, a CLA is not needed (D10 avoids it), versioning scheme.
 - **O3 – Changes feed design:** The feed must also report **deletions**, or cached trips in the app keep ghosts. Options are a tombstone table or a small change log. To be decided at the start of phase 3.
+- **O4 – maplibre-gl advisory vs. [E9]:** `npm audit` reports a critical XSS
+  sanitizer bypass (GHSA-jrc7-96c5-q579) for maplibre-gl ≤ 6.4.0; the fix
+  needs v6.5+, but [E9] pins v5 because v6's worker breaks after bundling.
+  Check whether OwnSteps passes untrusted HTML into MapLibre (popups,
+  attribution) and whether a v6 upgrade with a fixed worker URL works – in a
+  real browser. Belongs to phase 5.
