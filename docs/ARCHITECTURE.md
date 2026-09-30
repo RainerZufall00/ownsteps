@@ -926,7 +926,7 @@ Not verified – be careful when building on these:
   of all map data are checked, the rendering itself isn't.
 - **OIDC never ran against a real instance.** The flow is built to spec but
   untested.
-- **No automated tests** are set up yet (planned, see the roadmap).
+- Automated tests (`npm test`) cover access control, the image pipeline and sign-in basics – not the route handlers or the UI yet.
 
 ---
 

@@ -49,10 +49,10 @@ architecture doc and the phase is ticked off here.
 - [x] Check: `npm run build` passes, and the route table is unchanged (`ƒ` for dynamic routes).
 
 ### Phase 1 – Safety net
-- [ ] Vitest setup with in-memory SQLite and the `MIGRATIONS` array applied.
-- [ ] Tests for `resolveTripAccess` (every branch: owner, guest, locked, denied, wrong unlock cookie, disabled share).
-- [ ] Tests for `processUpload` (EXIF/GPS, orientation, video poster, size limits).
-- [ ] Tests for the auth basics (session create/expire, timing-safe password check).
+- [x] Vitest setup with a throwaway SQLite database per test file, `MIGRATIONS` applied (`npm test`).
+- [x] Tests for `resolveTripAccess` (every branch: owner, guest, locked, denied, wrong unlock cookie, disabled share).
+- [x] Tests for `processUpload` (EXIF/GPS, orientation, video poster, size limits).
+- [x] Tests for the auth basics (session create/expire, timing-safe password check).
 
 ### Phase 2 – Service layer
 - [ ] Move the logic out of `src/app/(app)/actions.ts` and `settings/actions.ts` into `src/lib/services/*`, with Zod schemas as input validation.
