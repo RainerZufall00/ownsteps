@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { db } from "@/db";
 import { sessions, users, type User } from "@/db/schema";
+import { ServiceError } from "./errors";
 
 const SESSION_COOKIE = "ownsteps_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 60; // 60 days – keeps the phone signed in
@@ -89,7 +90,7 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
  */
 export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Nicht angemeldet");
+  if (!user) throw new ServiceError("not_signed_in");
   return user;
 }
 
@@ -110,7 +111,7 @@ export async function createUser(input: {
     .where(eq(users.email, email))
     .limit(1);
   if (existing.length > 0) {
-    throw new Error("Diese E-Mail-Adresse wird bereits verwendet.");
+    throw new ServiceError("email_taken");
   }
 
   const [created] = await db

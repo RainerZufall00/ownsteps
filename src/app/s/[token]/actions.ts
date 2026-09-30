@@ -1,7 +1,7 @@
 "use server";
 
-import bcrypt from "bcryptjs";
-import { getTripByShareToken, grantUnlock } from "@/lib/share";
+import { failure } from "@/lib/action-result";
+import { unlockShare } from "@/lib/services/share";
 
 export type UnlockState = { error?: string; ok?: boolean };
 
@@ -9,17 +9,13 @@ export async function unlockAction(
   _prev: UnlockState,
   formData: FormData,
 ): Promise<UnlockState> {
-  const token = String(formData.get("token") ?? "");
-  const password = String(formData.get("password") ?? "");
-
-  const trip = await getTripByShareToken(token);
-  if (!trip) return { error: "Dieser Link ist nicht mehr gültig." };
-  if (!trip.sharePasswordHash) return { ok: true };
-
-  if (!(await bcrypt.compare(password, trip.sharePasswordHash))) {
-    return { error: "Das Passwort stimmt nicht." };
+  try {
+    await unlockShare(
+      String(formData.get("token") ?? ""),
+      String(formData.get("password") ?? ""),
+    );
+  } catch (error) {
+    return failure(error);
   }
-
-  await grantUnlock(trip);
   return { ok: true };
 }

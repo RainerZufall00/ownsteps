@@ -1,13 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import {
-  countUsers,
-  createSession,
-  createUser,
-  findUserByEmail,
-  verifyPassword,
-} from "@/lib/auth";
+import { failure } from "@/lib/action-result";
+import { createSession } from "@/lib/auth";
+import { authenticate, createFirstAccount } from "@/lib/services/accounts";
 
 export type FormState = { error?: string };
 
@@ -15,21 +11,17 @@ export async function loginAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const email = String(formData.get("email") ?? "");
-  const password = String(formData.get("password") ?? "");
-
-  if (!email || !password) {
-    return { error: "Bitte E-Mail und Passwort eingeben." };
+  let userId: number;
+  try {
+    const user = await authenticate({
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+    });
+    userId = user.id;
+  } catch (error) {
+    return failure(error);
   }
-
-  const user = await findUserByEmail(email);
-  const valid = await verifyPassword(password, user?.passwordHash ?? null);
-  if (!user || !valid) {
-    // Deliberately no hint as to which part was wrong.
-    return { error: "E-Mail oder Passwort stimmt nicht." };
-  }
-
-  await createSession(user.id);
+  await createSession(userId);
   redirect("/");
 }
 
@@ -37,21 +29,17 @@ export async function setupAction(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  // Initial setup is only open as long as not a single account exists.
-  if ((await countUsers()) > 0) {
-    return { error: "Es existiert bereits ein Account." };
+  let userId: number;
+  try {
+    const user = await createFirstAccount({
+      email: String(formData.get("email") ?? ""),
+      name: String(formData.get("name") ?? ""),
+      password: String(formData.get("password") ?? ""),
+    });
+    userId = user.id;
+  } catch (error) {
+    return failure(error);
   }
-
-  const email = String(formData.get("email") ?? "").trim();
-  const name = String(formData.get("name") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-
-  if (!email.includes("@")) return { error: "Bitte eine gültige E-Mail angeben." };
-  if (password.length < 10) {
-    return { error: "Das Passwort braucht mindestens 10 Zeichen." };
-  }
-
-  const user = await createUser({ email, name: name || email, password });
-  await createSession(user.id);
+  await createSession(userId);
   redirect("/");
 }

@@ -61,8 +61,10 @@ src/
 ├── components/           Client components (map, timeline, lightbox …)
 ├── db/                   Schema and connection including migrations
 ├── lib/                  Server logic, almost all of it "server-only".
-│                         Without "server-only" and therefore usable in the
-│                         browser too: view-types.ts, format.ts, limits.ts
+│   │                     Without "server-only" and therefore usable in the
+│   │                     browser too: view-types.ts, format.ts, limits.ts,
+│   │                     errors.ts, messages.ts, schemas.ts
+│   └── services/         Use cases shared by Server Actions and the API
 ├── proxy.ts              Access log (in Next 16 the successor of
 │                         middleware.ts – the old file is deprecated)
 └── instrumentation.ts    Runs once on server start
@@ -87,6 +89,30 @@ src/
 Everything else goes through **Server Actions** – forms therefore work without
 JavaScript too, and there's no hand-written API layer for our own forms. (A
 versioned REST API for the iOS app is planned, see the roadmap.)
+
+### Service layer
+
+Server Actions and route handlers are thin: they unpack the request, call a
+function in `src/lib/services/` and refresh or serialize the result. The
+services hold the actual use cases – validation, existence checks, the
+"publish with the first photo" rule – so the web UI and the upcoming REST API
+can't drift apart.
+
+- **Input is validated with Zod** (`src/lib/schemas.ts`). Every issue carries
+  an error code as its message; `parseInput()` turns the first one into a
+  `ServiceError`.
+- **Services never produce user-facing text.** They throw
+  `ServiceError(code)` (`src/lib/errors.ts`, which also maps each code to an
+  HTTP status). The web UI translates codes via `messageFor()` in
+  `src/lib/messages.ts` – the one place the UI translation will hook into –
+  and Server Actions use `failure()` from `src/lib/action-result.ts` to turn
+  them into the `{ error }` shape the forms show.
+- **Services don't know how access was established.** Sign-in checks stay in
+  the caller (`requireUser()`); `postComment` takes a `resolveAccess`
+  function, so the API can plug in token-based access later.
+- **`redirect()` stays after the `try` block.** It works by throwing;
+  `failure()` would rethrow it correctly, but keeping it outside makes the flow
+  obvious.
 
 ---
 
@@ -820,6 +846,13 @@ with an error message. Whoever mistypes the date range would otherwise face an
 empty form and have to retype name, date and description. Forms that can
 reject input therefore keep their values in `useState` (`NewTripForm`,
 `TripDetailsForm`).
+
+Controlled checkboxes aren't safe either: the reset unchecks the checkbox *in
+the DOM* while its state stays `true`, so the UI looks right but the next
+submit sends nothing. In `ShareSettings` that meant saving a share password
+silently switched sharing off. The state therefore travels in a hidden field,
+and the toggle uses `flushSync` so the field has the new value before
+`requestSubmit()`.
 
 **The browser's page zoom is a trap in an overlay.** When the browser zooms by
 itself, it shifts the visible section – a `position: fixed` overlay doesn't

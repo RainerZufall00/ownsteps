@@ -10,3 +10,6 @@
  */
 export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 400 * 1024 * 1024;
+
+export const COMMENT_MAX_LENGTH = 1500;
+export const NAME_MAX_LENGTH = 60;

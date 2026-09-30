@@ -55,8 +55,8 @@ architecture doc and the phase is ticked off here.
 - [x] Tests for the auth basics (session create/expire, timing-safe password check).
 
 ### Phase 2 – Service layer
-- [ ] Move the logic out of `src/app/(app)/actions.ts` and `settings/actions.ts` into `src/lib/services/*`, with Zod schemas as input validation.
-- [ ] Server Actions become thin wrappers. Phase 1 tests stay green.
+- [x] Move the logic out of `src/app/(app)/actions.ts` and `settings/actions.ts` into `src/lib/services/*`, with Zod schemas as input validation.
+- [x] Server Actions become thin wrappers. Phase 1 tests stay green.
 
 ### Phase 3 – API v1
 - [ ] Migrations (append only):

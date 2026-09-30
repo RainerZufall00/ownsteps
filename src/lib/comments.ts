@@ -3,9 +3,9 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { comments, steps } from "@/db/schema";
+import { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH } from "./limits";
 
-export const COMMENT_MAX_LENGTH = 1500;
-export const NAME_MAX_LENGTH = 60;
+export { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH };
 
 /**
  * Simple brake against accidental double clicks and blunt spamming.

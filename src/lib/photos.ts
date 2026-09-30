@@ -5,14 +5,19 @@ import { db } from "@/db";
 import { photos, trips } from "@/db/schema";
 import { deletePhotoFiles } from "./images";
 
-export async function deletePhoto(photoId: number) {
+export async function getPhoto(photoId: number) {
   const rows = await db
     .select()
     .from(photos)
     .where(eq(photos.id, photoId))
     .limit(1);
-  const photo = rows[0];
-  if (!photo) return;
+  return rows[0] ?? null;
+}
+
+/** Returns the deleted photo, or null if there was none. */
+export async function deletePhoto(photoId: number) {
+  const photo = await getPhoto(photoId);
+  if (!photo) return null;
 
   await db.delete(photos).where(eq(photos.id, photoId));
   // The trip's cover must not point at a deleted photo.
@@ -21,6 +26,7 @@ export async function deletePhoto(photoId: number) {
     .set({ coverPhotoId: null })
     .where(eq(trips.coverPhotoId, photoId));
   await deletePhotoFiles(photo.storageKey);
+  return photo;
 }
 
 export async function setPhotoCaption(photoId: number, caption: string | null) {
