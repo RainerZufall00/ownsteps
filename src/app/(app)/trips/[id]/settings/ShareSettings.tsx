@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { flushSync } from "react-dom";
 import SubmitButton from "@/components/SubmitButton";
 import { updateShareAction, type ActionState } from "../../../actions";
 
@@ -43,15 +44,23 @@ export default function ShareSettings({
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="tripId" value={tripId} />
+      {/*
+        The state travels in a hidden field, not the checkbox: React 19 resets
+        the form after every action, which unchecks the checkbox in the DOM
+        while `enabled` stays true. The next save – e.g. setting a password –
+        then silently switched sharing off.
+      */}
+      <input type="hidden" name="shareEnabled" value={enabled ? "on" : ""} />
 
       <label className="flex cursor-pointer items-start gap-3">
         <input
           type="checkbox"
-          name="shareEnabled"
           checked={enabled}
           onChange={(event) => {
-            setEnabled(event.target.checked);
-            event.target.form?.requestSubmit();
+            const form = event.target.form;
+            // Render the hidden field with the new value before submitting.
+            flushSync(() => setEnabled(event.target.checked));
+            form?.requestSubmit();
           }}
           className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
         />
