@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import SubmitButton from "@/components/SubmitButton";
 import { updateShareAction, type ActionState } from "../../../actions";
@@ -21,6 +21,13 @@ export default function ShareSettings({
   const [state, action] = useActionState(updateShareAction, initial);
   const [enabled, setEnabled] = useState(shareEnabled);
   const [copied, setCopied] = useState(false);
+  const checkbox = useRef<HTMLInputElement>(null);
+
+  // React's form reset after each action unchecks the box in the DOM; the
+  // prop didn't change, so React won't put it back by itself.
+  useEffect(() => {
+    if (checkbox.current) checkbox.current.checked = enabled;
+  }, [enabled, state]);
 
   async function share() {
     // On phones the native share sheet, otherwise the clipboard.
@@ -54,12 +61,14 @@ export default function ShareSettings({
 
       <label className="flex cursor-pointer items-start gap-3">
         <input
+          ref={checkbox}
           type="checkbox"
           checked={enabled}
           onChange={(event) => {
             const form = event.target.form;
-            // Render the hidden field with the new value before submitting.
-            flushSync(() => setEnabled(event.target.checked));
+            // Toggle the state, not the DOM value – see the effect above.
+            // flushSync renders the hidden field before submitting.
+            flushSync(() => setEnabled(!enabled));
             form?.requestSubmit();
           }}
           className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
