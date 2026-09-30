@@ -850,9 +850,11 @@ reject input therefore keep their values in `useState` (`NewTripForm`,
 Controlled checkboxes aren't safe either: the reset unchecks the checkbox *in
 the DOM* while its state stays `true`, so the UI looks right but the next
 submit sends nothing. In `ShareSettings` that meant saving a share password
-silently switched sharing off. The state therefore travels in a hidden field,
-and the toggle uses `flushSync` so the field has the new value before
-`requestSubmit()`.
+silently switched sharing off, and the next click on the (now unchecked) box
+turned it "on" again instead of off. The state therefore travels in a hidden
+field, the toggle flips the state rather than reading the DOM (with
+`flushSync`, so the field has the new value before `requestSubmit()`), and an
+effect puts the checkbox back in line after every action.
 
 **The browser's page zoom is a trap in an overlay.** When the browser zooms by
 itself, it shifts the visible section – a `position: fixed` overlay doesn't
