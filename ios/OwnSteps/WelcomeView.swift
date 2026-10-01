@@ -8,6 +8,7 @@ struct WelcomeView: View {
     @State private var checking = false
     @State private var error: String?
     @State private var server: PendingServer?
+    @State private var following = false
 
     var body: some View {
         NavigationStack {
@@ -57,7 +58,14 @@ struct WelcomeView: View {
                     }
                     .disabled(address.trimmingCharacters(in: .whitespaces).isEmpty || checking)
                 }
+
+                Section {
+                    Button("Follow a trip with a link", systemImage: "person.badge.plus") { following = true }
+                } footer: {
+                    Text("Got a link from travellers? You can read along without an account.")
+                }
             }
+            .sheet(isPresented: $following) { FollowView() }
             .navigationDestination(item: $server) { server in
                 SignInView(server: server)
             }

@@ -18,6 +18,10 @@ final class AppModel {
     private(set) var accounts: [Account]
     /// Shown once on the welcome screen, e.g. after the server revoked the token.
     var notice: String?
+    /// An invitation to follow a trip, from `ownsteps://join` ([D18]).
+    var pendingInvite: Invite?
+    /// A trip to show, e.g. after tapping a notification.
+    var openTrip: TripRoute?
     /// Trips as last seen, for offline reading ([D22]).
     let cache: TripCache
     /// Photos, loaded with the account's token and kept on disk.
@@ -142,6 +146,7 @@ final class AppModel {
     var deviceName: String { UIDevice.current.name }
 
     var authorAccounts: [Account] { accounts.filter { $0.kind == .author } }
+    var readerAccounts: [Account] { accounts.filter { $0.kind == .viewer } }
 
     // MARK: Connecting
 
@@ -193,6 +198,116 @@ final class AppModel {
         accounts.removeAll { $0.kind == .author && $0.serverURL == server.url }
         accounts.append(account)
         store.save(accounts)
+        startWatching(account)
+    }
+
+    // MARK: Following a trip ([D17])
+
+    /// The name readers used last time, so a second invitation is quicker.
+    var lastReaderName: String {
+        get { UserDefaults.standard.string(forKey: "reader.name") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "reader.name") }
+    }
+
+    /// Redeems an invitation: the server's share link plus a name. The
+    /// device then reads that one trip with a viewer token, no account needed.
+    @discardableResult
+    func follow(_ invite: Invite, name: String, password: String?) async throws -> Account {
+        let server = try await connect(to: invite.serverURL.absoluteString)
+        let redeemed = try await ServerClient(baseURL: server.url).redeem(
+            shareLink: invite.shareLink.absoluteString,
+            password: password?.nilIfEmpty,
+            name: name,
+            deviceName: deviceName
+        )
+        let account = Account(
+            serverURL: server.url,
+            serverName: server.info.name,
+            kind: .viewer,
+            displayName: redeemed.viewer.name,
+            tripID: redeemed.trip.id,
+            timeZoneIdentifier: server.info.timeZone
+        )
+        // Following the same trip again replaces the old device.
+        for old in readerAccounts where old.serverURL == server.url && old.tripID == redeemed.trip.id {
+            try? await client(for: old).unfollow()
+            forget(old)
+        }
+        try tokens.setToken(redeemed.token, for: account.id)
+        try? cache.saveTrips([redeemed.trip], for: account.id)
+        accounts.append(account)
+        store.save(accounts)
+        lastReaderName = redeemed.viewer.name
+        startWatching(account)
+        return account
+    }
+
+    /// Stops following: the server forgets the device (best effort), the
+    /// app forgets the trip.
+    func unfollow(_ account: Account) async {
+        try? await client(for: account).unfollow()
+        forget(account)
+    }
+
+    // MARK: News ([D16])
+
+    /// Ask for notifications and note where the change feed stands, so the
+    /// first background check has something to compare with.
+    private func startWatching(_ account: Account) {
+        Task {
+            await Notifications.requestPermission()
+            await checkForNews(notify: false)
+        }
+    }
+
+    private func cursorKey(_ account: Account) -> String { "changes.cursor.\(account.id.uuidString)" }
+
+    /// Follows each server's change feed. Trips that changed are fetched
+    /// again, which keeps the offline copy fresh; comparing with the old copy
+    /// tells what's new. Only the background run notifies – in the
+    /// foreground, the user sees it anyway.
+    func checkForNews(notify: Bool) async {
+        for account in accounts {
+            let client = client(for: account)
+            let key = cursorKey(account)
+            do {
+                guard let start = UserDefaults.standard.object(forKey: key) as? Int else {
+                    let feed = try await client.changes(since: nil)
+                    UserDefaults.standard.set(feed.cursor, forKey: key)
+                    continue
+                }
+                var cursor = start
+                var tripIDs = Set<Int>()
+                var more = true
+                while more {
+                    let feed = try await client.changes(since: cursor)
+                    tripIDs.formUnion(feed.changes.map(\.tripId))
+                    cursor = feed.cursor
+                    more = feed.hasMore && !feed.changes.isEmpty
+                }
+                for tripID in tripIDs {
+                    await refreshTrip(tripID, of: account, client: client, notify: notify)
+                }
+                UserDefaults.standard.set(cursor, forKey: key)
+            } catch {
+                // Offline, signed out or sharing off: the next run tries again.
+            }
+        }
+    }
+
+    private func refreshTrip(_ tripID: Int, of account: Account, client: ServerClient, notify: Bool) async {
+        let old = (try? cache.trip(tripID, for: account.id))?.value
+        do {
+            let fresh = try await client.trip(id: tripID)
+            try? cache.saveTrip(fresh, for: account.id)
+            guard notify, !Notifications.isMuted(account: account, tripID: tripID) else { return }
+            let news = TripNews.items(old: old, new: fresh, reader: account.kind == .viewer, ownName: account.displayName)
+            await Notifications.post(news, account: account)
+        } catch let error as APIError where error.code == "trip_not_found" {
+            try? cache.removeTrip(tripID, for: account.id)
+        } catch {
+            // Tried again with the next change.
+        }
     }
 
     // MARK: Using an account
@@ -212,6 +327,10 @@ final class AppModel {
     /// Signs out on the server (best effort – offline it just forgets the
     /// token) and removes the account from the device.
     func signOut(_ account: Account) async {
+        if account.kind == .viewer {
+            await unfollow(account)
+            return
+        }
         try? await client(for: account).signOut()
         forget(account)
     }
@@ -224,6 +343,7 @@ final class AppModel {
 
     func forget(_ account: Account) {
         try? tokens.removeToken(for: account.id)
+        UserDefaults.standard.removeObject(forKey: cursorKey(account))
         try? cache.removeAll(for: account.id)
         Task {
             await media.removeAll(for: account.id)

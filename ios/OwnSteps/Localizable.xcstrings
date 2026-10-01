@@ -150,6 +150,16 @@
         }
       }
     },
+    "Add": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hinzufügen"
+          }
+        }
+      }
+    },
     "Add more": {
       "localizations": {
         "de": {
@@ -250,6 +260,16 @@
         }
       }
     },
+    "Comment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommentieren"
+          }
+        }
+      }
+    },
     "Continue": {
       "localizations": {
         "de": {
@@ -286,6 +306,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tag %lld"
+          }
+        }
+      }
+    },
+    "Delete comment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommentar löschen"
           }
         }
       }
@@ -410,6 +440,66 @@
         }
       }
     },
+    "Follow": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folgen"
+          }
+        }
+      }
+    },
+    "Follow a trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einer Reise folgen"
+          }
+        }
+      }
+    },
+    "Follow a trip with a link": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einer Reise per Link folgen"
+          }
+        }
+      }
+    },
+    "Follow a trip …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einer Reise folgen …"
+          }
+        }
+      }
+    },
+    "Follow our trip “%@”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folge unserer Reise „%@“."
+          }
+        }
+      }
+    },
+    "Following": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gefolgte Reisen"
+          }
+        }
+      }
+    },
     "Format not supported.": {
       "localizations": {
         "de": {
@@ -430,6 +520,16 @@
         }
       }
     },
+    "Got a link from travellers? You can read along without an account.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hast du einen Link von Reisenden bekommen? Du kannst ohne Konto mitlesen."
+          }
+        }
+      }
+    },
     "Hide": {
       "localizations": {
         "de": {
@@ -440,12 +540,32 @@
         }
       }
     },
+    "Invite": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einladen"
+          }
+        }
+      }
+    },
     "Larger than 25 MB.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Größer als 25 MB."
+          }
+        }
+      }
+    },
+    "Loading …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird geladen …"
           }
         }
       }
@@ -540,6 +660,16 @@
         }
       }
     },
+    "New step: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuer Beitrag: %@"
+          }
+        }
+      }
+    },
     "New trip": {
       "localizations": {
         "de": {
@@ -600,12 +730,42 @@
         }
       }
     },
+    "Nobody follows this trip in the app yet.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch niemand folgt dieser Reise in der App."
+          }
+        }
+      }
+    },
     "Not now": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Nicht jetzt"
+          }
+        }
+      }
+    },
+    "Notify about comments": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei Kommentaren benachrichtigen"
+          }
+        }
+      }
+    },
+    "Notify about new steps": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei neuen Beiträgen benachrichtigen"
           }
         }
       }
@@ -693,6 +853,16 @@
         }
       }
     },
+    "Password of the trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwort der Reise"
+          }
+        }
+      }
+    },
     "Password sign-in is switched off on this server.": {
       "localizations": {
         "de": {
@@ -773,12 +943,32 @@
         }
       }
     },
+    "Please enter your name.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte gib deinen Namen ein."
+          }
+        }
+      }
+    },
     "Please enter your server's address.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Bitte gib die Adresse deines Servers ein."
+          }
+        }
+      }
+    },
+    "Please write something first.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte schreib zuerst etwas."
           }
         }
       }
@@ -793,12 +983,72 @@
         }
       }
     },
+    "QR code of the link": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QR-Code des Links"
+          }
+        }
+      }
+    },
+    "Readers": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leser"
+          }
+        }
+      }
+    },
+    "Readers in the app": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leser in der App"
+          }
+        }
+      }
+    },
     "Remove": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Entfernen"
+          }
+        }
+      }
+    },
+    "Remove all": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle entfernen"
+          }
+        }
+      }
+    },
+    "Remove all readers?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Leser entfernen?"
+          }
+        }
+      }
+    },
+    "Removing a reader ends access on that device. Readers in the browser only need the link.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wer entfernt wird, verliert auf diesem Gerät den Zugriff. Leser im Browser brauchen nur den Link."
           }
         }
       }
@@ -833,12 +1083,42 @@
         }
       }
     },
+    "Scanned or opened, the link shows the trip – in the app, if it's installed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gescannt oder geöffnet zeigt der Link die Reise – in der App, wenn sie installiert ist."
+          }
+        }
+      }
+    },
     "Select all": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Alle auswählen"
+          }
+        }
+      }
+    },
+    "Send": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senden"
+          }
+        }
+      }
+    },
+    "Send invitation": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einladung senden"
           }
         }
       }
@@ -903,12 +1183,32 @@
         }
       }
     },
+    "Sharing is off. Readers need the link, so switch it on to invite someone.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilen ist ausgeschaltet. Leser brauchen den Link, schalte es also ein, um jemanden einzuladen."
+          }
+        }
+      }
+    },
     "Short description (optional)": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Kurzbeschreibung (optional)"
+          }
+        }
+      }
+    },
+    "Shown as %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erscheint als %@."
           }
         }
       }
@@ -1033,6 +1333,26 @@
         }
       }
     },
+    "Stop following": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht mehr folgen"
+          }
+        }
+      }
+    },
+    "Stop following this trip?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Reise nicht mehr folgen?"
+          }
+        }
+      }
+    },
     "Tap to read": {
       "localizations": {
         "de": {
@@ -1063,12 +1383,42 @@
         }
       }
     },
+    "That name is too long.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Name ist zu lang."
+          }
+        }
+      }
+    },
+    "That was a lot of comments. Please wait a moment.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das waren viele Kommentare. Bitte warte einen Moment."
+          }
+        }
+      }
+    },
     "The address you open OwnSteps at in the browser.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Die Adresse, unter der du OwnSteps im Browser öffnest."
+          }
+        }
+      }
+    },
+    "The comment is too long.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Kommentar ist zu lang."
           }
         }
       }
@@ -1089,6 +1439,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Die Datei ist nicht mehr auf dem Gerät."
+          }
+        }
+      }
+    },
+    "The password is wrong.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Passwort stimmt nicht."
           }
         }
       }
@@ -1153,12 +1513,52 @@
         }
       }
     },
+    "The travellers see this name, also under your comments.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Reisenden sehen diesen Namen, auch unter deinen Kommentaren."
+          }
+        }
+      }
+    },
+    "The trip has a password. Readers enter it once when following.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Reise hat ein Passwort. Leser geben es einmal beim Folgen ein."
+          }
+        }
+      }
+    },
     "The trip no longer exists.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Die Reise gibt es nicht mehr."
+          }
+        }
+      }
+    },
+    "The trip's link, as the travellers sent it to you.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Link der Reise, so wie die Reisenden ihn dir geschickt haben."
+          }
+        }
+      }
+    },
+    "They can follow again with the link, unless you create a new one in the web.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit dem Link können sie wieder folgen, außer du erzeugst im Web einen neuen."
           }
         }
       }
@@ -1173,12 +1573,42 @@
         }
       }
     },
+    "This comment no longer exists.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den Kommentar gibt es nicht mehr."
+          }
+        }
+      }
+    },
     "This device stops having access to %@.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Dieses Gerät hat danach keinen Zugriff mehr auf %@."
+          }
+        }
+      }
+    },
+    "This link doesn't lead to a shared trip.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Link führt zu keiner geteilten Reise."
+          }
+        }
+      }
+    },
+    "This reader no longer exists.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Leser gibt es nicht mehr."
           }
         }
       }
@@ -1299,6 +1729,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reisen"
+          }
+        }
+      }
+    },
+    "Turn on sharing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilen einschalten"
           }
         }
       }
@@ -1503,12 +1943,32 @@
         }
       }
     },
+    "You can follow again with the link.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit dem Link kannst du wieder folgen."
+          }
+        }
+      }
+    },
     "You've been signed out. Please sign in again.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Du wurdest abgemeldet. Bitte melde dich erneut an."
+          }
+        }
+      }
+    },
+    "Your comment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Kommentar"
           }
         }
       }
@@ -1523,12 +1983,45 @@
         }
       }
     },
+    "Your name": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Name"
+          }
+        }
+      }
+    },
     "Your travel journal on your own server.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Dein Reisetagebuch auf deinem eigenen Server."
+          }
+        }
+      }
+    },
+    "https://trips.example.com/s/…": {
+      "shouldTranslate": false
+    },
+    "seen %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zuletzt %@"
+          }
+        }
+      }
+    },
+    "since %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "seit %@"
           }
         }
       }

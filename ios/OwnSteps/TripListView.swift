@@ -4,6 +4,8 @@ import SwiftUI
 struct TripRoute: Hashable {
     let accountID: UUID
     let tripID: Int
+    /// Scrolled to on arrival, e.g. from a notification.
+    var stepID: Int? = nil
 }
 
 /// The trips of every server this device is signed in to. Shows what's
@@ -17,6 +19,8 @@ struct TripListView: View {
     @State private var path = NavigationPath()
     @State private var newTripFor: Account?
     @State private var showingSettings = false
+    @State private var following = false
+    @State private var accountToUnfollow: Account?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -45,6 +49,15 @@ struct TripListView: View {
                         }
                     }
                 }
+
+                if !model.readerAccounts.isEmpty {
+                    Section("Following") {
+                        ForEach(model.readerAccounts) { account in
+                            readerRow(account)
+                        }
+                    }
+
+                }
             }
             .navigationTitle("Trips")
             .toolbar {
@@ -57,23 +70,21 @@ struct TripListView: View {
                     .accessibilityLabel(Text("Settings"))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if model.authorAccounts.count > 1 {
-                        Menu {
-                            ForEach(model.authorAccounts) { account in
-                                Button(account.serverURL.host() ?? account.serverName) { newTripFor = account }
+                    Menu {
+                        if model.authorAccounts.count > 1 {
+                            Section("New trip") {
+                                ForEach(model.authorAccounts) { account in
+                                    Button(account.serverURL.host() ?? account.serverName) { newTripFor = account }
+                                }
                             }
-                        } label: {
-                            Image(systemName: "plus")
+                        } else if let account = model.authorAccounts.first {
+                            Button("New trip", systemImage: "suitcase") { newTripFor = account }
                         }
-                        .accessibilityLabel(Text("New trip"))
-                    } else if let account = model.authorAccounts.first {
-                        Button {
-                            newTripFor = account
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                        .accessibilityLabel(Text("New trip"))
+                        Button("Follow a trip …", systemImage: "person.badge.plus") { following = true }
+                    } label: {
+                        Image(systemName: "plus")
                     }
+                    .accessibilityLabel(Text("Add"))
                 }
             }
             .sheet(item: $newTripFor) { account in
@@ -83,9 +94,30 @@ struct TripListView: View {
                 }
             }
             .sheet(isPresented: $showingSettings) { SettingsView() }
+            .sheet(isPresented: $following) { FollowView() }
+            // An alert, not a second confirmation dialog: SwiftUI shows only one of those per view.
+            .alert(
+                "Stop following this trip?",
+                isPresented: Binding(get: { accountToUnfollow != nil }, set: { if !$0 { accountToUnfollow = nil } }),
+                presenting: accountToUnfollow
+            ) { account in
+                Button("Stop following", role: .destructive) {
+                    Task { await model.unfollow(account) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { _ in
+                Text("You can follow again with the link.")
+            }
+            .onChange(of: model.openTrip, initial: true) { _, route in
+                guard let route else { return }
+                model.openTrip = nil
+                path = NavigationPath()
+                path.append(route)
+                Task { await refresh() }
+            }
             .navigationDestination(for: TripRoute.self) { route in
                 if let account = model.account(id: route.accountID) {
-                    TripView(account: account, tripID: route.tripID)
+                    TripView(account: account, tripID: route.tripID, focusStepID: route.stepID)
                 }
             }
             .refreshable { await refresh() }
@@ -126,8 +158,37 @@ struct TripListView: View {
         }
     }
 
+    /// A followed trip: one per reader account, on whichever server.
+    @ViewBuilder private func readerRow(_ account: Account) -> some View {
+        Group {
+            if let trip = tripsByAccount[account.id]?.first {
+                NavigationLink(value: TripRoute(accountID: account.id, tripID: trip.id)) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        TripRow(trip: trip, calendar: model.calendar(for: account))
+                        Text(account.serverURL.host() ?? account.serverName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(account.serverURL.host() ?? account.serverName)
+                    Text(errors[account.id] ?? String(localized: "Loading …"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .swipeActions {
+            Button("Stop following", role: .destructive) { accountToUnfollow = account }
+        }
+        .contextMenu {
+            Button("Stop following", systemImage: "person.badge.minus", role: .destructive) { accountToUnfollow = account }
+        }
+    }
+
     private func loadCached() {
-        for account in model.authorAccounts where tripsByAccount[account.id] == nil {
+        for account in model.accounts where tripsByAccount[account.id] == nil {
             if let cached = try? model.cache.trips(for: account.id) {
                 tripsByAccount[account.id] = cached.value
             }
@@ -135,7 +196,7 @@ struct TripListView: View {
     }
 
     private func refresh() async {
-        for account in model.authorAccounts {
+        for account in model.accounts {
             do {
                 let trips = try await model.client(for: account).trips()
                 tripsByAccount[account.id] = trips

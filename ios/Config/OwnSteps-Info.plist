@@ -7,6 +7,15 @@
 	<string>group.$(APP_BUNDLE_ID_PREFIX).app</string>
 	<key>KeychainAccessGroup</key>
 	<string>$(AppIdentifierPrefix)$(APP_BUNDLE_ID_PREFIX).shared</string>
+	<!-- Background refresh for notifications – there's no push ([D16]). -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).refresh</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<!-- ownsteps://auth ends the OIDC sign-in, ownsteps://join opens a share link ([D18]). -->
 	<key>CFBundleURLTypes</key>
 	<array>

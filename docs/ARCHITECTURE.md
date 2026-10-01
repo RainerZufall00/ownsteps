@@ -391,6 +391,32 @@ photo suggestions.
   to switch it on first. `UIActivityViewController` is presented by UIKit –
   inside a SwiftUI sheet it sits at the wrong height.
 
+**Readers and news** (phase 4e, [D16]–[D18]):
+
+- *Following*: an invitation is the trip's share link – opened as
+  `ownsteps://join?url=…` from the share page, scanned from the QR code in
+  the author's "Readers" sheet, or pasted. `Invite` derives the server from
+  it. Redeeming it with a name gives a viewer token for that one trip; the
+  share password is only asked for when the server answers
+  `share_password_wrong`. Each followed trip is its own account of kind
+  `viewer`, so one app follows trips on any number of servers. Readers see
+  the timeline and map, and can comment (under their name, never typed
+  again); everything else is hidden. "Stop following" tells the server to
+  forget the device.
+- *Readers sheet* (authors): QR code and share sheet for the link, the list
+  of reader devices with "last seen", removing one or all. With sharing off,
+  it offers to switch it on.
+- *Notifications* without push: `BGAppRefreshTask` (and every return to the
+  foreground) follows each account's change feed from a cursor kept per
+  account. Trips that changed are fetched again – which also keeps the
+  offline copy fresh – and compared with the cached copy (`TripNews`):
+  readers hear about new steps, authors about comments by others. Edits
+  don't notify, and nothing does on the very first run. Only the
+  background run posts notifications; each can be muted per trip. A tapped
+  notification opens the trip at that step. The simulator never schedules
+  refresh tasks, so debug builds run the same check when sent to the
+  background with `-OwnStepsDebugNewsInBackground YES`.
+
 Photos are cached on disk by `MediaStore` only; its session has no
 `URLCache`. The shared cache had kept a second copy outside the account's
 folder (still there after signing out) and served stale images when a
@@ -1123,6 +1149,15 @@ Verified (production build, real HTTP requests):
   with the photo's date. Trip and step links open the share page (with
   `#step-<id>`); for an unshared trip the app switches sharing on first.
   Signed-in accounts and tokens moved into the shared groups on update
+- iOS readers, same setup: `ownsteps://join` opens the follow sheet with the
+  server filled in, following registers the device and opens the trip in
+  reading mode; a reader's comment arrives under the chosen name. In the
+  background run, a new step notified the reader and a reader's comment the
+  author, while edits stayed silent. The author's readers sheet lists the
+  devices and removes one; "stop following" removes the device on the
+  server. Not verified: a real `BGAppRefreshTask` schedule (only on a
+  device, at times iOS chooses) and tapping a notification (the simulator
+  didn't pass synthetic taps on to it)
 
 Not verified – be careful when building on these:
 

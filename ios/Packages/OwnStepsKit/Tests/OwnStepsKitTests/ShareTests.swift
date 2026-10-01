@@ -250,3 +250,58 @@ extension JSONDecoder {
         return decoder
     }
 }
+
+@Suite struct InviteTests {
+    @Test func readsTheAppLinkAPastedLinkAndAPlainOne() throws {
+        let app = try #require(Invite(URL(string: "ownsteps://join?url=https%3A%2F%2Ftrips.example.com%2Fs%2FabcDEF")!))
+        #expect(app.serverURL.absoluteString == "https://trips.example.com")
+        #expect(app.shareLink.absoluteString == "https://trips.example.com/s/abcDEF")
+
+        let pasted = try #require(Invite(text: "  trips.example.com/journal/s/xyz#step-4 "))
+        #expect(pasted.serverURL.absoluteString == "https://trips.example.com/journal")
+
+        let local = try #require(Invite(text: "http://localhost:2555/s/tok"))
+        #expect(local.serverURL.absoluteString == "http://localhost:2555")
+    }
+
+    @Test func refusesWhatIsNoShareLink() {
+        #expect(Invite(text: "https://trips.example.com") == nil)
+        #expect(Invite(text: "https://trips.example.com/s/") == nil)
+        #expect(Invite(URL(string: "ownsteps://auth?code=1")!) == nil)
+        #expect(Invite(text: "http://trips.example.com/s/abc") == nil) // plain HTTP outside the LAN
+    }
+}
+
+@Suite struct TripNewsTests {
+    func trip(_ steps: [(id: Int, comments: [(Int, String)])]) throws -> Components.Schemas.TripDetail {
+        let stepsJSON = steps.map { step -> String in
+            let comments = step.comments.map { id, author -> String in
+                #"{"id":\#(id),"stepId":\#(step.id),"authorName":"\#(author)","body":"Line one\nline two","createdAt":"2026-07-03T10:00:00.000Z"}"#
+            }.joined(separator: ",")
+            return #"{"id":\#(step.id),"tripId":1,"clientUuid":null,"body":"Fjords","placeName":"Bergen","countryCode":null,"lat":null,"lon":null,"occurredAt":"2026-07-03T10:00:00.000Z","updatedAt":"2026-07-03T10:00:00.000Z","photos":[],"comments":[\#(comments)]}"#
+        }.joined(separator: ",")
+        let json = #"{"id":1,"title":"Norway","summary":null,"startDate":null,"endDate":null,"coverPhotoId":null,"stepCount":1,"photoCount":0,"firstStepAt":null,"lastStepAt":null,"updatedAt":"2026-07-03T10:00:00.000Z","steps":[\#(stepsJSON)]}"#
+        return try JSONDecoder.api.decode(Components.Schemas.TripDetail.self, from: Data(json.utf8))
+    }
+
+    @Test func readersHearAboutNewStepsOnly() throws {
+        let old = try trip([(1, [])])
+        let new = try trip([(1, [(5, "Oma")]), (2, [])])
+        let items = TripNews.items(old: old, new: new, reader: true, ownName: "Oma")
+        #expect(items.map(\.stepID) == [2])
+        #expect(items.first?.title == "Norway · Bergen")
+    }
+
+    @Test func authorsHearAboutOthersComments() throws {
+        let old = try trip([(1, [(5, "Oma")])])
+        let new = try trip([(1, [(5, "Oma"), (6, "Anna"), (7, "Opa")]), (2, [(8, "Opa")])])
+        let items = TripNews.items(old: old, new: new, reader: false, ownName: "Anna")
+        #expect(items.map(\.stepID) == [1, 2])
+        #expect(items.first?.title == "Opa · Norway")
+        #expect(items.first?.body == "Line one line two")
+    }
+
+    @Test func staysQuietWithoutAnEarlierCopy() throws {
+        #expect(TripNews.items(old: nil, new: try trip([(1, [])]), reader: true, ownName: "x").isEmpty)
+    }
+}

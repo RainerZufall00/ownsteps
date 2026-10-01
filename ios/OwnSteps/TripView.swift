@@ -7,6 +7,8 @@ import SwiftUI
 struct TripView: View {
     let account: Account
     let tripID: Int
+    /// Scrolled to on arrival, e.g. from a notification.
+    var focusStepID: Int? = nil
 
     enum Mode: Hashable { case timeline, map }
 
@@ -28,6 +30,13 @@ struct TripView: View {
     @State private var showingSuggestions = false
     @State private var photoAccessDenied = false
     @State private var enableSharingFor: ShareTarget?
+    @State private var commentingOn: Components.Schemas.Step?
+    @State private var showingReaders = false
+    @State private var muted = false
+    @State private var confirmingUnfollow = false
+
+    /// Readers follow one trip and only read and comment ([D17]).
+    private var isAuthor: Bool { account.kind == .author }
 
     private var calendar: TripCalendar { model.calendar(for: account) }
 
@@ -44,9 +53,12 @@ struct TripView: View {
                         queue: queue,
                         scrollTarget: $scrollTarget,
                         actions: .init(
+                            isAuthor: isAuthor,
                             edit: { editing = $0 },
                             addPhotos: { composer = .addTo(tripID: tripID, stepID: $0.id) },
-                            share: { share(.step($0.id)) }
+                            share: { share(.step($0.id)) },
+                            comment: { commentingOn = $0 },
+                            deleteComment: { comment in Task { await deleteComment(comment) } }
                         ),
                         suggestions: suggestionsBanner
                     )
@@ -75,26 +87,41 @@ struct TripView: View {
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
-                    Button("Edit trip", systemImage: "pencil") { editingTrip = true }
-                    Button("Share trip …", systemImage: "square.and.arrow.up") { share(.trip) }
-                    Button("Photo suggestions", systemImage: "photo.stack") { Task { await reviewSuggestions() } }
+                    if isAuthor {
+                        Button("Edit trip", systemImage: "pencil") { editingTrip = true }
+                        Button("Share trip …", systemImage: "square.and.arrow.up") { share(.trip) }
+                        Button("Readers", systemImage: "person.2") { showingReaders = true }
+                        Button("Photo suggestions", systemImage: "photo.stack") { Task { await reviewSuggestions() } }
+                    }
+                    Toggle(isOn: Binding(get: { !muted }, set: { setMuted(!$0) })) {
+                        Label(isAuthor ? "Notify about comments" : "Notify about new steps", systemImage: "bell")
+                    }
+                    if !isAuthor {
+                        Button("Stop following", systemImage: "person.badge.minus", role: .destructive) {
+                            confirmingUnfollow = true
+                        }
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                 }
                 .accessibilityLabel(Text("More"))
-                Button {
-                    composer = .new(tripID: tripID)
-                } label: {
-                    Image(systemName: "plus")
+                if isAuthor {
+                    Button {
+                        composer = .new(tripID: tripID)
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel(Text("New step"))
                 }
-                .accessibilityLabel(Text("New step"))
             }
         }
         .refreshable { await refresh() }
         .task {
+            muted = Notifications.isMuted(account: account, tripID: tripID)
             if trip == nil, let cached = try? model.cache.trip(tripID, for: account.id) {
                 trip = cached.value
             }
+            scrollTarget = focusStepID
             await refresh()
         }
         .task(id: tripID) { await watchQueue() }
@@ -103,6 +130,21 @@ struct TripView: View {
             set: { composer = $0?.mode; if $0 == nil { composerAssets = [] } }
         )) { request in
             StepComposerView(account: account, mode: request.mode, assets: composerAssets)
+        }
+        .sheet(item: $commentingOn) { step in
+            CommentComposer(account: account, step: step) { Task { await refresh() } }
+        }
+        .sheet(isPresented: $showingReaders) {
+            if let trip {
+                ReadersView(account: account, trip: summary(of: trip)) { share in
+                    self.trip?.share = share
+                }
+            }
+        }
+        .confirmationDialog("Stop following this trip?", isPresented: $confirmingUnfollow, titleVisibility: .visible) {
+            Button("Stop following", role: .destructive) {
+                Task { await model.unfollow(account) }
+            }
         }
         .sheet(isPresented: $showingSuggestions) {
             PhotoSuggestionsView(assets: suggestions, calendar: calendar) { chosen in
@@ -156,9 +198,24 @@ struct TripView: View {
         }
     }
 
+    private func setMuted(_ value: Bool) {
+        muted = value
+        Notifications.setMuted(value, account: account, tripID: tripID)
+        if !value { Task { await Notifications.requestPermission() } }
+    }
+
+    private func deleteComment(_ comment: Components.Schemas.Comment) async {
+        do {
+            try await model.client(for: account).deleteComment(id: comment.id)
+            await refresh()
+        } catch {
+            self.error = ErrorText.message(for: error)
+        }
+    }
+
     /// Without photo access nothing is asked here – only the menu asks.
     private func updateSuggestions() {
-        guard let trip else { return }
+        guard isAuthor, let trip else { return }
         suggestionsDismissedUntil = LibrarySuggestions.dismissedUntil(account: account, tripID: tripID)
         suggestions = LibrarySuggestions.find(for: trip, account: account, calendar: calendar, uploads: model.uploads)
     }
@@ -419,9 +476,12 @@ struct StepCard: View {
                 Spacer()
                 if let actions {
                     Menu {
-                        Button("Edit", systemImage: "pencil") { actions.edit(step) }
-                        Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
-                        Button("Share …", systemImage: "square.and.arrow.up") { actions.share(step) }
+                        if actions.isAuthor {
+                            Button("Edit", systemImage: "pencil") { actions.edit(step) }
+                            Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
+                            Button("Share …", systemImage: "square.and.arrow.up") { actions.share(step) }
+                        }
+                        Button("Comment", systemImage: "text.bubble") { actions.comment(step) }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .foregroundStyle(.secondary)
@@ -451,7 +511,11 @@ struct StepCard: View {
             }
 
             if !step.comments.isEmpty {
-                CommentList(comments: step.comments, calendar: calendar)
+                CommentList(
+                    comments: step.comments,
+                    calendar: calendar,
+                    delete: actions?.isAuthor == true ? actions?.deleteComment : nil
+                )
             }
         }
         .padding(.vertical, 6)
@@ -459,9 +523,13 @@ struct StepCard: View {
 }
 
 struct StepActions {
+    /// Readers only get to comment.
+    let isAuthor: Bool
     let edit: (Components.Schemas.Step) -> Void
     let addPhotos: (Components.Schemas.Step) -> Void
     let share: (Components.Schemas.Step) -> Void
+    let comment: (Components.Schemas.Step) -> Void
+    let deleteComment: (Components.Schemas.Comment) -> Void
 }
 
 struct SuggestionsBanner {
@@ -564,6 +632,8 @@ struct PhotoGrid: View {
 struct CommentList: View {
     let comments: [Components.Schemas.Comment]
     let calendar: TripCalendar
+    /// Authors may delete comments ([D21]).
+    var delete: ((Components.Schemas.Comment) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -578,6 +648,11 @@ struct CommentList: View {
                         .foregroundStyle(.secondary)
                     }
                     Text(comment.body).font(.callout)
+                }
+                .contextMenu {
+                    if let delete {
+                        Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
+                    }
                 }
             }
         }

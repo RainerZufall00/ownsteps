@@ -50,6 +50,15 @@ enum ErrorText {
         case "not_signed_in": String(localized: "You've been signed out. Please sign in again.")
         case "trip_not_found": String(localized: "This trip no longer exists.")
         case "trip_not_shared": String(localized: "This trip isn't shared at the moment.")
+        case "share_link_invalid": String(localized: "This link doesn't lead to a shared trip.")
+        case "share_password_wrong": String(localized: "The password is wrong.")
+        case "comment_name_missing": String(localized: "Please enter your name.")
+        case "comment_name_too_long": String(localized: "That name is too long.")
+        case "comment_empty": String(localized: "Please write something first.")
+        case "comment_too_long": String(localized: "The comment is too long.")
+        case "comment_rate_limited": String(localized: "That was a lot of comments. Please wait a moment.")
+        case "comment_not_found": String(localized: "This comment no longer exists.")
+        case "viewer_not_found": String(localized: "This reader no longer exists.")
         default: String(localized: "The server reported an error (\(code)).")
         }
     }
