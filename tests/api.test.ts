@@ -142,6 +142,18 @@ describe("guard", () => {
     const shape = (entry: string) => entry.replace(/\{\w+\}/g, "{}");
     expect([...documented].map(shape).sort()).toEqual([...implemented].map(shape).sort());
   });
+
+  it("matches the copy the iOS client is generated from", async () => {
+    const { json } = await call("GET", "/api/v1/openapi.json");
+    const exported = JSON.parse(
+      fs.readFileSync(
+        path.resolve(import.meta.dirname, "../ios/Packages/OwnStepsKit/Sources/OwnStepsAPI/openapi.json"),
+        "utf8",
+      ),
+    );
+    // On failure: npm run openapi:export
+    expect(exported).toEqual(json);
+  });
 });
 
 describe("info", () => {
@@ -436,6 +448,12 @@ describe("changes", () => {
 });
 
 describe("OIDC hand-over", () => {
+  it("computes PKCE challenges like the app (RFC 7636, appendix B)", () => {
+    expect(pkceChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")).toBe(
+      "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+    );
+  });
+
   it("trades a one-time code plus PKCE verifier for a device token, once", async () => {
     const user = await createUser({ email: "o@example.com", name: "O", password: "long enough pw" });
     const verifier = "v".repeat(43) + "erifier-for-the-test";

@@ -1,0 +1,65 @@
+import Foundation
+
+/// A signed-in server, as the app remembers it. The token isn't part of it –
+/// that lives in the Keychain under the account's ID.
+public struct Account: Codable, Identifiable, Hashable, Sendable {
+    public enum Kind: String, Codable, Sendable {
+        /// Device token: reads and writes everything on that server.
+        case author
+        /// Viewer token: reads one trip ([D17]). One app can follow trips on
+        /// several servers.
+        case viewer
+    }
+
+    public let id: UUID
+    public let serverURL: URL
+    public let serverName: String
+    public let kind: Kind
+    public var displayName: String
+    public var email: String?
+    /// Viewers only: the trip they follow.
+    public var tripID: Int?
+
+    public init(
+        id: UUID = UUID(),
+        serverURL: URL,
+        serverName: String,
+        kind: Kind,
+        displayName: String,
+        email: String? = nil,
+        tripID: Int? = nil
+    ) {
+        self.id = id
+        self.serverURL = serverURL
+        self.serverName = serverName
+        self.kind = kind
+        self.displayName = displayName
+        self.email = email
+        self.tripID = tripID
+    }
+}
+
+/// The list of accounts, kept in UserDefaults (no secrets in there).
+public struct AccountStore: Sendable {
+    private let key = "accounts.v1"
+    private let defaultsName: String?
+
+    /// `suiteName` will be the app group once the Share Extension needs it.
+    public init(suiteName: String? = nil) {
+        self.defaultsName = suiteName
+    }
+
+    private var defaults: UserDefaults {
+        defaultsName.flatMap(UserDefaults.init(suiteName:)) ?? .standard
+    }
+
+    public func load() -> [Account] {
+        guard let data = defaults.data(forKey: key) else { return [] }
+        return (try? JSONDecoder().decode([Account].self, from: data)) ?? []
+    }
+
+    public func save(_ accounts: [Account]) {
+        guard let data = try? JSONEncoder().encode(accounts) else { return }
+        defaults.set(data, forKey: key)
+    }
+}

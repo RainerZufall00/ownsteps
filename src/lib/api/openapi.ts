@@ -46,11 +46,50 @@ const problems = {
 } as const;
 
 function jsonBody(schema: z.ZodType) {
-  return { content: { "application/json": { schema } } };
+  return { required: true, content: { "application/json": { schema } } };
+}
+
+function multipartBody(schema: z.ZodType) {
+  return { required: true, content: { "multipart/form-data": { schema } } };
 }
 
 function ok(schema: z.ZodType, description = "OK") {
-  return { description, ...jsonBody(schema) };
+  return { description, content: { "application/json": { schema } } };
+}
+
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+
+/**
+ * zod-openapi writes a nullable field with a format (dates, bounded numbers)
+ * as `anyOf: [{ type: "string", format }, { type: "null" }]`. Code generators
+ * like swift-openapi-generator drop such fields entirely; the equivalent
+ * `type: ["string", "null"]` works everywhere.
+ */
+function simplifyNullables(node: JsonValue): JsonValue {
+  if (Array.isArray(node)) return node.map(simplifyNullables);
+  if (node === null || typeof node !== "object") return node;
+
+  const result: { [key: string]: JsonValue } = {};
+  for (const [key, value] of Object.entries(node)) result[key] = simplifyNullables(value);
+
+  const variants = result.anyOf;
+  if (Array.isArray(variants) && variants.length === 2) {
+    const nullIndex = variants.findIndex(
+      (v) => v !== null && typeof v === "object" && !Array.isArray(v) && v.type === "null",
+    );
+    const other = variants[1 - nullIndex];
+    if (
+      nullIndex !== -1 &&
+      other !== null &&
+      typeof other === "object" &&
+      !Array.isArray(other) &&
+      typeof other.type === "string"
+    ) {
+      const { anyOf: _anyOf, ...rest } = result;
+      return { ...other, ...rest, type: [other.type, "null"] };
+    }
+  }
+  return result;
 }
 
 const noContent = { description: "No content" };
@@ -62,7 +101,7 @@ function op(operation: ZodOpenApiOperationObject): ZodOpenApiOperationObject {
 const idPath = (name: string) => z.object({ [name]: z.string() });
 
 export function buildOpenApiDocument() {
-  return createDocument({
+  const document = createDocument({
     openapi: "3.1.0",
     info: {
       title: "OwnSteps API",
@@ -170,7 +209,7 @@ export function buildOpenApiDocument() {
           summary: "Upload the trip's cover image (authors)",
           security: secured,
           requestParams: { path: idPath("tripId") },
-          requestBody: { content: { "multipart/form-data": { schema: coverUploadSchema } } },
+          requestBody: multipartBody(coverUploadSchema),
           responses: { "201": ok(photoSchema, "Created") },
         }),
       },
@@ -226,7 +265,7 @@ export function buildOpenApiDocument() {
           summary: "Upload one photo or video, idempotent via clientUuid (authors)",
           security: secured,
           requestParams: { path: idPath("stepId") },
-          requestBody: { content: { "multipart/form-data": { schema: mediaUploadSchema } } },
+          requestBody: multipartBody(mediaUploadSchema),
           responses: {
             "201": ok(z.object({ photo: photoSchema, step: stepSchema }), "Created"),
           },
@@ -332,4 +371,5 @@ export function buildOpenApiDocument() {
       },
     },
   });
+  return simplifyNullables(document as unknown as JsonValue);
 }

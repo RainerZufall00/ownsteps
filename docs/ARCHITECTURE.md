@@ -302,6 +302,24 @@ services the web UI calls.
   the proxy matcher like `/api/upload` – checked with a 15 MB upload, which a
   non-excluded route truncates at 10 MB.
 
+### The iOS app (`ios/`)
+
+Native SwiftUI, iOS 26+, see `ios/README.md` for building. The app target is
+thin; everything testable lives in the local package `OwnStepsKit`, whose
+`OwnStepsAPI` target is **generated from `openapi.json`** by
+swift-openapi-generator. That file is a copy of `/api/v1/openapi.json`
+(`npm run openapi:export`), and a server test fails when the two drift apart.
+Two details of the document exist for the generator's sake: request bodies are
+marked `required`, and nullable fields with a format are written as
+`type: [x, "null"]` instead of `anyOf` – otherwise the generator silently
+drops them (`simplifyNullables()` in `src/lib/api/openapi.ts`).
+
+Bundle IDs derive from `APP_BUNDLE_ID_PREFIX` in `ios/Config/Base.xcconfig`
+(`de.ownsteps`); the signing team stays in the ignored `Secrets.xcconfig`, so
+forks build with their own prefix and team. Tokens live in the Keychain, the
+account list in UserDefaults. The PKCE challenge is computed the same way on
+both sides; a test on each side checks the RFC 7636 example.
+
 ### Comments
 
 Whoever may see the trip may also comment – name and text are enough, no

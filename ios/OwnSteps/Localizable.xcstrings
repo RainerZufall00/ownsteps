@@ -1,0 +1,445 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (%2$@)"
+          }
+        }
+      }
+    },
+    "%@ signed this device out.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hat dieses Gerät abgemeldet."
+          }
+        }
+      }
+    },
+    "%lld steps": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld step"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld steps"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Station"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Stationen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Account": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account"
+          }
+        }
+      }
+    },
+    "Continue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiter"
+          }
+        }
+      }
+    },
+    "Email": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E-Mail"
+          }
+        }
+      }
+    },
+    "Email or password is wrong.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E-Mail oder Passwort stimmt nicht."
+          }
+        }
+      }
+    },
+    "No OwnSteps server answers at this address.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unter dieser Adresse antwortet kein OwnSteps-Server."
+          }
+        }
+      }
+    },
+    "No trips yet.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Reisen."
+          }
+        }
+      }
+    },
+    "Open in the browser": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Browser öffnen"
+          }
+        }
+      }
+    },
+    "Or with password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oder mit Passwort"
+          }
+        }
+      }
+    },
+    "OwnSteps": {
+      "shouldTranslate": false
+    },
+    "Password": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passwort"
+          }
+        }
+      }
+    },
+    "Password sign-in is switched off on this server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anmeldung mit Passwort ist auf diesem Server abgeschaltet."
+          }
+        }
+      }
+    },
+    "Please enter email and password.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte E-Mail und Passwort eingeben."
+          }
+        }
+      }
+    },
+    "Please enter your server's address.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte gib die Adresse deines Servers ein."
+          }
+        }
+      }
+    },
+    "Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server"
+          }
+        }
+      }
+    },
+    "Server address": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server-Adresse"
+          }
+        }
+      }
+    },
+    "Sign in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmelden"
+          }
+        }
+      }
+    },
+    "Sign in with %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit %@ anmelden"
+          }
+        }
+      }
+    },
+    "Sign out": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abmelden"
+          }
+        }
+      }
+    },
+    "Sign out of this server?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von diesem Server abmelden?"
+          }
+        }
+      }
+    },
+    "Sign-in couldn't be completed. Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte noch einmal versuchen."
+          }
+        }
+      }
+    },
+    "Sign-in failed. Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anmeldung ist fehlgeschlagen. Bitte noch einmal versuchen."
+          }
+        }
+      }
+    },
+    "Sign-in took too long. Please try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anmeldung hat zu lange gedauert. Bitte noch einmal versuchen."
+          }
+        }
+      }
+    },
+    "Sign-in was cancelled.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anmeldung wurde abgebrochen."
+          }
+        }
+      }
+    },
+    "That doesn't look like a web address.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das sieht nicht nach einer Web-Adresse aus."
+          }
+        }
+      }
+    },
+    "The address you open OwnSteps at in the browser.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Adresse, unter der du OwnSteps im Browser öffnest."
+          }
+        }
+      }
+    },
+    "The server answered unexpectedly (%lld).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server hat unerwartet geantwortet (%lld)."
+          }
+        }
+      }
+    },
+    "The server can't be reached. Check the address and your connection.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server ist nicht erreichbar. Prüfe die Adresse und deine Verbindung."
+          }
+        }
+      }
+    },
+    "The server must use HTTPS. Plain HTTP only works inside your home network.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server muss HTTPS verwenden. Unverschlüsseltes HTTP geht nur im Heimnetz."
+          }
+        }
+      }
+    },
+    "The server reported an error (%@).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server hat einen Fehler gemeldet (%@)."
+          }
+        }
+      }
+    },
+    "This account isn't allowed on this server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Account ist auf diesem Server nicht freigegeben."
+          }
+        }
+      }
+    },
+    "This device stops having access to %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Gerät hat danach keinen Zugriff mehr auf %@."
+          }
+        }
+      }
+    },
+    "This server (version %@) doesn't fit this app version. Please update both.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Server (Version %@) passt nicht zu dieser App-Version. Bitte beides aktualisieren."
+          }
+        }
+      }
+    },
+    "This server isn't set up yet. Create the first account in the browser, then come back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Server ist noch nicht eingerichtet. Lege den ersten Account im Browser an und komm dann zurück."
+          }
+        }
+      }
+    },
+    "This server offers no way to sign in.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Server bietet keine Anmeldung an."
+          }
+        }
+      }
+    },
+    "Too many attempts. Please wait a moment.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu viele Versuche. Bitte einen Moment warten."
+          }
+        }
+      }
+    },
+    "Trips": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reisen"
+          }
+        }
+      }
+    },
+    "You've been signed out. Please sign in again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du wurdest abgemeldet. Bitte melde dich erneut an."
+          }
+        }
+      }
+    },
+    "Your travel journal on your own server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Reisetagebuch auf deinem eigenen Server."
+          }
+        }
+      }
+    },
+    "trips.example.com": {
+      "shouldTranslate": false
+    },
+    "·": {
+      "shouldTranslate": false
+    }
+  },
+  "version": "1.0"
+}

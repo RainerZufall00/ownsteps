@@ -80,7 +80,7 @@ architecture doc and the phase is ticked off here.
   - Smart App Banner and "Open in app" on the share page (both only once `APP_STORE_ID` is set), QR code and app link in the trip settings
 
 ### Phase 4 – iOS app (`ios/`)
-- [ ] **4a Skeleton:**
+- [x] **4a Skeleton:**
   - Xcode project with Swift client generated from `openapi.json` (`swift-openapi-generator`)
   - enter the server URL, `/info` check
   - login (OIDC first, password second)
@@ -123,7 +123,7 @@ architecture doc and the phase is ticked off here.
 
 ## Open points (decide when the phase is reached)
 
-- **O1 – App name and bundle ID.** "OwnSteps" in the App Store (check that it is free). The bundle ID needs a reverse domain you own. URL scheme `ownsteps://`.
+- ~~**O1 – App name and bundle ID**~~ – decided: "OwnSteps", prefix `de.ownsteps` (app `de.ownsteps.app`, Share Extension `de.ownsteps.app.ShareExtension`, app group `group.de.ownsteps.app`), set in `ios/Config/Base.xcconfig`; the team ID lives in the ignored `Secrets.xcconfig`. URL scheme `ownsteps://`.
 - **O2 – Release details:** Issues and Discussions on, a CLA is not needed (D10 avoids it), versioning scheme.
 - ~~**O3 – Changes feed design**~~ – decided: an append-only change log (table `changes`, cursor = `seq`), see ARCHITECTURE.md section 5.
 - **O4 – maplibre-gl advisory vs. [E9]:** `npm audit` reports a critical XSS
