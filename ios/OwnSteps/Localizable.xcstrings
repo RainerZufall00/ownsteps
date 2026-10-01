@@ -21,6 +21,9 @@
         }
       }
     },
+    "%lld / %lld": {
+      "shouldTranslate": false
+    },
     "%lld steps": {
       "localizations": {
         "en": {
@@ -61,6 +64,9 @@
         }
       }
     },
+    "+%lld": {
+      "shouldTranslate": false
+    },
     "Account": {
       "localizations": {
         "de": {
@@ -71,12 +77,32 @@
         }
       }
     },
+    "Close": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließen"
+          }
+        }
+      }
+    },
     "Continue": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Weiter"
+          }
+        }
+      }
+    },
+    "Day %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag %lld"
           }
         }
       }
@@ -101,6 +127,16 @@
         }
       }
     },
+    "Map": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karte"
+          }
+        }
+      }
+    },
     "No OwnSteps server answers at this address.": {
       "localizations": {
         "de": {
@@ -111,12 +147,42 @@
         }
       }
     },
+    "No places yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Orte"
+          }
+        }
+      }
+    },
+    "No steps yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Stationen"
+          }
+        }
+      }
+    },
     "No trips yet.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Noch keine Reisen."
+          }
+        }
+      }
+    },
+    "Offline · as of %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline · Stand %@"
           }
         }
       }
@@ -160,6 +226,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Die Anmeldung mit Passwort ist auf diesem Server abgeschaltet."
+          }
+        }
+      }
+    },
+    "Photo %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto %lld"
+          }
+        }
+      }
+    },
+    "Photos with GPS data put the markers on the map.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos mit GPS-Daten setzen die Marker automatisch."
           }
         }
       }
@@ -284,6 +370,26 @@
         }
       }
     },
+    "Steps appear here once the trip gets going.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hier erscheinen die Beiträge, sobald die Reise losgeht."
+          }
+        }
+      }
+    },
+    "Tap to read": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antippen zum Lesen"
+          }
+        }
+      }
+    },
     "That doesn't look like a web address.": {
       "localizations": {
         "de": {
@@ -394,6 +500,36 @@
         }
       }
     },
+    "This trip isn't shared at the moment.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Reise ist gerade nicht freigegeben."
+          }
+        }
+      }
+    },
+    "This trip no longer exists.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Reise gibt es nicht mehr."
+          }
+        }
+      }
+    },
+    "Timeline": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timeline"
+          }
+        }
+      }
+    },
     "Too many attempts. Please wait a moment.": {
       "localizations": {
         "de": {
@@ -404,12 +540,32 @@
         }
       }
     },
+    "Trip unavailable": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reise nicht verfügbar"
+          }
+        }
+      }
+    },
     "Trips": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Reisen"
+          }
+        }
+      }
+    },
+    "View": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansicht"
           }
         }
       }

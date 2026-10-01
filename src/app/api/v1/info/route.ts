@@ -19,6 +19,7 @@ export async function GET() {
     apiVersion: 1,
     minAppVersion: "1.0.0",
     setupComplete: (await countUsers()) > 0,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     auth: {
       password: PASSWORD_LOGIN,
       oidc: oidcEnabled,

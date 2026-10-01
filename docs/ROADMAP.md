@@ -85,7 +85,7 @@ architecture doc and the phase is ticked off here.
   - enter the server URL, `/info` check
   - login (OIDC first, password second)
   - token in the Keychain
-- [ ] **4b Read:**
+- [x] **4b Read:**
   - trip list, timeline (newest first, like the web; see [E13]), MapKit map, photo viewer
   - GRDB cache, offline reading
 - [ ] **4c Write:**

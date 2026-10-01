@@ -1,4 +1,5 @@
 import Foundation
+import OpenAPIRuntime
 import OwnStepsAPI
 
 /// What can go wrong talking to a server, reduced to what the app needs to
@@ -22,6 +23,16 @@ public enum APIError: Error, Equatable, Sendable {
     public var isUnauthorized: Bool {
         if case let .problem(_, status) = self { return status == 401 }
         return false
+    }
+
+    /// The generated client wraps transport failures in `ClientError`; the
+    /// cause inside (usually a `URLError`) is what's worth showing.
+    public static func underlying(_ error: any Error) -> any Error {
+        var current = error
+        while let wrapped = current as? ClientError {
+            current = wrapped.underlyingError
+        }
+        return current
     }
 
     static func from(_ problem: Components.Schemas.Problem) -> APIError {

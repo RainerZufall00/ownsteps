@@ -5,6 +5,7 @@ import OwnStepsKit
 /// Turns what went wrong into a sentence for the person holding the phone.
 enum ErrorText {
     static func message(for error: any Error) -> String? {
+        let error = APIError.underlying(error)
         switch error {
         case let problem as ServerAddress.Problem:
             switch problem {
@@ -47,6 +48,8 @@ enum ErrorText {
         case "too_many_attempts": String(localized: "Too many attempts. Please wait a moment.")
         case "auth_code_invalid": String(localized: "Sign-in took too long. Please try again.")
         case "not_signed_in": String(localized: "You've been signed out. Please sign in again.")
+        case "trip_not_found": String(localized: "This trip no longer exists.")
+        case "trip_not_shared": String(localized: "This trip isn't shared at the moment.")
         default: String(localized: "The server reported an error (\(code)).")
         }
     }

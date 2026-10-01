@@ -27,7 +27,7 @@ final class StubTransport: ClientTransport, @unchecked Sendable {
 
 let infoJSON = """
 {"name":"OwnSteps","version":"0.1.0","apiVersion":1,"minAppVersion":"1.0.0",
- "setupComplete":true,"auth":{"password":true,"oidc":true,"oidcLabel":"Pocket ID"},
+ "setupComplete":true,"timeZone":"Europe/Berlin","auth":{"password":true,"oidc":true,"oidcLabel":"Pocket ID"},
  "features":["viewers","changes"]}
 """
 

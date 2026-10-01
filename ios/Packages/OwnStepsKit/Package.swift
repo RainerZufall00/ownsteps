@@ -13,6 +13,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-openapi-generator", from: "1.13.1"),
         .package(url: "https://github.com/apple/swift-openapi-runtime", from: "1.12.2"),
         .package(url: "https://github.com/apple/swift-openapi-urlsession", from: "1.3.2"),
+        .package(url: "https://github.com/groue/GRDB.swift", from: "7.11.1"),
     ],
     targets: [
         // Generated from openapi.json (exported from the server with
@@ -32,6 +33,7 @@ let package = Package(
                 "OwnStepsAPI",
                 .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
+                .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
         .testTarget(name: "OwnStepsKitTests", dependencies: ["OwnStepsKit"]),

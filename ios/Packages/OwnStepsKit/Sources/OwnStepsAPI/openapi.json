@@ -1410,6 +1410,9 @@
           "setupComplete": {
             "type": "boolean"
           },
+          "timeZone": {
+            "type": "string"
+          },
           "auth": {
             "type": "object",
             "properties": {
@@ -1446,6 +1449,7 @@
           "apiVersion",
           "minAppVersion",
           "setupComplete",
+          "timeZone",
           "auth",
           "features"
         ],

@@ -162,6 +162,11 @@ export const infoSchema = z
     minAppVersion: z.string(),
     /** False until the first account exists – setup happens in the web UI. */
     setupComplete: z.boolean(),
+    /**
+     * IANA time zone the server reads EXIF times in ([E12]). Clients format
+     * dates and count trip days in it, so they match the web.
+     */
+    timeZone: z.string(),
     auth: z.object({
       password: z.boolean(),
       oidc: z.boolean(),

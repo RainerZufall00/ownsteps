@@ -314,6 +314,23 @@ marked `required`, and nullable fields with a format are written as
 `type: [x, "null"]` instead of `anyOf` – otherwise the generator silently
 drops them (`simplifyNullables()` in `src/lib/api/openapi.ts`).
 
+**Reading** (phase 4b): the trip list and each trip are shown from the GRDB
+cache (`TripCache`, responses stored as JSON per account and trip) and
+refreshed behind it; offline, a note says how old the copy is. Photos go
+through `MediaStore`, which loads them with the account's token and keeps
+them on disk – a photo's files never change, so a cached file never goes
+stale. After every refresh the timeline sizes of all photos are prefetched,
+so a trip once opened stays readable offline; fullscreen falls back to the
+cached smaller size. Videos stream through AVPlayer with the token as a
+header. Dates and trip days use the server's time zone, which `/info`
+reports (`timeZone`, see [E12]) – otherwise a phone in another zone would
+show other days than the web.
+
+Two MapKit/SwiftUI traps: with `.hybrid(elevation: .realistic)` the map
+draws the route but no annotations at all, so the style stays flat. And a
+`fullScreenCover` per List row presented another row's photos (cell reuse);
+the timeline owns one viewer for all steps.
+
 Bundle IDs derive from `APP_BUNDLE_ID_PREFIX` in `ios/Config/Base.xcconfig`
 (`de.ownsteps`); the signing team stays in the ignored `Secrets.xcconfig`, so
 forks build with their own prefix and team. Tokens live in the Keychain, the

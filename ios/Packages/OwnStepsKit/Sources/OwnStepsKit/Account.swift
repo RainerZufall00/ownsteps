@@ -19,6 +19,13 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
     public var email: String?
     /// Viewers only: the trip they follow.
     public var tripID: Int?
+    /// The server's time zone from `/info` – dates and trip days are shown
+    /// in it, like the web does ([E12]).
+    public var timeZoneIdentifier: String?
+
+    public var timeZone: TimeZone {
+        timeZoneIdentifier.flatMap(TimeZone.init(identifier:)) ?? .current
+    }
 
     public init(
         id: UUID = UUID(),
@@ -27,7 +34,8 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
         kind: Kind,
         displayName: String,
         email: String? = nil,
-        tripID: Int? = nil
+        tripID: Int? = nil,
+        timeZoneIdentifier: String? = nil
     ) {
         self.id = id
         self.serverURL = serverURL
@@ -36,6 +44,7 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
         self.displayName = displayName
         self.email = email
         self.tripID = tripID
+        self.timeZoneIdentifier = timeZoneIdentifier
     }
 }
 

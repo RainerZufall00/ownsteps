@@ -7,6 +7,7 @@ import OpenAPIURLSession
 /// One OwnSteps server, seen through the generated API client.
 public struct ServerClient: Sendable {
     public let baseURL: URL
+    let token: String?
     let client: Client
 
     public init(
@@ -15,6 +16,7 @@ public struct ServerClient: Sendable {
         transport: any ClientTransport = URLSessionTransport()
     ) {
         self.baseURL = baseURL
+        self.token = token
         // The server writes dates with milliseconds ("…T08:30:00.000Z").
         let configuration = Configuration(dateTranscoder: .iso8601WithFractionalSeconds)
         self.client = Client(
@@ -117,6 +119,28 @@ public struct ServerClient: Sendable {
         case .default(let status, let response):
             throw problem(response.body, status: status)
         }
+    }
+
+    /// A trip with its published steps, oldest first.
+    public func trip(id: Int) async throws -> Components.Schemas.TripDetail {
+        switch try await client.getTrip(path: .init(tripId: String(id))) {
+        case .ok(let response):
+            return try response.body.json
+        case .default(let status, let response):
+            throw problem(response.body, status: status)
+        }
+    }
+
+    // MARK: Media
+
+    /// Photo and video files go around the generated client: images are
+    /// cached by `MediaStore`, videos streamed by AVPlayer.
+    public func mediaRequest(photoID: Int, variant: MediaVariant) -> URLRequest {
+        var request = URLRequest(
+            url: baseURL.appending(path: "api/v1/photos/\(photoID)/\(variant.rawValue)")
+        )
+        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        return request
     }
 
     // MARK: Helpers

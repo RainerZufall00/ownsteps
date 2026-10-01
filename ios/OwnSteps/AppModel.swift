@@ -17,6 +17,10 @@ final class AppModel {
     private(set) var accounts: [Account]
     /// Shown once on the welcome screen, e.g. after the server revoked the token.
     var notice: String?
+    /// Trips as last seen, for offline reading ([D22]).
+    let cache: TripCache
+    /// Photos, loaded with the account's token and kept on disk.
+    let media: MediaStore
     private let tokens: any TokenStore
     private let store: AccountStore
 
@@ -24,6 +28,20 @@ final class AppModel {
         self.tokens = tokens
         self.store = store
         self.accounts = store.load()
+
+        let support = URL.applicationSupportDirectory
+        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        // Without a working cache the app still works online; it just can't
+        // keep anything for later. `path()` would percent-encode the space in
+        // "Application Support" and point SQLite at a folder that doesn't exist.
+        let cachePath = support.appending(path: "cache.sqlite").path(percentEncoded: false)
+        do {
+            self.cache = try TripCache(path: cachePath)
+        } catch {
+            assertionFailure("Trip cache unavailable: \(error)")
+            self.cache = try! TripCache.inMemory()
+        }
+        self.media = MediaStore(directory: support.appending(path: "Media", directoryHint: .isDirectory))
     }
 
     var appVersion: String {
@@ -78,7 +96,8 @@ final class AppModel {
             serverName: server.info.name,
             kind: .author,
             displayName: signedIn.user.name,
-            email: signedIn.user.email
+            email: signedIn.user.email,
+            timeZoneIdentifier: server.info.timeZone
         )
         try tokens.setToken(signedIn.token, for: account.id)
         accounts.removeAll { $0.kind == .author && $0.serverURL == server.url }
@@ -87,6 +106,14 @@ final class AppModel {
     }
 
     // MARK: Using an account
+
+    func account(id: UUID) -> Account? {
+        accounts.first { $0.id == id }
+    }
+
+    func calendar(for account: Account) -> TripCalendar {
+        TripCalendar(timeZone: account.timeZone)
+    }
 
     func client(for account: Account) -> ServerClient {
         ServerClient(baseURL: account.serverURL, token: try? tokens.token(for: account.id))
@@ -107,6 +134,8 @@ final class AppModel {
 
     func forget(_ account: Account) {
         try? tokens.removeToken(for: account.id)
+        try? cache.removeAll(for: account.id)
+        Task { await media.removeAll(for: account.id) }
         accounts.removeAll { $0.id == account.id }
         store.save(accounts)
     }
