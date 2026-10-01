@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Shared with the Share Extension, see SharedContainer.swift. -->
+	<key>AppGroupIdentifier</key>
+	<string>group.$(APP_BUNDLE_ID_PREFIX).app</string>
+	<key>KeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)$(APP_BUNDLE_ID_PREFIX).shared</string>
 	<!-- ownsteps://auth ends the OIDC sign-in, ownsteps://join opens a share link ([D18]). -->
 	<key>CFBundleURLTypes</key>
 	<array>

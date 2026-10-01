@@ -8,6 +8,7 @@ API (`/api/v1`) and can be signed in to several servers at once.
 ```
 ios/
 ├── OwnSteps/                 App target: SwiftUI views, app state, strings
+├── ShareExtension/           Share Extension: shared photos become a step
 ├── Packages/OwnStepsKit/     Swift package with everything testable
 │   ├── Sources/OwnStepsAPI/  Generated API client (from openapi.json)
 │   └── Sources/OwnStepsKit/  Server address, sign-in, tokens, accounts
@@ -18,7 +19,10 @@ ios/
 
 1. `cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig` and enter your
    team ID. Forks also set their own `APP_BUNDLE_ID_PREFIX` there – bundle IDs
-   are unique per App Store account.
+   are unique per App Store account. App and Share Extension share an app
+   group and a keychain group derived from the prefix, so the team needs the
+   App Groups capability (any paid developer account has it). Without it the
+   app still works; the extension then says it can't reach the app's data.
 2. Open `OwnSteps.xcodeproj`. Xcode asks once to trust the
    `OpenAPIGenerator` build plugin; it generates the API client at build time.
 

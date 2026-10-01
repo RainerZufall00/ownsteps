@@ -46,7 +46,7 @@ public actor UploadQueue {
     }
 
     private let database: DatabaseQueue
-    private let directory: URL
+    private let files: QueueFiles
     private let transport: any UploadTransport
     private let clientFor: @Sendable (UUID) -> ServerClient?
     private let now: @Sendable () -> Date
@@ -60,11 +60,10 @@ public actor UploadQueue {
         clientFor: @escaping @Sendable (UUID) -> ServerClient?
     ) {
         self.database = database.queue
-        self.directory = directory
+        self.files = QueueFiles(directory: directory)
         self.transport = transport
         self.now = now
         self.clientFor = clientFor
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     }
 
     // MARK: Adding
@@ -81,25 +80,15 @@ public actor UploadQueue {
         occurredAt: Date,
         media: [NewMedia]
     ) throws -> String {
-        let body = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        let placeName = placeName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-        let step = PendingStep(
-            clientUUID: UUID().uuidString.lowercased(),
-            accountID: accountID,
-            tripID: tripID,
-            body: body,
-            placeName: placeName,
-            lat: lat,
-            lon: lon,
-            occurredAt: occurredAt,
-            // A step without text or place appears with its first photo ([E7]).
-            publish: !body.isEmpty || placeName != nil,
-            serverStepID: nil,
-            lastError: nil,
-            createdAt: now()
+        let step = PendingStep.new(
+            accountID: accountID, tripID: tripID, body: body, placeName: placeName,
+            lat: lat, lon: lon, occurredAt: occurredAt, now: now()
         )
         let uploads = try media.enumerated().map { index, item in
-            try makeUpload(item, accountID: accountID, tripID: tripID, index: index, stepClientUUID: step.clientUUID)
+            try files.adopt(
+                item, accountID: accountID, tripID: tripID, index: index,
+                stepClientUUID: step.clientUUID, now: now()
+            )
         }
         try database.write { db in
             try step.insert(db)
@@ -111,7 +100,9 @@ public actor UploadQueue {
     /// More photos for a step the server already has.
     public func enqueueMedia(accountID: UUID, tripID: Int, stepID: Int, media: [NewMedia]) throws {
         let uploads = try media.enumerated().map { index, item in
-            var upload = try makeUpload(item, accountID: accountID, tripID: tripID, index: index, stepClientUUID: nil)
+            var upload = try files.adopt(
+                item, accountID: accountID, tripID: tripID, index: index, stepClientUUID: nil, now: now()
+            )
             upload.stepID = stepID
             return upload
         }
@@ -120,48 +111,32 @@ public actor UploadQueue {
         }
     }
 
-    private func makeUpload(
-        _ item: NewMedia,
-        accountID: UUID,
-        tripID: Int,
-        index: Int,
-        stepClientUUID: String?
-    ) throws -> PendingUpload {
-        let uuid = UUID().uuidString.lowercased()
-        let fileName = "\(uuid).\(item.file.pathExtension.isEmpty ? "bin" : item.file.pathExtension)"
-        try FileManager.default.moveItem(at: item.file, to: directory.appending(path: fileName))
-        var posterName: String?
-        if let poster = item.poster {
-            posterName = "\(uuid)-poster.jpg"
-            try FileManager.default.moveItem(at: poster, to: directory.appending(path: posterName!))
+    /// Takes over what the Share Extension wrote ([D21]). Run before the
+    /// background sessions reconnect, so their results find their rows.
+    public func importInbox(_ inbox: ShareInbox) async {
+        for (file, submission) in inbox.submissions() {
+            do {
+                try await database.write { db in
+                    try submission.step.save(db)
+                    for upload in submission.uploads { try upload.save(db) }
+                }
+                try? FileManager.default.removeItem(at: file)
+            } catch {
+                // Stays in the inbox for the next try.
+            }
         }
-        var thumbnailName: String?
-        if let thumbnail = item.thumbnail {
-            thumbnailName = "\(uuid)-thumb.jpg"
-            try FileManager.default.moveItem(at: thumbnail, to: directory.appending(path: thumbnailName!))
+    }
+
+    /// Background sessions of the Share Extension that still have uploads
+    /// running – the app reconnects to them to hear how they ended.
+    public func shareSessionIDs() async -> Set<String> {
+        let ids = try? await database.read { db in
+            try String.fetchAll(db, sql: """
+                SELECT DISTINCT session_id FROM pending_upload
+                WHERE session_id IS NOT NULL AND state = ?
+                """, arguments: [PendingUpload.State.uploading.rawValue])
         }
-        let size = (try? directory.appending(path: fileName).resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        return PendingUpload(
-            clientUUID: uuid,
-            accountID: accountID,
-            tripID: tripID,
-            stepClientUUID: stepClientUUID,
-            stepID: nil,
-            sortIndex: index,
-            assetID: item.assetID,
-            fileName: fileName,
-            posterName: posterName,
-            thumbnailName: thumbnailName,
-            mime: item.mime,
-            durationMs: item.durationMs,
-            byteCount: Int64(size),
-            state: .queued,
-            attempts: 0,
-            notBefore: nil,
-            lastError: nil,
-            photoID: nil,
-            createdAt: now()
-        )
+        return Set(ids ?? [])
     }
 
     // MARK: Working through
@@ -186,6 +161,7 @@ public actor UploadQueue {
             let uploading = try PendingUpload.filter(Column("state") == PendingUpload.State.uploading.rawValue).fetchAll(db)
             for var upload in uploading where !active.contains(upload.clientUUID) {
                 upload.state = .queued
+                upload.sessionID = nil
                 try upload.update(db)
             }
         }
@@ -244,8 +220,9 @@ public actor UploadQueue {
         for var upload in due {
             guard let stepID = upload.stepID, let client = clientFor(upload.accountID) else { continue }
             do {
-                let body = try bodyFile(for: upload)
+                let body = try files.bodyFile(for: upload)
                 upload.state = .uploading
+                upload.sessionID = nil
                 try await database.write { [upload] db in try upload.update(db) }
                 await transport.start(
                     request: client.mediaUploadRequest(stepID: stepID, contentType: body.contentType),
@@ -258,40 +235,6 @@ public actor UploadQueue {
                 try? await database.write { [upload] db in try upload.update(db) }
             }
         }
-    }
-
-    /// The multipart body is written once and kept until the upload
-    /// succeeded, so retries don't need the original files any more.
-    private func bodyFile(for upload: PendingUpload) throws -> (url: URL, contentType: String) {
-        let url = directory.appending(path: "\(upload.clientUUID).body")
-        let boundaryFile = directory.appending(path: "\(upload.clientUUID).boundary")
-        if FileManager.default.fileExists(atPath: url.path(percentEncoded: false)),
-           let boundary = try? String(contentsOf: boundaryFile, encoding: .utf8)
-        {
-            return (url, MultipartBody(boundary: boundary).contentType)
-        }
-
-        let multipart = MultipartBody()
-        let file = directory.appending(path: upload.fileName)
-        var parts: [MultipartBody.Part] = [
-            .field(name: "clientUuid", value: upload.clientUUID),
-            .file(name: "file", fileName: upload.fileName, mime: upload.mime, url: file),
-        ]
-        if let poster = upload.posterName {
-            parts.append(.file(name: "poster", fileName: poster, mime: "image/jpeg", url: directory.appending(path: poster)))
-        }
-        if let duration = upload.durationMs {
-            parts.append(.field(name: "durationMs", value: String(duration)))
-        }
-        try multipart.write(parts, to: url)
-        try multipart.boundary.write(to: boundaryFile, atomically: true, encoding: .utf8)
-
-        // The body holds everything now.
-        try? FileManager.default.removeItem(at: file)
-        if let poster = upload.posterName {
-            try? FileManager.default.removeItem(at: directory.appending(path: poster))
-        }
-        return (url, multipart.contentType)
     }
 
     // MARK: Results
@@ -316,7 +259,7 @@ public actor UploadQueue {
                 }
                 _ = try upload.delete(db)
             }
-            removeFiles(of: upload)
+            files.removeFiles(of: upload)
             try? await cleanUp()
             return
         }
@@ -328,6 +271,7 @@ public actor UploadQueue {
             upload.lastError = code ?? "http_\(statusCode)"
         } else {
             upload.state = .queued
+            upload.sessionID = nil
             upload.attempts += 1
             upload.lastError = statusCode == 401 ? "not_signed_in" : (code ?? "network")
             upload.notBefore = now().addingTimeInterval(Self.backoff(attempts: upload.attempts))
@@ -362,16 +306,6 @@ public actor UploadQueue {
         }
     }
 
-    private func removeFiles(of upload: PendingUpload) {
-        for name in [
-            upload.fileName, upload.posterName, upload.thumbnailName,
-            "\(upload.clientUUID).body", "\(upload.clientUUID).boundary",
-        ] {
-            guard let name else { continue }
-            try? FileManager.default.removeItem(at: directory.appending(path: name))
-        }
-    }
-
     // MARK: Managing
 
     /// Gives a failed upload another try.
@@ -392,7 +326,7 @@ public actor UploadQueue {
             _ = try upload?.delete(db)
             return upload
         }) else { return }
-        removeFiles(of: upload)
+        files.removeFiles(of: upload)
         try? await cleanUp()
     }
 
@@ -403,7 +337,7 @@ public actor UploadQueue {
             _ = try PendingStep.deleteOne(db, key: clientUUID)
             return uploads
         }) ?? []
-        uploads.forEach(removeFiles)
+        uploads.forEach(files.removeFiles)
     }
 
     /// Signing out forgets what the account still had queued.
@@ -413,16 +347,17 @@ public actor UploadQueue {
             try PendingStep.filter(Column("account_id") == accountID.uuidString).deleteAll(db)
             try PendingUpload.filter(Column("account_id") == accountID.uuidString).deleteAll(db)
             try db.execute(sql: "DELETE FROM uploaded_asset WHERE account_id = ?", arguments: [accountID.uuidString])
+            try db.execute(sql: "DELETE FROM ignored_asset WHERE account_id = ?", arguments: [accountID.uuidString])
             return uploads
         }) ?? []
-        uploads.forEach(removeFiles)
+        uploads.forEach(files.removeFiles)
     }
 
     // MARK: Reading
 
     /// Where an upload's preview lives, if it has one.
     public nonisolated func thumbnailURL(for upload: PendingUpload) -> URL? {
-        upload.thumbnailName.map { directory.appending(path: $0) }
+        upload.thumbnailName.map(files.url)
     }
 
     public nonisolated func snapshot(accountID: UUID, tripID: Int) throws -> UploadSnapshot {
@@ -445,6 +380,28 @@ public actor UploadQueue {
                 sql: "SELECT asset_id FROM uploaded_asset WHERE account_id = ?",
                 arguments: [accountID.uuidString]
             ))
+        }
+    }
+
+    /// Library assets the user doesn't want suggested ([D22]).
+    public nonisolated func ignoredAssetIDs(accountID: UUID) throws -> Set<String> {
+        try database.read { db in
+            Set(try String.fetchAll(
+                db,
+                sql: "SELECT asset_id FROM ignored_asset WHERE account_id = ?",
+                arguments: [accountID.uuidString]
+            ))
+        }
+    }
+
+    public nonisolated func ignoreAssets(_ assetIDs: [String], accountID: UUID) throws {
+        try database.write { db in
+            for id in assetIDs {
+                try db.execute(
+                    sql: "INSERT OR IGNORE INTO ignored_asset (account_id, asset_id) VALUES (?, ?)",
+                    arguments: [accountID.uuidString, id]
+                )
+            }
         }
     }
 

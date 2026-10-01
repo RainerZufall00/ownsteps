@@ -1,8 +1,9 @@
-// Shared build settings for the OwnSteps app.
+// Shared build settings for the OwnSteps app and its Share Extension.
 // Local values (signing team, own bundle ID) go into Secrets.xcconfig, which
 // is ignored by Git. Start with: cp Secrets.example.xcconfig Secrets.xcconfig
 
-// Bundle IDs, the app group and the keychain group derive from this prefix.
+// Bundle IDs, the app group (group.<prefix>.app) and the shared keychain
+// group (<TeamID>.<prefix>.shared) derive from this prefix.
 APP_BUNDLE_ID_PREFIX = de.ownsteps
 
 // Empty unless set locally; Xcode then asks for a team when building for a device.

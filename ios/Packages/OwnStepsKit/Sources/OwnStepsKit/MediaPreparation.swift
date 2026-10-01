@@ -12,6 +12,93 @@ public enum MediaPreparation {
         case unreadableImage
         case unreadableVideo
         case exportFailed
+        case videoTooLarge
+    }
+
+    /// A photo or video ready for the upload queue, in the temporary folder.
+    public struct Prepared: Sendable {
+        public let media: UploadQueue.NewMedia
+        public let captureDate: Date?
+
+        public init(media: UploadQueue.NewMedia, captureDate: Date?) {
+            self.media = media
+            self.captureDate = captureDate
+        }
+
+        /// Deletes the files again, e.g. when the user cancels.
+        public func discard() {
+            for url in [media.file, media.poster, media.thumbnail].compactMap({ $0 }) {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+    }
+
+    /// A photo as JPEG plus preview. `fallbackDate` and `location` come
+    /// from the library when the file itself lacks them.
+    public static func preparePhoto(
+        data: Data,
+        location: CLLocation? = nil,
+        fallbackDate: Date? = nil,
+        timeZone: TimeZone,
+        assetID: String? = nil
+    ) throws -> Prepared {
+        let jpeg = try self.jpeg(from: data, location: location)
+        let file = temporaryFile("jpg")
+        try jpeg.write(to: file)
+        var thumbnail: URL?
+        if let preview = self.thumbnail(fromImage: jpeg) {
+            thumbnail = temporaryFile("jpg")
+            try preview.write(to: thumbnail!)
+        }
+        return Prepared(
+            media: .init(file: file, thumbnail: thumbnail, mime: "image/jpeg", assetID: assetID),
+            captureDate: captureDate(in: data, timeZone: timeZone) ?? fallbackDate
+        )
+    }
+
+    /// A video file, reduced to 1080p unless `original`, with poster frame
+    /// and preview. Takes ownership of `url`.
+    public static func prepareVideo(
+        at url: URL,
+        original: Bool,
+        fallbackDate: Date? = nil,
+        assetID: String? = nil
+    ) async throws -> Prepared {
+        var file = url
+        var mime = url.pathExtension.lowercased() == "mov" ? "video/quicktime" : "video/mp4"
+        if !original {
+            let exported = temporaryFile("mp4")
+            try await exportVideo(from: AVURLAsset(url: url), to: exported)
+            try? FileManager.default.removeItem(at: url)
+            file = exported
+            mime = "video/mp4"
+        }
+        let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        guard size <= maxVideoBytes else {
+            try? FileManager.default.removeItem(at: file)
+            throw Problem.videoTooLarge
+        }
+
+        let (posterData, duration) = try await poster(forVideoAt: file)
+        let poster = temporaryFile("jpg")
+        try posterData.write(to: poster)
+        var thumbnail: URL?
+        if let preview = self.thumbnail(fromImage: posterData) {
+            thumbnail = temporaryFile("jpg")
+            try preview.write(to: thumbnail!)
+        }
+        let recorded = try? await AVURLAsset(url: file).load(.creationDate)?.load(.dateValue)
+        return Prepared(
+            media: .init(
+                file: file, poster: poster, thumbnail: thumbnail, mime: mime,
+                durationMs: duration, assetID: assetID
+            ),
+            captureDate: fallbackDate ?? recorded
+        )
+    }
+
+    public static func temporaryFile(_ pathExtension: String) -> URL {
+        URL.temporaryDirectory.appending(path: "\(UUID().uuidString).\(pathExtension)")
     }
 
     /// Server limit for images ([limits.ts]).
@@ -137,8 +224,7 @@ public enum MediaPreparation {
     /// Re-encodes a video to at most 1080p as MP4 – usually a third to a
     /// fifth of the original size, so uploads on the road finish ([D20]).
     /// Metadata like the recording location is carried over.
-    public static func exportVideo(from source: URL, to destination: URL) async throws {
-        let asset = AVURLAsset(url: source)
+    public static func exportVideo(from asset: AVAsset, to destination: URL) async throws {
         guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1920x1080) else {
             throw Problem.exportFailed
         }

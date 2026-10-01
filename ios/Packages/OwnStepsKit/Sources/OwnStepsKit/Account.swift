@@ -53,7 +53,7 @@ public struct AccountStore: Sendable {
     private let key = "accounts.v1"
     private let defaultsName: String?
 
-    /// `suiteName` will be the app group once the Share Extension needs it.
+    /// `suiteName` is the app group, so the Share Extension sees the accounts.
     public init(suiteName: String? = nil) {
         self.defaultsName = suiteName
     }
@@ -63,6 +63,13 @@ public struct AccountStore: Sendable {
     }
 
     public func load() -> [Account] {
+        // Saved before the app group existed: carry the list over once.
+        if defaults.data(forKey: key) == nil, defaults != .standard,
+           let old = UserDefaults.standard.data(forKey: key)
+        {
+            defaults.set(old, forKey: key)
+            UserDefaults.standard.removeObject(forKey: key)
+        }
         guard let data = defaults.data(forKey: key) else { return [] }
         return (try? JSONDecoder().decode([Account].self, from: data)) ?? []
     }

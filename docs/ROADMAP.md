@@ -92,12 +92,12 @@ architecture doc and the phase is ticked off here.
   - offline step creation, upload queue on a background `URLSession`
   - HEIC → JPEG, video compression and poster frame, Live Photo still
   - trip create/edit
-- [ ] **4d Convenience:** Share Extension, photo suggestions, share sheet
+- [x] **4d Convenience:** Share Extension, photo suggestions, share sheet
 - [ ] **4e Viewers:**
   - redeem the invite via `ownsteps://`
   - several instances in one app
   - `BGAppRefreshTask` plus local notifications for authors and viewers
-- [ ] String Catalogs en/de from day one (up to date through 4c).
+- [ ] String Catalogs en/de from day one (up to date through 4d).
 
 ### Phase 5 – Code review ("strangers run this now")
 - [ ] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices.

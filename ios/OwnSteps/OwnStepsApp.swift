@@ -28,9 +28,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         handleEventsForBackgroundURLSession identifier: String,
         completionHandler: @escaping () -> Void
     ) {
-        guard identifier == BackgroundUploader.sessionIdentifier else { return completionHandler() }
-        model.uploader.backgroundEventsCompletion = completionHandler
-        model.uploader.activate()
+        // The app's own session, or one the Share Extension left running.
+        guard identifier == BackgroundUploader.sessionIdentifier
+            || identifier.hasPrefix(BackgroundUploader.shareSessionPrefix)
+        else { return completionHandler() }
+        model.handleBackgroundEvents(for: identifier, completion: completionHandler)
     }
 }
 

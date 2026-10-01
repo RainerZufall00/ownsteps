@@ -1,4 +1,5 @@
 import OwnStepsKit
+import Photos
 import SwiftUI
 
 /// One trip: timeline or map, like the web's phone layout. Shows the cached
@@ -17,8 +18,16 @@ struct TripView: View {
     @State private var scrollTarget: Int?
     @State private var queue = UploadSnapshot()
     @State private var composer: StepComposerView.Mode?
+    /// Preselected for the composer, from the photo suggestions.
+    @State private var composerAssets: [PHAsset] = []
     @State private var editing: Components.Schemas.Step?
     @State private var editingTrip = false
+    @State private var suggestions: [PHAsset] = []
+    /// "Not now" hides the card until newer photos turn up.
+    @State private var suggestionsDismissedUntil: Date?
+    @State private var showingSuggestions = false
+    @State private var photoAccessDenied = false
+    @State private var enableSharingFor: ShareTarget?
 
     private var calendar: TripCalendar { model.calendar(for: account) }
 
@@ -36,8 +45,10 @@ struct TripView: View {
                         scrollTarget: $scrollTarget,
                         actions: .init(
                             edit: { editing = $0 },
-                            addPhotos: { composer = .addTo(tripID: tripID, stepID: $0.id) }
-                        )
+                            addPhotos: { composer = .addTo(tripID: tripID, stepID: $0.id) },
+                            share: { share(.step($0.id)) }
+                        ),
+                        suggestions: suggestionsBanner
                     )
                 case .map:
                     TripMapView(account: account, trip: trip, calendar: calendar) { stepID in
@@ -65,6 +76,8 @@ struct TripView: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
                     Button("Edit trip", systemImage: "pencil") { editingTrip = true }
+                    Button("Share trip …", systemImage: "square.and.arrow.up") { share(.trip) }
+                    Button("Photo suggestions", systemImage: "photo.stack") { Task { await reviewSuggestions() } }
                 } label: {
                     Image(systemName: "ellipsis")
                 }
@@ -87,9 +100,37 @@ struct TripView: View {
         .task(id: tripID) { await watchQueue() }
         .sheet(item: Binding(
             get: { composer.map(ComposerRequest.init) },
-            set: { composer = $0?.mode }
+            set: { composer = $0?.mode; if $0 == nil { composerAssets = [] } }
         )) { request in
-            StepComposerView(account: account, mode: request.mode)
+            StepComposerView(account: account, mode: request.mode, assets: composerAssets)
+        }
+        .sheet(isPresented: $showingSuggestions) {
+            PhotoSuggestionsView(assets: suggestions, calendar: calendar) { chosen in
+                composerAssets = chosen
+                // After the suggestions sheet is gone.
+                Task { @MainActor in composer = .new(tripID: tripID) }
+            } ignore: { hidden in
+                try? model.uploads.ignoreAssets(hidden.map(\.localIdentifier), accountID: account.id)
+                updateSuggestions()
+            }
+        }
+        .confirmationDialog(
+            "Sharing is off for this trip",
+            isPresented: Binding(get: { enableSharingFor != nil }, set: { if !$0 { enableSharingFor = nil } }),
+            titleVisibility: .visible,
+            presenting: enableSharingFor
+        ) { target in
+            Button("Turn on sharing and share") { Task { await enableSharing(then: target) } }
+        } message: { _ in
+            Text("Anyone with the link can then read the trip.")
+        }
+        .alert("No access to your photos", isPresented: $photoAccessDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("To suggest photos from this trip, OwnSteps needs to read your photo library.")
         }
         .sheet(item: $editing) { step in
             EditStepView(account: account, step: step) { Task { await refresh() } }
@@ -100,6 +141,53 @@ struct TripView: View {
                     Task { await refresh() }
                 }
             }
+        }
+    }
+
+    /// The card above the timeline, unless dismissed for these photos.
+    private var suggestionsBanner: SuggestionsBanner? {
+        guard let newest = suggestions.last?.creationDate else { return nil }
+        if let dismissed = suggestionsDismissedUntil, newest <= dismissed { return nil }
+        return SuggestionsBanner(count: suggestions.count) {
+            showingSuggestions = true
+        } dismiss: {
+            LibrarySuggestions.dismiss(suggestions, account: account, tripID: tripID)
+            suggestionsDismissedUntil = LibrarySuggestions.dismissedUntil(account: account, tripID: tripID)
+        }
+    }
+
+    /// Without photo access nothing is asked here – only the menu asks.
+    private func updateSuggestions() {
+        guard let trip else { return }
+        suggestionsDismissedUntil = LibrarySuggestions.dismissedUntil(account: account, tripID: tripID)
+        suggestions = LibrarySuggestions.find(for: trip, account: account, calendar: calendar, uploads: model.uploads)
+    }
+
+    private func reviewSuggestions() async {
+        guard await LibrarySuggestions.requestAccess() else {
+            photoAccessDenied = true
+            return
+        }
+        updateSuggestions()
+        showingSuggestions = true
+    }
+
+    private func share(_ target: ShareTarget) {
+        if let url = target.url(in: trip?.share) {
+            ShareSheet.present(url)
+        } else {
+            enableSharingFor = target
+        }
+    }
+
+    private func enableSharing(then target: ShareTarget) async {
+        do {
+            let updated = try await model.client(for: account).updateTrip(id: tripID, .init(shareEnabled: true))
+            trip?.share = updated.share
+            if let url = target.url(in: updated.share) { ShareSheet.present(url) }
+            await refresh()
+        } catch {
+            self.error = ErrorText.message(for: error)
         }
     }
 
@@ -161,6 +249,7 @@ struct TripView: View {
             error = nil
             try? model.cache.saveTrip(fresh, for: account.id)
             prefetch(fresh)
+            updateSuggestions()
         } catch let api as APIError where api.isUnauthorized {
             model.signedOutByServer(account)
         } catch let api as APIError where api.code == "trip_not_found" {
@@ -188,6 +277,7 @@ struct TimelineView: View {
     let queue: UploadSnapshot
     @Binding var scrollTarget: Int?
     let actions: StepActions
+    var suggestions: SuggestionsBanner?
 
     /// One fullscreen viewer for the whole timeline. With one per row,
     /// List's cell reuse presented another step's photos.
@@ -201,6 +291,12 @@ struct TimelineView: View {
                     TripHeader(trip: trip, calendar: calendar)
                 } footer: {
                     if let staleSince { OfflineNote(fetchedAt: staleSince) }
+                }
+
+                if let suggestions {
+                    Section {
+                        SuggestionsCard(count: suggestions.count, review: suggestions.review, dismiss: suggestions.dismiss)
+                    }
                 }
 
                 if trip.steps.isEmpty && queue.localSteps.isEmpty {
@@ -325,6 +421,7 @@ struct StepCard: View {
                     Menu {
                         Button("Edit", systemImage: "pencil") { actions.edit(step) }
                         Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
+                        Button("Share …", systemImage: "square.and.arrow.up") { actions.share(step) }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .foregroundStyle(.secondary)
@@ -364,6 +461,13 @@ struct StepCard: View {
 struct StepActions {
     let edit: (Components.Schemas.Step) -> Void
     let addPhotos: (Components.Schemas.Step) -> Void
+    let share: (Components.Schemas.Step) -> Void
+}
+
+struct SuggestionsBanner {
+    let count: Int
+    let review: () -> Void
+    let dismiss: () -> Void
 }
 
 struct ComposerRequest: Identifiable {

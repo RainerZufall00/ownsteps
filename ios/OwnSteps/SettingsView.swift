@@ -4,7 +4,8 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("uploadOriginalVideos") private var originalVideos = false
+    @AppStorage(SharedContainer.originalVideosKey, store: .shared)
+    private var originalVideos = false
     @State private var accountToSignOut: Account?
 
     var body: some View {

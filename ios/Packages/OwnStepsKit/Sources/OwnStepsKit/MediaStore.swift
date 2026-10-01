@@ -8,11 +8,21 @@ public actor MediaStore {
     private let session: URLSession
     private let memory = NSCache<NSString, NSData>()
 
-    public init(directory: URL, session: URLSession = .shared) {
+    public init(directory: URL, session: URLSession = MediaStore.uncachedSession) {
         self.directory = directory
         self.session = session
         memory.totalCostLimit = 64 * 1024 * 1024
     }
+
+    /// The files on disk are the cache. URLSession's own cache would keep a
+    /// second copy outside the account's folder – still there after signing
+    /// out, and stale when a restored server hands out a photo ID again.
+    public static let uncachedSession: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: configuration)
+    }()
 
     private func fileURL(accountID: UUID, photoID: Int, variant: MediaVariant) -> URL {
         directory

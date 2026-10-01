@@ -136,8 +136,10 @@ public struct ServerClient: Sendable {
     /// Photo and video files go around the generated client: images are
     /// cached by `MediaStore`, videos streamed by AVPlayer.
     public func mediaRequest(photoID: Int, variant: MediaVariant) -> URLRequest {
+        // MediaStore keeps the files; nothing goes into URLCache.
         var request = URLRequest(
-            url: baseURL.appending(path: "api/v1/photos/\(photoID)/\(variant.rawValue)")
+            url: baseURL.appending(path: "api/v1/photos/\(photoID)/\(variant.rawValue)"),
+            cachePolicy: .reloadIgnoringLocalCacheData
         )
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         return request

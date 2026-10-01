@@ -352,7 +352,49 @@ fit under 25 MB; Live Photos contribute their still. Videos are exported to
 1080p MP4 unless "Videos in original quality" is on, and get a poster frame
 and their duration. The step's date defaults to the oldest capture date.
 `uploaded_asset` remembers which library photos already went up, for the
-photo suggestions of 4d.
+photo suggestions.
+
+**Convenience** (phase 4d, [D21]/[D22]):
+
+- *Share Extension* (`ios/ShareExtension/`): photos and videos shared from
+  Photos or another app become a new step in a chosen trip. App and
+  extension share an app group (`group.<prefix>.app`: account list, upload
+  folder, an inbox, the trip list as `share-targets.json`) and a keychain
+  group (`<TeamID>.<prefix>.shared`: the tokens). **Only the app opens the
+  SQLite file** – iOS ends a suspended process that holds a lock on a file
+  in a shared container, and two writers to one queue invite exactly that.
+  The extension instead writes its step and files into the inbox first
+  (`ShareSubmitter`), then creates the step and starts the uploads in a
+  background session of its own (`ownsteps.share.<uuid>`, one per share, so
+  app and extension never use the same session at once). On every launch
+  the app takes the inbox into its queue (`importInbox`) *before* it joins
+  the extension's sessions, so their results find their rows. Uploads that
+  finish while the extension still runs report to the extension; it takes
+  them off its submission, otherwise the app would send them again (the
+  server would only answer with the existing photo, but the bytes go out
+  twice). Offline, the extension just leaves the submission for the app.
+  Media preparation is shared code (`MediaPreparation.preparePhoto/Video`)
+  and runs one file at a time – an extension gets far less memory.
+- *Photo suggestions*: library photos from the trip's period that aren't in
+  it. The period is the entered dates, else the steps; without an end date
+  it runs until now, at most two weeks past the last step. Out are
+  screenshots, what this device uploaded (`uploaded_asset`), what the user
+  hid (`ignored_asset`) and what looks like a photo already on the server –
+  same capture second (allowing for whole quarter hours of zone offset, see
+  [E12]) plus same size, or same length for videos; that catches photos
+  uploaded through the web. The logic is `PhotoSuggestions` in the Kit and
+  tested there. The app only asks for photo access when the user opens the
+  suggestions from the trip menu; afterwards a card above the timeline says
+  how many are waiting ("Not now" hides it until newer photos turn up).
+- *Share sheet*: trip and step links are the trip's share link, for a step
+  with `#step-<id>`, which the web jumps to. With sharing off, the app offers
+  to switch it on first. `UIActivityViewController` is presented by UIKit –
+  inside a SwiftUI sheet it sits at the wrong height.
+
+Photos are cached on disk by `MediaStore` only; its session has no
+`URLCache`. The shared cache had kept a second copy outside the account's
+folder (still there after signing out) and served stale images when a
+server restored from a backup handed out a photo ID again.
 
 Two MapKit/SwiftUI traps: with `.hybrid(elevation: .realistic)` the map
 draws the route but no annotations at all, so the style stays flat. And a
@@ -365,7 +407,8 @@ and UUIDs end up as blobs.
 Bundle IDs derive from `APP_BUNDLE_ID_PREFIX` in `ios/Config/Base.xcconfig`
 (`de.ownsteps`); the signing team stays in the ignored `Secrets.xcconfig`, so
 forks build with their own prefix and team. Tokens live in the Keychain, the
-account list in UserDefaults. The PKCE challenge is computed the same way on
+account list in UserDefaults – both in the groups shared with the extension;
+entries saved before those existed are moved over on first read. The PKCE challenge is computed the same way on
 both sides; a test on each side checks the RFC 7636 example.
 
 ### Comments
@@ -1071,6 +1114,15 @@ Verified (production build, real HTTP requests):
   server stopped shows "Waiting to be sent" and arrives exactly once when the
   app returns to the foreground; editing the text, deleting a step and
   creating a trip with start date and cover all reach the database
+- iOS convenience, same setup: a photo and a video shared from the Photos app
+  through the extension arrive in the chosen trip while neither the
+  extension nor the app runs; the app then takes over the inbox without
+  sending anything twice. Shared offline, the step waits and goes out when
+  the app opens. Photo suggestions find exactly the library photos in the
+  trip's period, hiding one keeps it away, adding one opens the composer
+  with the photo's date. Trip and step links open the share page (with
+  `#step-<id>`); for an unshared trip the app switches sharing on first.
+  Signed-in accounts and tokens moved into the shared groups on update
 
 Not verified – be careful when building on these:
 

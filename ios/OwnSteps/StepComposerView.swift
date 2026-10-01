@@ -1,11 +1,13 @@
 import CoreLocation
 import OwnStepsKit
+import Photos
 import PhotosUI
 import SwiftUI
 
 /// Writing a step – also without a connection ([D19]). Everything goes into
 /// the upload queue on save; the queue brings it to the server when it can.
-/// In `addTo` mode it only adds photos to an existing step.
+/// In `addTo` mode it only adds photos to an existing step. `assets` come
+/// preselected, e.g. from the photo suggestions ([D22]).
 struct StepComposerView: View {
     enum Mode: Equatable {
         case new(tripID: Int)
@@ -14,13 +16,16 @@ struct StepComposerView: View {
 
     let account: Account
     let mode: Mode
+    var assets: [PHAsset] = []
 
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("uploadOriginalVideos") private var originalVideos = false
+    @AppStorage(SharedContainer.originalVideosKey, store: .shared)
+    private var originalVideos = false
 
     @State private var selection: [PhotosPickerItem] = []
     @State private var prepared: [PhotosPickerItem: PreparedMedia] = [:]
+    @State private var preparedAssets: [String: PreparedMedia] = [:]
     @State private var preparing = false
     @State private var bodyText = ""
     @State private var placeName = ""
@@ -35,27 +40,45 @@ struct StepComposerView: View {
 
     private var canSave: Bool {
         guard !preparing, !locating else { return false }
+        let hasMedia = !selection.isEmpty || !assets.isEmpty
         if isNew {
-            return !selection.isEmpty || !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return hasMedia || !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || !placeName.trimmingCharacters(in: .whitespaces).isEmpty
         }
-        return !selection.isEmpty
+        return hasMedia
+    }
+
+    /// Suggested assets first, then what was picked – the order they're uploaded in.
+    private var previewItems: [PreviewStrip.Item] {
+        assets.map { .init(id: $0.localIdentifier, prepared: preparedAssets[$0.localIdentifier]) }
+            + selection.map { .init(id: "\($0.hashValue)", prepared: prepared[$0]) }
+    }
+
+    private var pickerTitle: String {
+        if !selection.isEmpty { return String(localized: "Change selection") }
+        return assets.isEmpty ? String(localized: "Add photos or videos") : String(localized: "Add more")
+    }
+
+    private var allPrepared: [PreparedMedia] {
+        Array(prepared.values) + Array(preparedAssets.values)
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
+                    // The label closure is Sendable: read the state outside.
+                    let title = pickerTitle
                     PhotosPicker(
                         selection: $selection,
                         matching: .any(of: [.images, .videos]),
                         preferredItemEncoding: .current,
                         photoLibrary: .shared()
                     ) {
-                        Label(selection.isEmpty ? "Add photos or videos" : "Change selection", systemImage: "photo.on.rectangle.angled")
+                        Label(title, systemImage: "photo.on.rectangle.angled")
                     }
-                    if !selection.isEmpty {
-                        PreviewStrip(items: selection, prepared: prepared)
+                    if !previewItems.isEmpty {
+                        PreviewStrip(items: previewItems)
                     }
                     if preparing {
                         Label("Preparing photos …", systemImage: "hourglass")
@@ -109,7 +132,7 @@ struct StepComposerView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) {
-                        discardPrepared(Array(prepared.values))
+                        allPrepared.forEach { $0.discard() }
                         dismiss()
                     }
                 }
@@ -118,7 +141,8 @@ struct StepComposerView: View {
                 }
             }
             .onChange(of: selection) { prepareSelection() }
-            .interactiveDismissDisabled(preparing || !selection.isEmpty || !bodyText.isEmpty)
+            .task { await prepareAssets() }
+            .interactiveDismissDisabled(preparing || !selection.isEmpty || !assets.isEmpty || !bodyText.isEmpty)
         }
     }
 
@@ -126,7 +150,7 @@ struct StepComposerView: View {
     /// default to the earliest photo.
     private func prepareSelection() {
         let removed = prepared.keys.filter { !selection.contains($0) }
-        discardPrepared(removed.compactMap { prepared.removeValue(forKey: $0) })
+        removed.compactMap { prepared.removeValue(forKey: $0) }.forEach { $0.discard() }
         let missing = selection.filter { prepared[$0] == nil }
         guard !missing.isEmpty else { return }
 
@@ -136,18 +160,34 @@ struct StepComposerView: View {
             defer { preparing = false }
             do {
                 let results = try await MediaImporter.prepare(
-                    missing,
-                    timeZone: calendar.calendar.timeZone,
-                    originalVideos: originalVideos,
-                    progress: { _ in }
+                    missing, timeZone: calendar.calendar.timeZone, originalVideos: originalVideos
                 )
                 for (item, result) in zip(missing, results) { prepared[item] = result }
-                if !dateTouched, let earliest = prepared.values.compactMap(\.captureDate).min() {
-                    date = earliest
-                }
+                adoptEarliestDate()
             } catch {
                 self.error = error.localizedDescription
             }
+        }
+    }
+
+    private func prepareAssets() async {
+        guard !assets.isEmpty, preparedAssets.isEmpty else { return }
+        preparing = true
+        defer { preparing = false }
+        do {
+            let results = try await MediaImporter.prepare(
+                assets, timeZone: calendar.calendar.timeZone, originalVideos: originalVideos
+            )
+            for (asset, result) in zip(assets, results) { preparedAssets[asset.localIdentifier] = result }
+            adoptEarliestDate()
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func adoptEarliestDate() {
+        if !dateTouched, let earliest = allPrepared.compactMap(\.captureDate).min() {
+            date = earliest
         }
     }
 
@@ -171,9 +211,10 @@ struct StepComposerView: View {
     }
 
     private func save() {
-        let media = selection.compactMap { prepared[$0]?.media }
+        let media = assets.compactMap { preparedAssets[$0.localIdentifier]?.media }
+            + selection.compactMap { prepared[$0]?.media }
         do {
-            guard media.count == selection.count else { throw MediaImporter.Problem.unreadable }
+            guard media.count == selection.count + assets.count else { throw MediaImporter.Problem.unreadable }
             switch mode {
             case .new(let tripID):
                 enqueueNew(tripID: tripID, media: media)
@@ -194,7 +235,7 @@ struct StepComposerView: View {
         let uploads = model.uploads
         let accountID = account.id
         Task {
-            try? await uploads.enqueueStep(
+            _ = try? await uploads.enqueueStep(
                 accountID: accountID,
                 tripID: tripID,
                 body: body,
@@ -207,33 +248,29 @@ struct StepComposerView: View {
             model.resumeUploads()
         }
     }
-
-    private func discardPrepared(_ items: [PreparedMedia]) {
-        for item in items {
-            for url in [item.media.file, item.media.poster, item.media.thumbnail].compactMap({ $0 }) {
-                try? FileManager.default.removeItem(at: url)
-            }
-        }
-    }
 }
 
-/// The picked photos as small squares, filled in as they're prepared.
+/// The chosen photos as small squares, filled in as they're prepared.
 private struct PreviewStrip: View {
-    let items: [PhotosPickerItem]
-    let prepared: [PhotosPickerItem: PreparedMedia]
+    struct Item: Identifiable {
+        let id: String
+        let prepared: PreparedMedia?
+    }
+
+    let items: [Item]
 
     var body: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 6) {
-                ForEach(items, id: \.self) { item in
+                ForEach(items) { item in
                     ZStack {
-                        if let url = prepared[item]?.media.thumbnail, let image = UIImage(contentsOfFile: url.path(percentEncoded: false)) {
+                        if let url = item.prepared?.media.thumbnail, let image = UIImage(contentsOfFile: url.path(percentEncoded: false)) {
                             Image(uiImage: image).resizable().scaledToFill()
                         } else {
                             Rectangle().fill(.quaternary)
                             ProgressView()
                         }
-                        if prepared[item]?.media.mime.hasPrefix("video/") == true {
+                        if item.prepared?.media.mime.hasPrefix("video/") == true {
                             Image(systemName: "play.circle.fill").foregroundStyle(.white, .black.opacity(0.4))
                         }
                     }

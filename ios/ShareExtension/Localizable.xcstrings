@@ -1,0 +1,216 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "A photo or video couldn't be read.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Foto oder Video ließ sich nicht lesen."
+          }
+        }
+      }
+    },
+    "A video is larger than 400 MB, even compressed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Video ist auch komprimiert größer als 400 MB."
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        }
+      }
+    },
+    "Date": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datum"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        }
+      }
+    },
+    "New step": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuer Beitrag"
+          }
+        }
+      }
+    },
+    "No trips yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Reisen"
+          }
+        }
+      }
+    },
+    "Not available": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht verfügbar"
+          }
+        }
+      }
+    },
+    "Not signed in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht angemeldet"
+          }
+        }
+      }
+    },
+    "Open OwnSteps and sign in to your server first.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne zuerst OwnSteps und melde dich bei deinem Server an."
+          }
+        }
+      }
+    },
+    "Open OwnSteps once, so your trips show up here. New trips are created in the app.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne OwnSteps einmal, damit deine Reisen hier erscheinen. Neue Reisen legst du in der App an."
+          }
+        }
+      }
+    },
+    "Preparing photos …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos werden vorbereitet …"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichern"
+          }
+        }
+      }
+    },
+    "Saved on this device": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem Gerät gespeichert"
+          }
+        }
+      }
+    },
+    "Tell about this day …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erzähl von diesem Tag …"
+          }
+        }
+      }
+    },
+    "The place comes from the photos when they carry it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Ort kommt aus den Fotos, sofern sie ihn enthalten."
+          }
+        }
+      }
+    },
+    "The step couldn't be saved.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Beitrag ließ sich nicht speichern."
+          }
+        }
+      }
+    },
+    "There's no connection to the server right now. OwnSteps sends the step the next time you open it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerade gibt es keine Verbindung zum Server. OwnSteps sendet den Beitrag, wenn du die App das nächste Mal öffnest."
+          }
+        }
+      }
+    },
+    "This copy of OwnSteps can't share data with its extension. Add the photos in the app instead.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese OwnSteps-Version kann keine Daten mit ihrer Erweiterung teilen. Füge die Fotos stattdessen in der App hinzu."
+          }
+        }
+      }
+    },
+    "Trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reise"
+          }
+        }
+      }
+    },
+    "What happened?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was ist passiert?"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

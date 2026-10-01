@@ -27,6 +27,46 @@
     "%lld / %lld": {
       "shouldTranslate": false
     },
+    "%lld photos from this trip aren't in it yet.": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Foto aus dieser Reise fehlt noch."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Fotos aus dieser Reise fehlen noch."
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photo from this trip isn't in it yet."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photos from this trip aren't in it yet."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld steps": {
       "localizations": {
         "en": {
@@ -110,6 +150,16 @@
         }
       }
     },
+    "Add more": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weitere hinzufügen"
+          }
+        }
+      }
+    },
     "Add photos": {
       "localizations": {
         "de": {
@@ -126,6 +176,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fotos oder Videos hinzufügen"
+          }
+        }
+      }
+    },
+    "Anyone with the link can then read the trip.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dann kann jeder mit dem Link die Reise lesen."
           }
         }
       }
@@ -250,6 +310,16 @@
         }
       }
     },
+    "Deselect": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abwählen"
+          }
+        }
+      }
+    },
     "Discard step": {
       "localizations": {
         "de": {
@@ -360,6 +430,16 @@
         }
       }
     },
+    "Hide": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausblenden"
+          }
+        }
+      }
+    },
     "Larger than 25 MB.": {
       "localizations": {
         "de": {
@@ -420,6 +500,46 @@
         }
       }
     },
+    "New step with %lld photos": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Neuer Beitrag mit %lld Foto"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Neuer Beitrag mit %lld Fotos"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "New step with %lld photo"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "New step with %lld photos"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "New trip": {
       "localizations": {
         "de": {
@@ -436,6 +556,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unter dieser Adresse antwortet kein OwnSteps-Server."
+          }
+        }
+      }
+    },
+    "No access to your photos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Zugriff auf deine Fotos"
           }
         }
       }
@@ -470,6 +600,16 @@
         }
       }
     },
+    "Not now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht jetzt"
+          }
+        }
+      }
+    },
     "Off, videos are reduced to 1080p before uploading – usually a third of the size, so uploads on the road finish. Photos always keep their full resolution.": {
       "localizations": {
         "de": {
@@ -486,6 +626,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Offline · Stand %@"
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen öffnen"
           }
         }
       }
@@ -523,6 +673,16 @@
     "OwnSteps": {
       "shouldTranslate": false
     },
+    "OwnSteps only sees the photos you allowed it to. You can change that in Settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OwnSteps sieht nur die Fotos, die du freigegeben hast. Das kannst du in den Einstellungen ändern."
+          }
+        }
+      }
+    },
     "Password": {
       "localizations": {
         "de": {
@@ -549,6 +709,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Foto %lld"
+          }
+        }
+      }
+    },
+    "Photo suggestions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotovorschläge"
           }
         }
       }
@@ -643,12 +813,32 @@
         }
       }
     },
+    "Review": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ansehen"
+          }
+        }
+      }
+    },
     "Save": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Sichern"
+          }
+        }
+      }
+    },
+    "Select all": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle auswählen"
           }
         }
       }
@@ -679,6 +869,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Einstellungen"
+          }
+        }
+      }
+    },
+    "Share trip …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reise teilen …"
+          }
+        }
+      }
+    },
+    "Share …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilen …"
+          }
+        }
+      }
+    },
+    "Sharing is off for this trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Reise ist nicht geteilt"
           }
         }
       }
@@ -1033,6 +1253,16 @@
         }
       }
     },
+    "To suggest photos from this trip, OwnSteps needs to read your photo library.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Um Fotos aus dieser Reise vorzuschlagen, muss OwnSteps deine Fotomediathek lesen dürfen."
+          }
+        }
+      }
+    },
     "Too large for the server or its proxy.": {
       "localizations": {
         "de": {
@@ -1069,6 +1299,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reisen"
+          }
+        }
+      }
+    },
+    "Turn on sharing and share": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilen einschalten und Link teilen"
           }
         }
       }

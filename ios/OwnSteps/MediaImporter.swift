@@ -23,14 +23,11 @@ struct PickedMovie: Transferable {
 }
 
 /// A photo or video ready for the upload queue.
-struct PreparedMedia {
-    let media: UploadQueue.NewMedia
-    let captureDate: Date?
-}
+typealias PreparedMedia = MediaPreparation.Prepared
 
-/// Turns picker items into files the server takes ([D20]): photos as JPEG
-/// with their metadata, Live Photos as their still, videos compressed to
-/// 1080p unless the user wants originals.
+/// Turns picker items and library assets into files the server takes
+/// ([D20]): photos as JPEG with their metadata, Live Photos as their still,
+/// videos compressed to 1080p unless the user wants originals.
 enum MediaImporter {
     enum Problem: LocalizedError {
         case unreadable
@@ -47,17 +44,37 @@ enum MediaImporter {
     static func prepare(
         _ items: [PhotosPickerItem],
         timeZone: TimeZone,
-        originalVideos: Bool,
-        progress: @escaping (Int) -> Void
+        originalVideos: Bool
     ) async throws -> [PreparedMedia] {
         var prepared: [PreparedMedia] = []
-        for (index, item) in items.enumerated() {
-            progress(index)
+        for item in items {
             let asset = libraryAsset(for: item)
             if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
-                prepared.append(try await prepareVideo(item, asset: asset, original: originalVideos))
+                guard let movie = try await item.loadTransferable(type: PickedMovie.self) else { throw Problem.unreadable }
+                prepared.append(try await video(at: movie.url, original: originalVideos, asset: asset, assetID: item.itemIdentifier))
             } else {
-                prepared.append(try await preparePhoto(item, asset: asset, timeZone: timeZone))
+                // For a Live Photo this is the still image.
+                guard let data = try await item.loadTransferable(type: Data.self) else { throw Problem.unreadable }
+                prepared.append(try photo(data, asset: asset, timeZone: timeZone, assetID: item.itemIdentifier))
+            }
+        }
+        return prepared
+    }
+
+    /// Library assets, e.g. from the photo suggestions ([D22]). Needs photo
+    /// access; iCloud originals are downloaded as needed.
+    static func prepare(
+        _ assets: [PHAsset],
+        timeZone: TimeZone,
+        originalVideos: Bool
+    ) async throws -> [PreparedMedia] {
+        var prepared: [PreparedMedia] = []
+        for asset in assets {
+            if asset.mediaType == .video {
+                prepared.append(try await video(from: asset, original: originalVideos))
+            } else {
+                let data = try await imageData(for: asset)
+                prepared.append(try photo(data, asset: asset, timeZone: timeZone, assetID: asset.localIdentifier))
             }
         }
         return prepared
@@ -72,63 +89,74 @@ enum MediaImporter {
         return PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject
     }
 
-    private static func preparePhoto(
-        _ item: PhotosPickerItem,
-        asset: PHAsset?,
-        timeZone: TimeZone
-    ) async throws -> PreparedMedia {
-        // For a Live Photo this is the still image.
-        guard let data = try await item.loadTransferable(type: Data.self) else { throw Problem.unreadable }
-        let jpeg = try MediaPreparation.jpeg(from: data, location: asset?.location)
-        let file = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).jpg")
-        try jpeg.write(to: file)
-
-        var thumbnail: URL?
-        if let preview = MediaPreparation.thumbnail(fromImage: jpeg) {
-            thumbnail = URL.temporaryDirectory.appending(path: "\(UUID().uuidString)-thumb.jpg")
-            try preview.write(to: thumbnail!)
+    private static func photo(_ data: Data, asset: PHAsset?, timeZone: TimeZone, assetID: String?) throws -> PreparedMedia {
+        do {
+            return try MediaPreparation.preparePhoto(
+                data: data, location: asset?.location, fallbackDate: asset?.creationDate,
+                timeZone: timeZone, assetID: assetID
+            )
+        } catch {
+            throw Problem.unreadable
         }
-        return PreparedMedia(
-            media: .init(file: file, thumbnail: thumbnail, mime: "image/jpeg", assetID: item.itemIdentifier),
-            captureDate: MediaPreparation.captureDate(in: data, timeZone: timeZone) ?? asset?.creationDate
-        )
     }
 
-    private static func prepareVideo(_ item: PhotosPickerItem, asset: PHAsset?, original: Bool) async throws -> PreparedMedia {
-        guard let movie = try await item.loadTransferable(type: PickedMovie.self) else { throw Problem.unreadable }
-
-        var file = movie.url
-        var mime = movie.url.pathExtension.lowercased() == "mov" ? "video/quicktime" : "video/mp4"
-        if !original {
-            let exported = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).mp4")
-            try await MediaPreparation.exportVideo(from: movie.url, to: exported)
-            try? FileManager.default.removeItem(at: movie.url)
-            file = exported
-            mime = "video/mp4"
-        }
-        let size = (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        guard size <= MediaPreparation.maxVideoBytes else {
-            try? FileManager.default.removeItem(at: file)
+    private static func video(at url: URL, original: Bool, asset: PHAsset?, assetID: String?) async throws -> PreparedMedia {
+        do {
+            return try await MediaPreparation.prepareVideo(
+                at: url, original: original, fallbackDate: asset?.creationDate, assetID: assetID
+            )
+        } catch MediaPreparation.Problem.videoTooLarge {
             throw Problem.videoTooLarge
         }
-
-        let (posterData, duration) = try await MediaPreparation.poster(forVideoAt: file)
-        let poster = URL.temporaryDirectory.appending(path: "\(UUID().uuidString)-poster.jpg")
-        try posterData.write(to: poster)
-        var thumbnail: URL?
-        if let preview = MediaPreparation.thumbnail(fromImage: posterData) {
-            thumbnail = URL.temporaryDirectory.appending(path: "\(UUID().uuidString)-thumb.jpg")
-            try preview.write(to: thumbnail!)
-        }
-        let recorded = try? await AVURLAsset(url: file).load(.creationDate)?.load(.dateValue)
-        return PreparedMedia(
-            media: .init(
-                file: file, poster: poster, thumbnail: thumbnail, mime: mime,
-                durationMs: duration, assetID: item.itemIdentifier
-            ),
-            captureDate: asset?.creationDate ?? recorded
-        )
     }
+
+    private static func imageData(for asset: PHAsset) async throws -> Data {
+        let options = PHImageRequestOptions()
+        options.isNetworkAccessAllowed = true
+        options.version = .current
+        options.deliveryMode = .highQualityFormat
+        return try await withCheckedThrowingContinuation { continuation in
+            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { data, _, _, _ in
+                if let data { continuation.resume(returning: data) } else { continuation.resume(throwing: Problem.unreadable) }
+            }
+        }
+    }
+
+    /// Plain videos are copied as files; edited or slow-motion ones come as a
+    /// composition, which Photos exports for us.
+    private static func video(from asset: PHAsset, original: Bool) async throws -> PreparedMedia {
+        let options = PHVideoRequestOptions()
+        options.isNetworkAccessAllowed = true
+        options.version = .current
+        let source = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL?, any Error>) in
+            PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, _ in
+                guard let avAsset else { return continuation.resume(throwing: Problem.unreadable) }
+                continuation.resume(returning: (avAsset as? AVURLAsset)?.url)
+            }
+        }
+        if let source {
+            let file = MediaPreparation.temporaryFile(source.pathExtension.isEmpty ? "mov" : source.pathExtension)
+            try FileManager.default.copyItem(at: source, to: file)
+            return try await video(at: file, original: original, asset: asset, assetID: asset.localIdentifier)
+        }
+
+        let preset = original ? AVAssetExportPresetHighestQuality : AVAssetExportPreset1920x1080
+        let export = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExportBox, any Error>) in
+            PHImageManager.default().requestExportSession(forVideo: asset, options: options, exportPreset: preset) { session, _ in
+                guard let session else { return continuation.resume(throwing: Problem.unreadable) }
+                continuation.resume(returning: ExportBox(session: session))
+            }
+        }
+        let file = MediaPreparation.temporaryFile("mp4")
+        try await export.session.export(to: file, as: .mp4)
+        // Already in its final size.
+        return try await video(at: file, original: true, asset: asset, assetID: asset.localIdentifier)
+    }
+}
+
+/// Photos hands the session over on its own queue; only used afterwards.
+private struct ExportBox: @unchecked Sendable {
+    let session: AVAssetExportSession
 }
 
 /// "Use my location" for steps written on the spot – the lifeline for

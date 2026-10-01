@@ -11,7 +11,8 @@ struct PendingServer: Hashable {
 }
 
 /// The app's state: which servers it's signed in to. Tokens stay in the
-/// Keychain, the account list in UserDefaults.
+/// Keychain, the account list in UserDefaults – both shared with the Share
+/// Extension through the app group.
 @Observable
 final class AppModel {
     private(set) var accounts: [Account]
@@ -23,13 +24,22 @@ final class AppModel {
     let media: MediaStore
     /// Steps and photos on their way to the server ([D19]).
     let uploads: UploadQueue
-    let uploader = BackgroundUploader()
+    /// The app's own upload session plus those the Share Extension started.
+    let uploaders: UploaderGroup
     /// Progress of running uploads by upload ID, 0…1. Only in memory.
     private(set) var uploadProgress: [String: Double] = [:]
+    /// App group shared with the Share Extension; nil if the build has none.
+    let shared = SharedContainer.current
+    /// Done once the Share Extension's submissions are in the queue and the
+    /// upload sessions are connected – nothing may report results before.
+    private var queueReady: Task<Void, Never>?
     private let tokens: any TokenStore
     private let store: AccountStore
 
-    init(tokens: any TokenStore = KeychainTokenStore(), store: AccountStore = AccountStore()) {
+    init(
+        tokens: any TokenStore = KeychainTokenStore(accessGroup: SharedContainer.keychainAccessGroup),
+        store: AccountStore = AccountStore(suiteName: SharedContainer.current?.groupIdentifier)
+    ) {
         self.tokens = tokens
         self.store = store
         self.accounts = store.load()
@@ -49,37 +59,79 @@ final class AppModel {
         }
         self.cache = TripCache(database: database)
         self.media = MediaStore(directory: support.appending(path: "Media", directoryHint: .isDirectory))
+        // Queued before the app group existed: move it where the queue looks now.
+        let oldUploads = support.appending(path: "Uploads", directoryHint: .isDirectory)
+        if let shared, let files = try? FileManager.default.contentsOfDirectory(at: oldUploads, includingPropertiesForKeys: nil) {
+            try? FileManager.default.createDirectory(at: shared.uploadsDirectory, withIntermediateDirectories: true)
+            for file in files {
+                try? FileManager.default.moveItem(at: file, to: shared.uploadsDirectory.appending(path: file.lastPathComponent))
+            }
+            try? FileManager.default.removeItem(at: oldUploads)
+        }
+        self.uploaders = UploaderGroup(sharedContainerIdentifier: shared?.groupIdentifier)
         self.uploads = UploadQueue(
             database: database,
-            directory: support.appending(path: "Uploads", directoryHint: .isDirectory),
-            transport: uploader,
+            // In the app group, where the Share Extension leaves its files.
+            directory: shared?.uploadsDirectory ?? oldUploads,
+            transport: uploaders,
             clientFor: { [tokens, store] accountID in
                 guard let account = store.load().first(where: { $0.id == accountID }) else { return nil }
                 return ServerClient(baseURL: account.serverURL, token: try? tokens.token(for: accountID))
             }
         )
 
-        let uploads = self.uploads
-        uploader.onCompletion = { id, status, body, error in
+        let (uploads, uploaders, inbox) = (self.uploads, self.uploaders, shared?.inbox)
+        uploaders.onCompletion = { id, status, body, error in
             Task {
                 await uploads.handleCompletion(uploadID: id, statusCode: status, body: body, error: error)
                 await uploads.process()
+                await uploaders.releaseIdleSessions()
             }
         }
-        uploader.onProgress = { [weak self] id, fraction in
+        uploaders.onProgress = { [weak self] id, fraction in
             Task { @MainActor in self?.uploadProgress[id] = fraction }
         }
-        uploader.activate()
+        queueReady = Task {
+            if let inbox { await uploads.importInbox(inbox) }
+            uploaders.main.activate()
+            for id in await uploads.shareSessionIDs() { uploaders.uploader(for: id) }
+        }
+        publishShareTargets()
     }
 
-    /// On launch and whenever the app comes back: pick up where uploads
-    /// left off and start what's due.
+    /// On launch and whenever the app comes back: take over what the Share
+    /// Extension wrote, pick up where uploads left off and start what's due.
     func resumeUploads() {
-        let uploads = self.uploads
+        let (uploads, uploaders, inbox, ready) = (self.uploads, self.uploaders, shared?.inbox, queueReady)
         Task {
+            await ready?.value
+            if let inbox { await uploads.importInbox(inbox) }
+            for id in await uploads.shareSessionIDs() { uploaders.uploader(for: id) }
             await uploads.reconcile()
             await uploads.process()
         }
+    }
+
+    /// iOS woke the app for finished uploads of one of its sessions.
+    func handleBackgroundEvents(for identifier: String, completion: @escaping () -> Void) {
+        let (uploaders, ready) = (self.uploaders, queueReady)
+        Task {
+            // The rows must exist before the session reports on them.
+            await ready?.value
+            let uploader = uploaders.uploader(for: identifier)
+            uploader.backgroundEventsCompletion = completion
+            uploader.activate()
+        }
+    }
+
+    /// The trips the Share Extension offers, from what the app last loaded.
+    func publishShareTargets() {
+        guard let shared else { return }
+        var trips: [UUID: [Components.Schemas.Trip]] = [:]
+        for account in authorAccounts {
+            trips[account.id] = (try? cache.trips(for: account.id))?.value ?? []
+        }
+        try? ShareTargets(from: trips).save(to: shared.targetsFile)
     }
 
     var appVersion: String {
@@ -179,5 +231,6 @@ final class AppModel {
         }
         accounts.removeAll { $0.id == account.id }
         store.save(accounts)
+        publishShareTargets()
     }
 }

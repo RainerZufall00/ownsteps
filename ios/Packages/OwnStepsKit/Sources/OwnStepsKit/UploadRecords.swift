@@ -40,6 +40,36 @@ public struct PendingStep: Codable, Hashable, Sendable, Identifiable, FetchableR
         case lastError = "last_error"
         case createdAt = "created_at"
     }
+
+    /// A step as the user wrote it, in the app or the Share Extension.
+    static func new(
+        accountID: UUID,
+        tripID: Int,
+        body: String,
+        placeName: String?,
+        lat: Double?,
+        lon: Double?,
+        occurredAt: Date,
+        now: Date
+    ) -> PendingStep {
+        let body = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let placeName = placeName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        return PendingStep(
+            clientUUID: UUID().uuidString.lowercased(),
+            accountID: accountID,
+            tripID: tripID,
+            body: body,
+            placeName: placeName,
+            lat: lat,
+            lon: lon,
+            occurredAt: occurredAt,
+            // A step without text or place appears with its first photo ([E7]).
+            publish: !body.isEmpty || placeName != nil,
+            serverStepID: nil,
+            lastError: nil,
+            createdAt: now
+        )
+    }
 }
 
 /// One photo or video on its way to the server.
@@ -82,6 +112,8 @@ public struct PendingUpload: Codable, Hashable, Sendable, Identifiable, Fetchabl
     public var lastError: String?
     public var photoID: Int?
     public var createdAt: Date
+    /// The Share Extension's background session, while it runs the upload.
+    public var sessionID: String?
 
     public var id: String { clientUUID }
     public var isVideo: Bool { mime.hasPrefix("video/") }
@@ -105,6 +137,7 @@ public struct PendingUpload: Codable, Hashable, Sendable, Identifiable, Fetchabl
         case lastError = "last_error"
         case photoID = "photo_id"
         case createdAt = "created_at"
+        case sessionID = "session_id"
     }
 }
 

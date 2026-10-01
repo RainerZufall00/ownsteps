@@ -91,6 +91,19 @@ public final class AppDatabase: Sendable {
                 t.primaryKey(["account_id", "asset_id"])
             }
         }
+        migrator.registerMigration("v3_share_extension") { db in
+            // The background session an upload runs in when the Share
+            // Extension started it; nil means the app's own session.
+            try db.alter(table: "pending_upload") { t in
+                t.add(column: "session_id", .text)
+            }
+            // Library photos the user doesn't want suggested again ([D22]).
+            try db.create(table: "ignored_asset") { t in
+                t.column("account_id", .text).notNull()
+                t.column("asset_id", .text).notNull()
+                t.primaryKey(["account_id", "asset_id"])
+            }
+        }
         return migrator
     }
 }

@@ -61,11 +61,15 @@ struct TripFormView: View {
                 .environment(\.timeZone, calendar.calendar.timeZone)
 
                 Section {
+                    // The label closure is Sendable: read the state outside.
+                    let title = trip?.coverPhotoId == nil && coverItem == nil
+                        ? String(localized: "Choose cover image") : String(localized: "Change cover image")
+                    let preview = coverPreview
                     PhotosPicker(selection: $coverItem, matching: .images, photoLibrary: .shared()) {
                         HStack {
-                            Label(trip?.coverPhotoId == nil && coverItem == nil ? "Choose cover image" : "Change cover image", systemImage: "photo")
+                            Label(title, systemImage: "photo")
                             Spacer()
-                            coverPreview?
+                            preview?
                                 .resizable().scaledToFill()
                                 .frame(width: 44, height: 44)
                                 .clipShape(.rect(cornerRadius: 6))
@@ -143,13 +147,10 @@ struct TripFormView: View {
     /// The cover goes up right away, not through the queue – it's one image
     /// and the form waits for it.
     private func uploadCover(_ item: PhotosPickerItem, tripID: Int, client: ServerClient) async throws {
-        let prepared = try await MediaImporter.prepare(
-            [item], timeZone: calendar.calendar.timeZone, originalVideos: false, progress: { _ in }
-        )
-        guard let media = prepared.first?.media else { return }
-        defer {
-            for url in [media.file, media.thumbnail].compactMap({ $0 }) { try? FileManager.default.removeItem(at: url) }
-        }
+        let prepared = try await MediaImporter.prepare([item], timeZone: calendar.calendar.timeZone, originalVideos: false)
+        guard let cover = prepared.first else { return }
+        let media = cover.media
+        defer { cover.discard() }
         let body = MultipartBody()
         let bodyFile = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).body")
         defer { try? FileManager.default.removeItem(at: bodyFile) }
