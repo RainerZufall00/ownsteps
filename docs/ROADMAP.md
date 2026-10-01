@@ -88,7 +88,7 @@ architecture doc and the phase is ticked off here.
 - [x] **4b Read:**
   - trip list, timeline (newest first, like the web; see [E13]), MapKit map, photo viewer
   - GRDB cache, offline reading
-- [ ] **4c Write:**
+- [x] **4c Write:**
   - offline step creation, upload queue on a background `URLSession`
   - HEIC → JPEG, video compression and poster frame, Live Photo still
   - trip create/edit
@@ -97,7 +97,7 @@ architecture doc and the phase is ticked off here.
   - redeem the invite via `ownsteps://`
   - several instances in one app
   - `BGAppRefreshTask` plus local notifications for authors and viewers
-- [ ] String Catalogs en/de from day one.
+- [ ] String Catalogs en/de from day one (up to date through 4c).
 
 ### Phase 5 – Code review ("strangers run this now")
 - [ ] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices.

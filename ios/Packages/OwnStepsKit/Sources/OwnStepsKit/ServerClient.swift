@@ -145,7 +145,7 @@ public struct ServerClient: Sendable {
 
     // MARK: Helpers
 
-    private func problem<Body>(_ body: Body, status: Int) -> APIError {
+    func problem<Body>(_ body: Body, status: Int) -> APIError {
         // Every error response is a problem document; the generated enums
         // differ per operation, so look for the payload by type.
         if let problem = Mirror(reflecting: body).children.first?.value

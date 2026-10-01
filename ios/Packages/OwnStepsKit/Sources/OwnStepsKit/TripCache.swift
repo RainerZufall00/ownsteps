@@ -13,39 +13,13 @@ public final class TripCache: Sendable {
         public let fetchedAt: Date
     }
 
-    public init(path: String) throws {
-        database = try DatabaseQueue(path: path)
-        try Self.migrator.migrate(database)
+    public init(database: AppDatabase) {
+        self.database = database.queue
     }
 
     /// For tests and previews.
     public static func inMemory() throws -> TripCache {
-        try TripCache(database: DatabaseQueue())
-    }
-
-    private init(database: DatabaseQueue) throws {
-        self.database = database
-        try Self.migrator.migrate(database)
-    }
-
-    /// Append only, like the server's MIGRATIONS.
-    private static var migrator: DatabaseMigrator {
-        var migrator = DatabaseMigrator()
-        migrator.registerMigration("v1_trip_cache") { db in
-            try db.create(table: "trip_list") { t in
-                t.primaryKey("account_id", .text)
-                t.column("json", .blob).notNull()
-                t.column("fetched_at", .double).notNull()
-            }
-            try db.create(table: "trip_detail") { t in
-                t.column("account_id", .text).notNull()
-                t.column("trip_id", .integer).notNull()
-                t.column("json", .blob).notNull()
-                t.column("fetched_at", .double).notNull()
-                t.primaryKey(["account_id", "trip_id"])
-            }
-        }
-        return migrator
+        TripCache(database: try AppDatabase.inMemory())
     }
 
     // MARK: Trip lists

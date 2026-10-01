@@ -15,6 +15,10 @@ struct TripView: View {
     @State private var error: String?
     @State private var mode: Mode = .timeline
     @State private var scrollTarget: Int?
+    @State private var queue = UploadSnapshot()
+    @State private var composer: StepComposerView.Mode?
+    @State private var editing: Components.Schemas.Step?
+    @State private var editingTrip = false
 
     private var calendar: TripCalendar { model.calendar(for: account) }
 
@@ -28,7 +32,12 @@ struct TripView: View {
                         trip: trip,
                         calendar: calendar,
                         staleSince: staleSince,
-                        scrollTarget: $scrollTarget
+                        queue: queue,
+                        scrollTarget: $scrollTarget,
+                        actions: .init(
+                            edit: { editing = $0 },
+                            addPhotos: { composer = .addTo(tripID: tripID, stepID: $0.id) }
+                        )
                     )
                 case .map:
                     TripMapView(account: account, trip: trip, calendar: calendar) { stepID in
@@ -53,6 +62,20 @@ struct TripView: View {
                 .pickerStyle(.segmented)
                 .fixedSize()
             }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Menu {
+                    Button("Edit trip", systemImage: "pencil") { editingTrip = true }
+                } label: {
+                    Image(systemName: "ellipsis")
+                }
+                .accessibilityLabel(Text("More"))
+                Button {
+                    composer = .new(tripID: tripID)
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel(Text("New step"))
+            }
         }
         .refreshable { await refresh() }
         .task {
@@ -61,6 +84,52 @@ struct TripView: View {
             }
             await refresh()
         }
+        .task(id: tripID) { await watchQueue() }
+        .sheet(item: Binding(
+            get: { composer.map(ComposerRequest.init) },
+            set: { composer = $0?.mode }
+        )) { request in
+            StepComposerView(account: account, mode: request.mode)
+        }
+        .sheet(item: $editing) { step in
+            EditStepView(account: account, step: step) { Task { await refresh() } }
+        }
+        .sheet(isPresented: $editingTrip) {
+            if let trip {
+                TripFormView(account: account, trip: summary(of: trip), calendar: calendar) { _ in
+                    Task { await refresh() }
+                }
+            }
+        }
+    }
+
+    /// Follows the upload queue; whenever something finished, the server's
+    /// copy is fetched again so the new photos show up.
+    private func watchQueue() async {
+        var pending = Set<String>()
+        do {
+            for try await snapshot in model.uploads.observe(accountID: account.id, tripID: tripID) {
+                let now = Set(snapshot.localSteps.map(\.id))
+                    .union(snapshot.uploadsByStepID.values.flatMap { $0.map(\.id) })
+                    .union(snapshot.localSteps.flatMap { $0.uploads.map(\.id) })
+                let finished = !pending.subtracting(now).isEmpty
+                    || snapshot.localSteps.count < queue.localSteps.count
+                queue = snapshot
+                pending = now
+                if finished { await refresh() }
+            }
+        } catch {
+            // The observation only ends with the view.
+        }
+    }
+
+    private func summary(of trip: Components.Schemas.TripDetail) -> Components.Schemas.Trip {
+        .init(
+            id: trip.id, title: trip.title, summary: trip.summary, startDate: trip.startDate,
+            endDate: trip.endDate, coverPhotoId: trip.coverPhotoId, stepCount: trip.stepCount,
+            photoCount: trip.photoCount, firstStepAt: trip.firstStepAt, lastStepAt: trip.lastStepAt,
+            updatedAt: trip.updatedAt, share: trip.share
+        )
     }
 
     /// Loads what the timeline shows, so the trip stays readable offline
@@ -116,7 +185,9 @@ struct TimelineView: View {
     let trip: Components.Schemas.TripDetail
     let calendar: TripCalendar
     let staleSince: Date?
+    let queue: UploadSnapshot
     @Binding var scrollTarget: Int?
+    let actions: StepActions
 
     /// One fullscreen viewer for the whole timeline. With one per row,
     /// List's cell reuse presented another step's photos.
@@ -132,7 +203,7 @@ struct TimelineView: View {
                     if let staleSince { OfflineNote(fetchedAt: staleSince) }
                 }
 
-                if trip.steps.isEmpty {
+                if trip.steps.isEmpty && queue.localSteps.isEmpty {
                     ContentUnavailableView(
                         "No steps yet",
                         systemImage: "mappin.slash",
@@ -141,18 +212,25 @@ struct TimelineView: View {
                     .listRowBackground(Color.clear)
                 }
 
-                ForEach(trip.steps.reversed(), id: \.id) { step in
+                ForEach(items(start: start)) { item in
                     Section {
-                        StepCard(
-                            account: account,
-                            step: step,
-                            day: start.map { calendar.tripDay(of: step.occurredAt, start: $0) },
-                            calendar: calendar
-                        ) { index in
-                            viewer = ViewerRequest(stepID: step.id, index: index)
+                        switch item.kind {
+                        case .server(let step):
+                            StepCard(
+                                account: account,
+                                step: step,
+                                day: item.day,
+                                calendar: calendar,
+                                pending: queue.uploadsByStepID[step.id] ?? [],
+                                actions: actions
+                            ) { index in
+                                viewer = ViewerRequest(stepID: step.id, index: index)
+                            }
+                        case .local(let local):
+                            LocalStepCard(account: account, local: local, day: item.day, calendar: calendar)
                         }
                     }
-                    .id(step.id)
+                    .id(item.scrollID)
                 }
             }
             .listSectionSpacing(.compact)
@@ -164,6 +242,22 @@ struct TimelineView: View {
                 }
             }
         }
+    }
+
+    /// Server steps and steps still on the device, newest first ([E13]).
+    private func items(start: Date?) -> [TimelineItem] {
+        // A step the server already has must not show up twice.
+        let known = Set(trip.steps.compactMap(\.clientUuid))
+        let local = queue.localSteps.filter { !known.contains($0.step.clientUUID) }
+        let all = trip.steps.map { TimelineItem(kind: .server($0), date: $0.occurredAt) }
+            + local.map { TimelineItem(kind: .local($0), date: $0.step.occurredAt) }
+        return all
+            .map { item in
+                var item = item
+                item.day = start.map { calendar.tripDay(of: item.date, start: $0) }
+                return item
+            }
+            .sorted { $0.date > $1.date }
     }
 
     private func scroll(_ proxy: ScrollViewProxy) {
@@ -206,6 +300,8 @@ struct StepCard: View {
     let step: Components.Schemas.Step
     let day: Int?
     let calendar: TripCalendar
+    var pending: [PendingUpload] = []
+    var actions: StepActions?
     let openPhoto: (Int) -> Void
 
     var body: some View {
@@ -224,6 +320,19 @@ struct StepCard: View {
                 ))
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                Spacer()
+                if let actions {
+                    Menu {
+                        Button("Edit", systemImage: "pencil") { actions.edit(step) }
+                        Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundStyle(.secondary)
+                            .frame(minWidth: 32, minHeight: 32)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Step options"))
+                }
             }
 
             if let place = step.placeName {
@@ -236,6 +345,10 @@ struct StepCard: View {
                 PhotoGrid(account: account, photos: step.photos, open: openPhoto)
             }
 
+            if !pending.isEmpty {
+                PendingUploadsView(uploads: pending)
+            }
+
             if !step.body.isEmpty {
                 Text(step.body).font(.body)
             }
@@ -245,6 +358,42 @@ struct StepCard: View {
             }
         }
         .padding(.vertical, 6)
+    }
+}
+
+struct StepActions {
+    let edit: (Components.Schemas.Step) -> Void
+    let addPhotos: (Components.Schemas.Step) -> Void
+}
+
+struct ComposerRequest: Identifiable {
+    let mode: StepComposerView.Mode
+    var id: String { "\(mode)" }
+}
+
+struct TimelineItem: Identifiable {
+    enum Kind {
+        case server(Components.Schemas.Step)
+        case local(UploadSnapshot.LocalStep)
+    }
+
+    let kind: Kind
+    let date: Date
+    var day: Int?
+
+    var id: String {
+        switch kind {
+        case .server(let step): "server-\(step.id)"
+        case .local(let local): "local-\(local.id)"
+        }
+    }
+
+    /// Server steps scroll by their ID (map → timeline).
+    var scrollID: AnyHashable {
+        switch kind {
+        case .server(let step): AnyHashable(step.id)
+        case .local(let local): AnyHashable(local.id)
+        }
     }
 }
 
@@ -332,3 +481,5 @@ struct CommentList: View {
         .overlay(alignment: .top) { Divider().offset(y: -4) }
     }
 }
+
+extension Components.Schemas.Step: @retroactive Identifiable {}

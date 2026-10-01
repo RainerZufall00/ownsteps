@@ -21,6 +21,11 @@ final class AppModel {
     let cache: TripCache
     /// Photos, loaded with the account's token and kept on disk.
     let media: MediaStore
+    /// Steps and photos on their way to the server ([D19]).
+    let uploads: UploadQueue
+    let uploader = BackgroundUploader()
+    /// Progress of running uploads by upload ID, 0…1. Only in memory.
+    private(set) var uploadProgress: [String: Double] = [:]
     private let tokens: any TokenStore
     private let store: AccountStore
 
@@ -34,14 +39,47 @@ final class AppModel {
         // Without a working cache the app still works online; it just can't
         // keep anything for later. `path()` would percent-encode the space in
         // "Application Support" and point SQLite at a folder that doesn't exist.
-        let cachePath = support.appending(path: "cache.sqlite").path(percentEncoded: false)
+        let databasePath = support.appending(path: "cache.sqlite").path(percentEncoded: false)
+        let database: AppDatabase
         do {
-            self.cache = try TripCache(path: cachePath)
+            database = try AppDatabase(path: databasePath)
         } catch {
-            assertionFailure("Trip cache unavailable: \(error)")
-            self.cache = try! TripCache.inMemory()
+            assertionFailure("Database unavailable: \(error)")
+            database = try! AppDatabase.inMemory()
         }
+        self.cache = TripCache(database: database)
         self.media = MediaStore(directory: support.appending(path: "Media", directoryHint: .isDirectory))
+        self.uploads = UploadQueue(
+            database: database,
+            directory: support.appending(path: "Uploads", directoryHint: .isDirectory),
+            transport: uploader,
+            clientFor: { [tokens, store] accountID in
+                guard let account = store.load().first(where: { $0.id == accountID }) else { return nil }
+                return ServerClient(baseURL: account.serverURL, token: try? tokens.token(for: accountID))
+            }
+        )
+
+        let uploads = self.uploads
+        uploader.onCompletion = { id, status, body, error in
+            Task {
+                await uploads.handleCompletion(uploadID: id, statusCode: status, body: body, error: error)
+                await uploads.process()
+            }
+        }
+        uploader.onProgress = { [weak self] id, fraction in
+            Task { @MainActor in self?.uploadProgress[id] = fraction }
+        }
+        uploader.activate()
+    }
+
+    /// On launch and whenever the app comes back: pick up where uploads
+    /// left off and start what's due.
+    func resumeUploads() {
+        let uploads = self.uploads
+        Task {
+            await uploads.reconcile()
+            await uploads.process()
+        }
     }
 
     var appVersion: String {
@@ -135,7 +173,10 @@ final class AppModel {
     func forget(_ account: Account) {
         try? tokens.removeToken(for: account.id)
         try? cache.removeAll(for: account.id)
-        Task { await media.removeAll(for: account.id) }
+        Task {
+            await media.removeAll(for: account.id)
+            await uploads.removeAll(for: account.id)
+        }
         accounts.removeAll { $0.id == account.id }
         store.save(accounts)
     }

@@ -8,6 +8,8 @@ import Testing
 final class StubTransport: ClientTransport, @unchecked Sendable {
     var responses: [String: (status: Int, contentType: String, body: String)] = [:]
     private(set) var requests: [HTTPRequest] = []
+    /// Throw instead of answering, like an unreachable server.
+    var failWith: (any Error)?
 
     func send(
         _ request: HTTPRequest,
@@ -16,6 +18,7 @@ final class StubTransport: ClientTransport, @unchecked Sendable {
         operationID: String
     ) async throws -> (HTTPResponse, HTTPBody?) {
         requests.append(request)
+        if let failWith { throw failWith }
         guard let canned = responses[operationID] else {
             return (HTTPResponse(status: .notFound), HTTPBody("<html>404</html>"))
         }

@@ -14,9 +14,12 @@ struct TripListView: View {
     @State private var staleSince: [UUID: Date] = [:]
     @State private var errors: [UUID: String] = [:]
     @State private var accountToSignOut: Account?
+    @State private var path = NavigationPath()
+    @State private var newTripFor: Account?
+    @State private var showingSettings = false
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 ForEach(model.authorAccounts) { account in
                     Section {
@@ -44,6 +47,42 @@ struct TripListView: View {
                 }
             }
             .navigationTitle("Trips")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel(Text("Settings"))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if model.authorAccounts.count > 1 {
+                        Menu {
+                            ForEach(model.authorAccounts) { account in
+                                Button(account.serverURL.host() ?? account.serverName) { newTripFor = account }
+                            }
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel(Text("New trip"))
+                    } else if let account = model.authorAccounts.first {
+                        Button {
+                            newTripFor = account
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel(Text("New trip"))
+                    }
+                }
+            }
+            .sheet(item: $newTripFor) { account in
+                TripFormView(account: account, trip: nil, calendar: model.calendar(for: account)) { trip in
+                    tripsByAccount[account.id, default: []].insert(trip, at: 0)
+                    path.append(TripRoute(accountID: account.id, tripID: trip.id))
+                }
+            }
+            .sheet(isPresented: $showingSettings) { SettingsView() }
             .navigationDestination(for: TripRoute.self) { route in
                 if let account = model.account(id: route.accountID) {
                     TripView(account: account, tripID: route.tripID)

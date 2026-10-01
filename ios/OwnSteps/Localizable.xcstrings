@@ -21,6 +21,9 @@
         }
       }
     },
+    "%lld": {
+      "shouldTranslate": false
+    },
     "%lld / %lld": {
       "shouldTranslate": false
     },
@@ -67,12 +70,112 @@
     "+%lld": {
       "shouldTranslate": false
     },
+    "A photo or video couldn't be read.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Foto oder Video ließ sich nicht lesen."
+          }
+        }
+      }
+    },
+    "A video is larger than 400 MB, even compressed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Video ist auch komprimiert größer als 400 MB."
+          }
+        }
+      }
+    },
     "Account": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Account"
+          }
+        }
+      }
+    },
+    "Accounts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konten"
+          }
+        }
+      }
+    },
+    "Add photos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos hinzufügen"
+          }
+        }
+      }
+    },
+    "Add photos or videos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos oder Videos hinzufügen"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        }
+      }
+    },
+    "Caption (optional)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildunterschrift (optional)"
+          }
+        }
+      }
+    },
+    "Change cover image": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titelbild ändern"
+          }
+        }
+      }
+    },
+    "Change selection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auswahl ändern"
+          }
+        }
+      }
+    },
+    "Choose cover image": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titelbild auswählen"
           }
         }
       }
@@ -97,12 +200,112 @@
         }
       }
     },
+    "Create": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anlegen"
+          }
+        }
+      }
+    },
+    "Date": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datum"
+          }
+        }
+      }
+    },
     "Day %lld": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Tag %lld"
+          }
+        }
+      }
+    },
+    "Delete step": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag löschen"
+          }
+        }
+      }
+    },
+    "Delete this step with all its photos?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Beitrag mit allen Fotos löschen?"
+          }
+        }
+      }
+    },
+    "Discard step": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag verwerfen"
+          }
+        }
+      }
+    },
+    "Discard this step? It hasn't reached the server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Beitrag verwerfen? Er ist noch nicht auf dem Server."
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        }
+      }
+    },
+    "Edit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bearbeiten"
+          }
+        }
+      }
+    },
+    "Edit step": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beitrag bearbeiten"
+          }
+        }
+      }
+    },
+    "Edit trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reise bearbeiten"
           }
         }
       }
@@ -127,12 +330,102 @@
         }
       }
     },
+    "End date": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enddatum"
+          }
+        }
+      }
+    },
+    "Format not supported.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format wird nicht unterstützt."
+          }
+        }
+      }
+    },
+    "From": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von"
+          }
+        }
+      }
+    },
+    "Larger than 25 MB.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Größer als 25 MB."
+          }
+        }
+      }
+    },
+    "Location access is turned off for OwnSteps.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Standortzugriff ist für OwnSteps ausgeschaltet."
+          }
+        }
+      }
+    },
     "Map": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Karte"
+          }
+        }
+      }
+    },
+    "More": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehr"
+          }
+        }
+      }
+    },
+    "Name of the trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name der Reise"
+          }
+        }
+      }
+    },
+    "New step": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuer Beitrag"
+          }
+        }
+      }
+    },
+    "New trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Reise"
           }
         }
       }
@@ -177,6 +470,16 @@
         }
       }
     },
+    "Off, videos are reduced to 1080p before uploading – usually a third of the size, so uploads on the road finish. Photos always keep their full resolution.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgeschaltet werden Videos vor dem Hochladen auf 1080p verkleinert – meist auf ein Drittel der Größe, damit Uploads auch unterwegs durchkommen. Fotos behalten immer die volle Auflösung."
+          }
+        }
+      }
+    },
     "Offline · as of %@": {
       "localizations": {
         "de": {
@@ -193,6 +496,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Im Browser öffnen"
+          }
+        }
+      }
+    },
+    "Optional. Without dates, the trip's steps set the period; day 1 is the start date.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional. Ohne Daten ergibt sich der Zeitraum aus den Beiträgen; Tag 1 ist das Startdatum."
           }
         }
       }
@@ -240,12 +553,42 @@
         }
       }
     },
+    "Photos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos"
+          }
+        }
+      }
+    },
     "Photos with GPS data put the markers on the map.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Fotos mit GPS-Daten setzen die Marker automatisch."
+          }
+        }
+      }
+    },
+    "Place (optional)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ort (optional)"
+          }
+        }
+      }
+    },
+    "Place and date come from the photos when they carry them.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ort und Datum kommen aus den Fotos, sofern sie welche enthalten."
           }
         }
       }
@@ -270,6 +613,46 @@
         }
       }
     },
+    "Preparing photos …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotos werden vorbereitet …"
+          }
+        }
+      }
+    },
+    "Remove": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen"
+          }
+        }
+      }
+    },
+    "Retry": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut versuchen"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichern"
+          }
+        }
+      }
+    },
     "Server": {
       "localizations": {
         "de": {
@@ -286,6 +669,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Server-Adresse"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen"
+          }
+        }
+      }
+    },
+    "Short description (optional)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurzbeschreibung (optional)"
           }
         }
       }
@@ -370,6 +773,36 @@
         }
       }
     },
+    "Signed out – please sign in again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abgemeldet – bitte erneut anmelden."
+          }
+        }
+      }
+    },
+    "Start date": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startdatum"
+          }
+        }
+      }
+    },
+    "Step options": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optionen für den Beitrag"
+          }
+        }
+      }
+    },
     "Steps appear here once the trip gets going.": {
       "localizations": {
         "de": {
@@ -386,6 +819,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Antippen zum Lesen"
+          }
+        }
+      }
+    },
+    "Tell about this day …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erzähl von diesem Tag …"
           }
         }
       }
@@ -410,6 +853,26 @@
         }
       }
     },
+    "The cover appears in the overview and in link previews. Unlike the other photos, it's public once the trip is shared.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Titelbild erscheint in der Übersicht und in Linkvorschauen. Anders als die übrigen Fotos ist es öffentlich, sobald die Reise geteilt wird."
+          }
+        }
+      }
+    },
+    "The file is gone from the device.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Datei ist nicht mehr auf dem Gerät."
+          }
+        }
+      }
+    },
     "The server answered unexpectedly (%lld).": {
       "localizations": {
         "de": {
@@ -430,6 +893,16 @@
         }
       }
     },
+    "The server couldn't process it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server konnte sie nicht verarbeiten."
+          }
+        }
+      }
+    },
     "The server must use HTTPS. Plain HTTP only works inside your home network.": {
       "localizations": {
         "de": {
@@ -446,6 +919,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Server hat einen Fehler gemeldet (%@)."
+          }
+        }
+      }
+    },
+    "The step no longer exists.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den Beitrag gibt es nicht mehr."
+          }
+        }
+      }
+    },
+    "The trip no longer exists.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Reise gibt es nicht mehr."
           }
         }
       }
@@ -530,6 +1023,26 @@
         }
       }
     },
+    "To": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bis"
+          }
+        }
+      }
+    },
+    "Too large for the server or its proxy.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu groß für den Server oder seinen Proxy."
+          }
+        }
+      }
+    },
     "Too many attempts. Please wait a moment.": {
       "localizations": {
         "de": {
@@ -560,6 +1073,116 @@
         }
       }
     },
+    "Upload failed (%@).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hochladen fehlgeschlagen (%@)."
+          }
+        }
+      }
+    },
+    "Uploading %lld items …": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Datei wird hochgeladen …"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Dateien werden hochgeladen …"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Uploading %lld item …"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Uploading %lld items …"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Uploads": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uploads"
+          }
+        }
+      }
+    },
+    "Use my location": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meinen Standort verwenden"
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
+          }
+        }
+      }
+    },
+    "Video larger than 400 MB.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video größer als 400 MB."
+          }
+        }
+      }
+    },
+    "Videos are uploaded in original quality (see Settings).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videos werden in Originalqualität hochgeladen (siehe Einstellungen)."
+          }
+        }
+      }
+    },
+    "Videos in original quality": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videos in Originalqualität"
+          }
+        }
+      }
+    },
     "View": {
       "localizations": {
         "de": {
@@ -570,12 +1193,92 @@
         }
       }
     },
+    "Waiting for a connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warte auf Verbindung"
+          }
+        }
+      }
+    },
+    "Waiting to be sent": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wartet auf das Senden"
+          }
+        }
+      }
+    },
+    "Waiting to upload %lld items": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Datei wartet auf das Hochladen"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Dateien warten auf das Hochladen"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Waiting to upload %lld item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Waiting to upload %lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "What happened?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was ist passiert?"
+          }
+        }
+      }
+    },
     "You've been signed out. Please sign in again.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Du wurdest abgemeldet. Bitte melde dich erneut an."
+          }
+        }
+      }
+    },
+    "Your location couldn't be determined.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Standort ließ sich nicht bestimmen."
           }
         }
       }

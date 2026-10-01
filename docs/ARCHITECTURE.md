@@ -326,10 +326,41 @@ header. Dates and trip days use the server's time zone, which `/info`
 reports (`timeZone`, see [E12]) – otherwise a phone in another zone would
 show other days than the web.
 
+**Writing** (phase 4c): new steps and their photos go through `UploadQueue`
+(an actor over the tables `pending_step`, `pending_upload` and
+`uploaded_asset` in the same GRDB database). Saving only records the step
+and moves the prepared files into the queue's folder, so it works offline
+and survives the app being killed. `process()` then creates the steps the
+server lacks – idempotent through `clientUuid`, so a lost response does no
+harm – and hands every file to a **background `URLSession`** as a multipart
+body written to disk once (background sessions only upload from files; the
+same body is reused on every retry). Outcomes: 2xx is done, 401 means
+signed out, other 4xx except 408/429 is a permanent failure the user can
+retry or remove, everything else backs off (30 s doubling, at most 1 h). The
+queue is worked through on launch, when the app comes to the foreground and
+when the system wakes it for finished background transfers. A step with
+only photos is created unpublished and appears with its first photo, like
+[E7]. Until the server has it, the timeline shows a local card with the
+pending thumbnails; once an upload finishes the trip is reloaded.
+Editing, deleting and trip changes go straight to the server and need a
+connection (D19 – offline only creates).
+
+Media are prepared at selection time, so saving is instant: photos become
+JPEG through ImageIO with their metadata (EXIF date, GPS – taken from the
+library asset when the file has none) and step down in quality until they
+fit under 25 MB; Live Photos contribute their still. Videos are exported to
+1080p MP4 unless "Videos in original quality" is on, and get a poster frame
+and their duration. The step's date defaults to the oldest capture date.
+`uploaded_asset` remembers which library photos already went up, for the
+photo suggestions of 4d.
+
 Two MapKit/SwiftUI traps: with `.hybrid(elevation: .realistic)` the map
 draws the route but no annotations at all, so the style stays flat. And a
 `fullScreenCover` per List row presented another row's photos (cell reuse);
-the timeline owns one viewer for all steps.
+the timeline owns one viewer for all steps. A GRDB trap: the coding
+strategies (`databaseUUIDEncodingStrategy` and friends) must be declared as
+`static func …(for:)`; declared as `static let` they are silently ignored
+and UUIDs end up as blobs.
 
 Bundle IDs derive from `APP_BUNDLE_ID_PREFIX` in `ios/Config/Base.xcconfig`
 (`de.ownsteps`); the signing team stays in the ignored `Secrets.xcconfig`, so
@@ -1034,6 +1065,12 @@ Verified (production build, real HTTP requests):
   (`GET /` → 200), and the account is created from the claims. With
   `X-Forwarded-Host` the callback URL is built on the public domain instead of
   `0.0.0.0`
+- iOS app writing, in the iPhone simulator against the dev server: a step
+  with two HEIC photos (with GPS) and a video arrives with all three files,
+  the GPS position survives the JPEG conversion; a text step written with the
+  server stopped shows "Waiting to be sent" and arrives exactly once when the
+  app returns to the foreground; editing the text, deleting a step and
+  creating a trip with start date and cover all reach the database
 
 Not verified – be careful when building on these:
 
