@@ -1,8 +1,9 @@
 import Foundation
 
-/// Loads photos with the account's token and keeps them on disk. A photo's
-/// files never change (`storage_key` is unique per upload), so a cached file
-/// is valid forever; deleting the photo only means it isn't asked for again.
+/// Loads photos with the account's token and keeps them on disk. Files are
+/// stored under the photo's `fileKey`, which is new with every upload, so a
+/// cached file is valid forever – even if a restored server hands out the
+/// same photo ID again. Deleting the photo only means it isn't asked for again.
 public actor MediaStore {
     private let directory: URL
     private let session: URLSession
@@ -24,20 +25,21 @@ public actor MediaStore {
         return URLSession(configuration: configuration)
     }()
 
-    private func fileURL(accountID: UUID, photoID: Int, variant: MediaVariant) -> URL {
+    private func fileURL(accountID: UUID, photoID: Int, fileKey: String, variant: MediaVariant) -> URL {
         directory
             .appending(path: accountID.uuidString, directoryHint: .isDirectory)
-            .appending(path: "\(photoID)-\(variant.rawValue).webp")
+            .appending(path: "\(photoID)-\(fileKey)-\(variant.rawValue).webp")
     }
 
     /// From memory, from disk, or from the server – in that order.
     public func data(
         accountID: UUID,
         photoID: Int,
+        fileKey: String,
         variant: MediaVariant,
         request: URLRequest
     ) async throws -> Data {
-        let file = fileURL(accountID: accountID, photoID: photoID, variant: variant)
+        let file = fileURL(accountID: accountID, photoID: photoID, fileKey: fileKey, variant: variant)
         let key = file.path as NSString
         if let cached = memory.object(forKey: key) { return cached as Data }
         if let data = try? Data(contentsOf: file) {
@@ -59,8 +61,8 @@ public actor MediaStore {
     }
 
     /// Only what's already on the device – for offline fallbacks.
-    public func cachedData(accountID: UUID, photoID: Int, variant: MediaVariant) -> Data? {
-        let file = fileURL(accountID: accountID, photoID: photoID, variant: variant)
+    public func cachedData(accountID: UUID, photoID: Int, fileKey: String, variant: MediaVariant) -> Data? {
+        let file = fileURL(accountID: accountID, photoID: photoID, fileKey: fileKey, variant: variant)
         if let cached = memory.object(forKey: file.path as NSString) { return cached as Data }
         return try? Data(contentsOf: file)
     }

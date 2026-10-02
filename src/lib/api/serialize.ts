@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import type { Change, Comment, Photo, Trip, User, ViewerDevice } from "@/db/schema";
 import type { StepWithPhotos, TripSummary } from "@/lib/trips";
 import { toIso } from "./http";
@@ -33,7 +35,17 @@ export function photoDto(photo: Photo): PhotoDto {
     lat: photo.lat,
     lon: photo.lon,
     clientUuid: photo.clientUuid,
+    fileKey: fileKey(photo.storageKey),
   };
+}
+
+/**
+ * Stands for the photo's files: new with every upload, so a client can cache
+ * by it even when a restored server hands out the same photo ID again. A
+ * hash, because the storage key is a folder name on the server's disk.
+ */
+function fileKey(storageKey: string) {
+  return createHash("sha256").update(storageKey).digest("hex").slice(0, 16);
 }
 
 export function commentDto(comment: Comment): CommentDto {

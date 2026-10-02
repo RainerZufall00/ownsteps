@@ -368,13 +368,20 @@ photo suggestions.
   background session of its own (`ownsteps.share.<uuid>`, one per share, so
   app and extension never use the same session at once). On every launch
   the app takes the inbox into its queue (`importInbox`) *before* it joins
-  the extension's sessions, so their results find their rows. Uploads that
+  the extension's sessions, so their results find their rows. Both can run
+  at once (the app woken in the background while the share sheet is open),
+  so inbox files are only touched through `NSFileCoordinator`, and the app
+  takes over a submission only once the extension marked it finished – or
+  after ten minutes, when the extension was evidently ended halfway. Rows
+  the queue already has are never overwritten by a second import. Uploads that
   finish while the extension still runs report to the extension; it takes
   them off its submission, otherwise the app would send them again (the
   server would only answer with the existing photo, but the bytes go out
   twice). Offline, the extension just leaves the submission for the app.
   Media preparation is shared code (`MediaPreparation.preparePhoto/Video`)
-  and runs one file at a time – an extension gets far less memory.
+  and runs one file at a time – an extension gets far less memory. ImageIO
+  converts HEIC to JPEG in tiles: a 48 MP photo peaked at under 30 MB
+  (measured on the Mac), so the extension keeps full resolution too.
 - *Photo suggestions*: library photos from the trip's period that aren't in
   it. The period is the entered dates, else the steps; without an end date
   it runs until now, at most two weeks past the last step. Out are
@@ -412,15 +419,25 @@ photo suggestions.
   offline copy fresh – and compared with the cached copy (`TripNews`):
   readers hear about new steps, authors about comments by others. Edits
   don't notify, and nothing does on the very first run. Only the
-  background run posts notifications; each can be muted per trip. A tapped
+  background run posts notifications; each can be muted per trip. Runs are
+  queued one after the other (two at once would notify twice), and the
+  cursor only moves on once every changed trip was fetched. A tapped
   notification opens the trip at that step. The simulator never schedules
   refresh tasks, so debug builds run the same check when sent to the
   background with `-OwnStepsDebugNewsInBackground YES`.
 
-Photos are cached on disk by `MediaStore` only; its session has no
-`URLCache`. The shared cache had kept a second copy outside the account's
-folder (still there after signing out) and served stale images when a
-server restored from a backup handed out a photo ID again.
+Photos are cached on disk by `MediaStore` only, under the photo's
+`fileKey` (a hash of its storage key, new with every upload) – photo IDs
+alone aren't enough: a server restored from a backup hands them out again,
+and the cache served the old images. Its session has no `URLCache`, which
+kept a second copy outside the account's folder, still there after signing
+out.
+
+A background wake-up for finished uploads hands iOS's completion handler to
+the session's uploader, which calls it once the session reported "all
+events delivered" – in whichever order the two arrive. The app first imports
+the inbox before joining sessions, so the session may already be done by the
+time the handler gets there.
 
 Two MapKit/SwiftUI traps: with `.hybrid(elevation: .realistic)` the map
 draws the route but no annotations at all, so the style stays flat. And a

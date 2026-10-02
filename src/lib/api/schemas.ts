@@ -27,6 +27,8 @@ export const photoSchema = z
     lat: z.number().nullable(),
     lon: z.number().nullable(),
     clientUuid: z.string().nullable(),
+    /** Changes whenever the files do – cache them by it, not by `id`. */
+    fileKey: z.string(),
   })
   .meta({
     id: "Photo",

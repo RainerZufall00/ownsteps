@@ -130,7 +130,11 @@ final class FakeTransport: UploadTransport, @unchecked Sendable {
 
 /// A clock the test moves forward.
 final class TestClock: @unchecked Sendable {
-    var now = Date(timeIntervalSince1970: 1_800_000_000)
+    var now: Date
+
+    init(now: Date = Date(timeIntervalSince1970: 1_800_000_000)) {
+        self.now = now
+    }
 }
 
 let stepJSON = """

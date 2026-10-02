@@ -117,14 +117,14 @@ final class AppModel {
     }
 
     /// iOS woke the app for finished uploads of one of its sessions.
-    func handleBackgroundEvents(for identifier: String, completion: @escaping () -> Void) {
+    func handleBackgroundEvents(for identifier: String, completion: @escaping @Sendable () -> Void) {
         let (uploaders, ready) = (self.uploaders, queueReady)
         Task {
             // The rows must exist before the session reports on them.
             await ready?.value
-            let uploader = uploaders.uploader(for: identifier)
-            uploader.backgroundEventsCompletion = completion
-            uploader.activate()
+            // The session may already have delivered its events; the
+            // uploader then calls the completion right away.
+            uploaders.uploader(for: identifier).handleEventsCompletion(completion)
         }
     }
 
@@ -266,7 +266,22 @@ final class AppModel {
     /// again, which keeps the offline copy fresh; comparing with the old copy
     /// tells what's new. Only the background run notifies – in the
     /// foreground, the user sees it anyway.
+    ///
+    /// Runs one after the other: a foreground and a background run started
+    /// together would read the same cursor and notify twice.
     func checkForNews(notify: Bool) async {
+        let previous = newsRun
+        let run = Task {
+            await previous?.value
+            await runNewsCheck(notify: notify)
+        }
+        newsRun = run
+        await run.value
+    }
+
+    private var newsRun: Task<Void, Never>?
+
+    private func runNewsCheck(notify: Bool) async {
         for account in accounts {
             let client = client(for: account)
             let key = cursorKey(account)
@@ -285,28 +300,36 @@ final class AppModel {
                     cursor = feed.cursor
                     more = feed.hasMore && !feed.changes.isEmpty
                 }
+                var complete = true
                 for tripID in tripIDs {
-                    await refreshTrip(tripID, of: account, client: client, notify: notify)
+                    let done = await refreshTrip(tripID, of: account, client: client, notify: notify)
+                    complete = complete && done
                 }
-                UserDefaults.standard.set(cursor, forKey: key)
+                // Otherwise the same changes come again next time; trips
+                // already fetched then just compare equal and stay quiet.
+                if complete { UserDefaults.standard.set(cursor, forKey: key) }
             } catch {
                 // Offline, signed out or sharing off: the next run tries again.
             }
         }
     }
 
-    private func refreshTrip(_ tripID: Int, of account: Account, client: ServerClient, notify: Bool) async {
+    /// False if the trip couldn't be fetched and the change must be seen again.
+    private func refreshTrip(_ tripID: Int, of account: Account, client: ServerClient, notify: Bool) async -> Bool {
         let old = (try? cache.trip(tripID, for: account.id))?.value
         do {
             let fresh = try await client.trip(id: tripID)
             try? cache.saveTrip(fresh, for: account.id)
-            guard notify, !Notifications.isMuted(account: account, tripID: tripID) else { return }
+            guard notify, !Notifications.isMuted(account: account, tripID: tripID) else { return true }
             let news = TripNews.items(old: old, new: fresh, reader: account.kind == .viewer, ownName: account.displayName)
             await Notifications.post(news, account: account)
+            return true
         } catch let error as APIError where error.code == "trip_not_found" {
+            // Deleted: nothing more will come of it.
             try? cache.removeTrip(tripID, for: account.id)
+            return true
         } catch {
-            // Tried again with the next change.
+            return false
         }
     }
 

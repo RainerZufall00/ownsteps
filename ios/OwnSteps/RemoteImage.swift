@@ -31,16 +31,19 @@ struct RemoteImage: View {
                 Rectangle().fill(.quaternary)
             }
         }
-        .task(id: "\(photo.id)-\(variant.rawValue)") {
+        .task(id: "\(photo.id)-\(photo.fileKey)-\(variant.rawValue)") {
             let client = model.client(for: account)
             var data = try? await model.media.data(
                 accountID: account.id,
                 photoID: photo.id,
+                fileKey: photo.fileKey,
                 variant: variant,
                 request: client.mediaRequest(photoID: photo.id, variant: variant)
             )
             for fallback in fallbacks where data == nil {
-                data = await model.media.cachedData(accountID: account.id, photoID: photo.id, variant: fallback)
+                data = await model.media.cachedData(
+                    accountID: account.id, photoID: photo.id, fileKey: photo.fileKey, variant: fallback
+                )
             }
             guard let data else { return }
             // Decoding a 2400 px WebP takes a moment – off the main thread.

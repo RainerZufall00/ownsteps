@@ -24,11 +24,16 @@ import Testing
         )
     }
 
-    func appQueue(transport: FakeTransport, server: StubTransport = StubTransport()) throws -> UploadQueue {
+    func appQueue(
+        transport: FakeTransport,
+        server: StubTransport = StubTransport(),
+        clock: TestClock = TestClock(now: Date())
+    ) throws -> UploadQueue {
         UploadQueue(
             database: try AppDatabase.inMemory(),
             directory: files.directory,
             transport: transport,
+            now: { clock.now },
             clientFor: { _ in
                 ServerClient(baseURL: URL(string: "https://trips.example.com")!, token: "osa_t", transport: server)
             }
@@ -135,6 +140,49 @@ import Testing
         #expect(await queue.shareSessionIDs().isEmpty)
     }
 
+    @Test func leavesSubmissionsAloneUntilTheExtensionIsDone() async throws {
+        // As the extension leaves it while still creating the step.
+        let step = PendingStep.new(
+            accountID: account, tripID: 1, body: "x", placeName: nil, lat: nil, lon: nil,
+            occurredAt: Date(), now: Date()
+        )
+        try inbox.write(ShareSubmission(step: step, uploads: [], updatedAt: Date()))
+
+        let clock = TestClock(now: Date())
+        let queue = try appQueue(transport: FakeTransport(), clock: clock)
+        await queue.importInbox(inbox)
+        #expect(inbox.submissions().count == 1)
+        #expect(try queue.snapshot(accountID: account, tripID: 1).localSteps.isEmpty)
+
+        // The extension was ended halfway: taken over after a while.
+        clock.now = clock.now.addingTimeInterval(11 * 60)
+        await queue.importInbox(inbox)
+        #expect(inbox.submissions().isEmpty)
+        #expect(try queue.snapshot(accountID: account, tripID: 1).localSteps.count == 1)
+    }
+
+    @Test func keepsRowsTheQueueAlreadyHas() async throws {
+        let server = StubTransport()
+        server.responses["createStep"] = (201, "application/json", stepJSON)
+        let extensionSession = FakeTransport()
+        _ = try await submitter(server: server, transport: extensionSession).submit(
+            accountID: account, tripID: 1, body: "x", occurredAt: Date(), media: [try media("a")]
+        )
+        let submission = try #require(inbox.submissions().first?.1)
+        let queue = try appQueue(transport: FakeTransport())
+        await queue.importInbox(inbox)
+        await queue.handleCompletion(
+            uploadID: extensionSession.started[0].id, statusCode: nil, body: nil, error: URLError(.timedOut)
+        )
+
+        // The same submission once more must not reset the retry state.
+        try inbox.write(submission)
+        await queue.importInbox(inbox)
+        let upload = try #require(try queue.snapshot(accountID: account, tripID: 1).uploadsByStepID[42]?.first)
+        #expect(upload.state == .queued)
+        #expect(upload.attempts == 1)
+    }
+
     @Test func remembersIgnoredAssets() throws {
         let queue = try appQueue(transport: FakeTransport())
         try queue.ignoreAssets(["a", "b", "a"], accountID: account)
@@ -223,9 +271,9 @@ import Testing
             [Components.Schemas.Photo].self,
             from: Data("""
             [{"id":1,"width":4000,"height":3000,"placeholder":null,"caption":null,"mediaType":"photo",
-              "durationMs":null,"takenAt":"2026-07-03T16:30:00.000Z","lat":null,"lon":null,"clientUuid":null},
+              "durationMs":null,"takenAt":"2026-07-03T16:30:00.000Z","lat":null,"lon":null,"clientUuid":null,"fileKey":"k"},
              {"id":2,"width":640,"height":360,"placeholder":null,"caption":null,"mediaType":"video",
-              "durationMs":5000,"takenAt":"2026-07-03T16:30:00.000Z","lat":null,"lon":null,"clientUuid":null}]
+              "durationMs":5000,"takenAt":"2026-07-03T16:30:00.000Z","lat":null,"lon":null,"clientUuid":null,"fileKey":"k"}]
             """.utf8)
         )
         let left = PhotoSuggestions.filter(candidates, uploaded: ["uploaded"], ignored: ["ignored"], serverPhotos: server)

@@ -113,16 +113,13 @@ public actor UploadQueue {
 
     /// Takes over what the Share Extension wrote ([D21]). Run before the
     /// background sessions reconnect, so their results find their rows.
-    public func importInbox(_ inbox: ShareInbox) async {
-        for (file, submission) in inbox.submissions() {
-            do {
-                try await database.write { db in
-                    try submission.step.save(db)
-                    for upload in submission.uploads { try upload.save(db) }
-                }
-                try? FileManager.default.removeItem(at: file)
-            } catch {
-                // Stays in the inbox for the next try.
+    /// Rows the queue already has stay as they are – a submission read twice
+    /// must not reset an upload in progress.
+    public func importInbox(_ inbox: ShareInbox) {
+        inbox.takeOver(now: now()) { submission in
+            try database.write { db in
+                try submission.step.insert(db, onConflict: .ignore)
+                for upload in submission.uploads { try upload.insert(db, onConflict: .ignore) }
             }
         }
     }
@@ -441,5 +438,6 @@ private struct ProblemCode: Decodable {
 }
 
 extension String {
-    var nilIfEmpty: String? { isEmpty ? nil : self }
+    /// nil for an empty string – for optional fields from text inputs.
+    public var nilIfEmpty: String? { isEmpty ? nil : self }
 }

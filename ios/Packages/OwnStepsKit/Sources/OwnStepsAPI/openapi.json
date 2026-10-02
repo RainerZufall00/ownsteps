@@ -1997,6 +1997,9 @@
               "string",
               "null"
             ]
+          },
+          "fileKey": {
+            "type": "string"
           }
         },
         "required": [
@@ -2010,7 +2013,8 @@
           "takenAt",
           "lat",
           "lon",
-          "clientUuid"
+          "clientUuid",
+          "fileKey"
         ],
         "additionalProperties": false,
         "description": "A photo or video. Files: GET /api/v1/photos/{id}/{thumb|medium|large|video}."

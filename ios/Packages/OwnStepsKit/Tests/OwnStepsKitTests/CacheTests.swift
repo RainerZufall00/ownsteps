@@ -87,7 +87,7 @@ final class CountingProtocol: URLProtocol, @unchecked Sendable {
 
         let first = MediaStore(directory: directory, session: URLSession(configuration: configuration))
         let data = try await first.data(
-            accountID: account, photoID: 7, variant: .medium,
+            accountID: account, photoID: 7, fileKey: "k1", variant: .medium,
             request: client.mediaRequest(photoID: 7, variant: .medium)
         )
         #expect(String(decoding: data, as: UTF8.self) == "webp-bytes")
@@ -96,16 +96,23 @@ final class CountingProtocol: URLProtocol, @unchecked Sendable {
         // A fresh store (new app launch) finds the file on disk.
         let second = MediaStore(directory: directory, session: URLSession(configuration: configuration))
         _ = try await second.data(
-            accountID: account, photoID: 7, variant: .medium,
+            accountID: account, photoID: 7, fileKey: "k1", variant: .medium,
             request: client.mediaRequest(photoID: 7, variant: .medium)
         )
         #expect(CountingProtocol.requests == 1)
 
-        await second.removeAll(for: account)
+        // The same ID with other files – a server restored from a backup.
         _ = try await second.data(
-            accountID: account, photoID: 7, variant: .medium,
+            accountID: account, photoID: 7, fileKey: "k2", variant: .medium,
             request: client.mediaRequest(photoID: 7, variant: .medium)
         )
         #expect(CountingProtocol.requests == 2)
+
+        await second.removeAll(for: account)
+        _ = try await second.data(
+            accountID: account, photoID: 7, fileKey: "k1", variant: .medium,
+            request: client.mediaRequest(photoID: 7, variant: .medium)
+        )
+        #expect(CountingProtocol.requests == 3)
     }
 }

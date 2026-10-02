@@ -17,11 +17,16 @@ public final class BackgroundUploader: NSObject, UploadTransport, URLSessionData
     public var onCompletion: (@Sendable (String, Int?, Data?, (any Error)?) -> Void)?
     /// Progress per upload ID, 0…1.
     public var onProgress: (@Sendable (String, Double) -> Void)?
-    /// Handed over by the app delegate when iOS wakes the app for this session.
-    public var backgroundEventsCompletion: (() -> Void)?
+    /// Called once the events iOS woke the app for are delivered.
+    public var onEventsFinished: (@Sendable () -> Void)?
 
     private let lock = NSLock()
     private var responses: [Int: Data] = [:]
+    /// From the app delegate when iOS wakes the app for this session.
+    private var eventsCompletion: (@Sendable () -> Void)?
+    /// The session may deliver its events before the app delegate's
+    /// completion handler reaches us; then it's called on arrival.
+    private var eventsFinishedEarly = false
 
     private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
@@ -47,6 +52,30 @@ public final class BackgroundUploader: NSObject, UploadTransport, URLSessionData
     /// Lets running uploads finish, then lets go of the session.
     public func finish() {
         session.finishTasksAndInvalidate()
+    }
+
+    /// Hands over iOS's completion handler for a background wake-up. Safe
+    /// in either order with the session's own "events delivered".
+    public func handleEventsCompletion(_ completion: @escaping @Sendable () -> Void) {
+        let callNow = lock.withLock {
+            if eventsFinishedEarly {
+                eventsFinishedEarly = false
+                return true
+            }
+            eventsCompletion = completion
+            return false
+        }
+        if callNow { finishEvents(completion) }
+    }
+
+    /// Whether iOS still waits for this session's events to be handled.
+    public var isAwaitingEvents: Bool { lock.withLock { eventsCompletion != nil } }
+
+    private func finishEvents(_ completion: @escaping @Sendable () -> Void) {
+        DispatchQueue.main.async { [self] in
+            completion()
+            onEventsFinished?()
+        }
     }
 
     public func start(request: URLRequest, bodyFile: URL, uploadID: String) async {
@@ -85,10 +114,13 @@ public final class BackgroundUploader: NSObject, UploadTransport, URLSessionData
     }
 
     public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-        DispatchQueue.main.async { [self] in
-            backgroundEventsCompletion?()
-            backgroundEventsCompletion = nil
+        let completion = lock.withLock {
+            let completion = eventsCompletion
+            eventsCompletion = nil
+            if completion == nil { eventsFinishedEarly = true }
+            return completion
         }
+        if let completion { finishEvents(completion) }
     }
 }
 
@@ -122,6 +154,10 @@ public final class UploaderGroup: UploadTransport, @unchecked Sendable {
             let uploader = BackgroundUploader(identifier: identifier, sharedContainerIdentifier: sharedContainerIdentifier)
             uploader.onCompletion = onCompletion
             uploader.onProgress = onProgress
+            // Its last completions arrive before iOS's "all delivered".
+            uploader.onEventsFinished = { [weak self] in
+                Task { await self?.releaseIdleSessions() }
+            }
             uploader.activate()
             extra[identifier] = uploader
             return uploader
@@ -133,7 +169,7 @@ public final class UploaderGroup: UploadTransport, @unchecked Sendable {
         let sessions = lock.withLock { extra }
         for (identifier, uploader) in sessions where await uploader.activeUploadIDs().isEmpty {
             // Only once iOS has delivered the session's events, if it was woken for them.
-            guard uploader.backgroundEventsCompletion == nil else { continue }
+            guard !uploader.isAwaitingEvents else { continue }
             uploader.finish()
             _ = lock.withLock { extra.removeValue(forKey: identifier) }
         }

@@ -201,7 +201,6 @@ struct TripListView: View {
                 let trips = try await model.client(for: account).trips()
                 tripsByAccount[account.id] = trips
                 try? model.cache.saveTrips(trips, for: account.id)
-                model.publishShareTargets()
                 staleSince[account.id] = nil
                 errors[account.id] = nil
             } catch let error as APIError where error.isUnauthorized {
@@ -215,6 +214,8 @@ struct TripListView: View {
                 }
             }
         }
+        // Once for all accounts: the Share Extension's trip list.
+        model.publishShareTargets()
     }
 }
 

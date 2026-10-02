@@ -7,33 +7,64 @@ import Foundation
 public struct ShareSubmission: Codable, Sendable, Equatable {
     public var step: PendingStep
     public var uploads: [PendingUpload]
+    /// Set by the extension's last write. Until then the app leaves the
+    /// submission alone – unless the extension evidently died on it.
+    public var finished = false
+    public var updatedAt: Date
+
+    init(step: PendingStep, uploads: [PendingUpload], updatedAt: Date) {
+        self.step = step
+        self.uploads = uploads
+        self.updatedAt = updatedAt
+    }
 }
 
 /// The folder the Share Extension drops submissions into. The app takes
 /// them into its queue on every launch (`UploadQueue.importInbox`).
+///
+/// App and extension can run at the same time (the app woken in the
+/// background for its uploads while the share sheet is open), so every
+/// read-modify-write and the app's take-over go through `NSFileCoordinator`,
+/// which works across processes.
 public struct ShareInbox: Sendable {
     public let directory: URL
+
+    /// After this long, an unfinished submission is taken over anyway: the
+    /// extension was ended before it got to finish.
+    static let abandonedAfter: TimeInterval = 10 * 60
 
     public init(directory: URL) {
         self.directory = directory
     }
 
+    private func url(for submission: ShareSubmission) -> URL {
+        directory.appending(path: "\(submission.step.clientUUID).json")
+    }
+
     func write(_ submission: ShareSubmission) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try JSONEncoder().encode(submission)
-        // Atomic: the app never reads half a file.
-        try data.write(to: directory.appending(path: "\(submission.step.clientUUID).json"), options: .atomic)
+        var failure: (any Error)?
+        try Self.coordinate(url(for: submission), options: .forReplacing) { url in
+            // Atomic: an uncoordinated reader never sees half a file.
+            do { try data.write(to: url, options: .atomic) } catch { failure = error }
+        }
+        if let failure { throw failure }
     }
 
     /// Uploads that finish while the extension still runs report to the
     /// extension, not the app. A finished one is taken off its submission
     /// (and its files deleted), so the app doesn't send it a second time.
+    /// If the app already took the submission over, there's nothing to do –
+    /// the file is gone, and it must not come back.
     public func recordCompletion(uploadID: String, statusCode: Int?, files: QueueFiles) {
-        guard let statusCode, (200..<300).contains(statusCode) else { return }
-        Self.lock.withLock {
-            guard let (url, found) = submissions().first(where: { $0.1.uploads.contains { $0.clientUUID == uploadID } })
+        guard let statusCode, (200..<300).contains(statusCode),
+              let (url, _) = submissions().first(where: { $0.1.uploads.contains { $0.clientUUID == uploadID } })
+        else { return }
+        try? Self.coordinate(url, options: .forMerging) { url in
+            guard let data = try? Data(contentsOf: url),
+                  var submission = try? JSONDecoder().decode(ShareSubmission.self, from: data)
             else { return }
-            var submission = found
             submission.uploads.removeAll { upload in
                 guard upload.clientUUID == uploadID else { return false }
                 files.removeFiles(of: upload)
@@ -43,13 +74,30 @@ public struct ShareInbox: Sendable {
                 // Nothing left for the app to do.
                 try? FileManager.default.removeItem(at: url)
             } else {
-                try? write(submission)
+                try? JSONEncoder().encode(submission).write(to: url, options: .atomic)
             }
         }
     }
 
-    /// Completions arrive on the session's queue, possibly at once.
-    private static let lock = NSLock()
+    /// Hands each submission the extension is done with to `adopt`, and
+    /// deletes it once that succeeded – in one coordinated step, so the
+    /// extension can't write it back in between.
+    func takeOver(now: Date, adopt: (ShareSubmission) throws -> Void) {
+        for (url, _) in submissions() {
+            try? Self.coordinate(url, options: .forDeleting) { url in
+                guard let data = try? Data(contentsOf: url),
+                      let submission = try? JSONDecoder().decode(ShareSubmission.self, from: data),
+                      submission.finished || now.timeIntervalSince(submission.updatedAt) > Self.abandonedAfter
+                else { return }
+                do {
+                    try adopt(submission)
+                    try FileManager.default.removeItem(at: url)
+                } catch {
+                    // Stays for the next try.
+                }
+            }
+        }
+    }
 
     func submissions() -> [(URL, ShareSubmission)] {
         let files = (try? FileManager.default.contentsOfDirectory(
@@ -64,6 +112,16 @@ public struct ShareInbox: Sendable {
                 return (url, submission)
             }
             .sorted { $0.1.step.createdAt < $1.1.step.createdAt }
+    }
+
+    private static func coordinate(
+        _ url: URL,
+        options: NSFileCoordinator.WritingOptions,
+        _ body: (URL) -> Void
+    ) throws {
+        var error: NSError?
+        NSFileCoordinator().coordinate(writingItemAt: url, options: options, error: &error, byAccessor: body)
+        if let error { throw error }
     }
 }
 
@@ -115,7 +173,8 @@ public struct ShareSubmitter: Sendable {
                 accountID: accountID, tripID: tripID, body: body, placeName: nil,
                 lat: nil, lon: nil, occurredAt: occurredAt, now: now()
             ),
-            uploads: []
+            uploads: [],
+            updatedAt: now()
         )
         submission.uploads = try media.enumerated().map { index, item in
             try files.adopt(
@@ -140,6 +199,9 @@ public struct ShareSubmitter: Sendable {
             )
         } catch {
             // The app tries again – and reports a refusal in the timeline.
+            submission.finished = true
+            submission.updatedAt = now()
+            try inbox.write(submission)
             return .savedForLater
         }
 
@@ -149,6 +211,7 @@ public struct ShareSubmitter: Sendable {
             let body = try files.bodyFile(for: submission.uploads[index])
             submission.uploads[index].state = .uploading
             submission.uploads[index].sessionID = sessionID
+            submission.updatedAt = now()
             // Recorded before the transfer starts: its result must find the row.
             try inbox.write(submission)
             await transport.start(
@@ -157,6 +220,8 @@ public struct ShareSubmitter: Sendable {
                 uploadID: submission.uploads[index].clientUUID
             )
         }
+        submission.finished = true
+        submission.updatedAt = now()
         try inbox.write(submission)
         return .sending
     }

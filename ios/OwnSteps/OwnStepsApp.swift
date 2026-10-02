@@ -83,7 +83,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         guard identifier == BackgroundUploader.sessionIdentifier
             || identifier.hasPrefix(BackgroundUploader.shareSessionPrefix)
         else { return completionHandler() }
-        model.handleBackgroundEvents(for: identifier, completion: completionHandler)
+        // UIKit's handler isn't marked Sendable; the uploader calls it on
+        // the main queue, where UIKit expects it.
+        nonisolated(unsafe) let handler = completionHandler
+        model.handleBackgroundEvents(for: identifier) { handler() }
     }
 }
 

@@ -153,7 +153,7 @@ struct TripView: View {
                 Task { @MainActor in composer = .new(tripID: tripID) }
             } ignore: { hidden in
                 try? model.uploads.ignoreAssets(hidden.map(\.localIdentifier), accountID: account.id)
-                updateSuggestions()
+                Task { await updateSuggestions() }
             }
         }
         .confirmationDialog(
@@ -214,10 +214,10 @@ struct TripView: View {
     }
 
     /// Without photo access nothing is asked here – only the menu asks.
-    private func updateSuggestions() {
+    private func updateSuggestions() async {
         guard isAuthor, let trip else { return }
         suggestionsDismissedUntil = LibrarySuggestions.dismissedUntil(account: account, tripID: tripID)
-        suggestions = LibrarySuggestions.find(for: trip, account: account, calendar: calendar, uploads: model.uploads)
+        suggestions = await LibrarySuggestions.find(for: trip, account: account, calendar: calendar, uploads: model.uploads)
     }
 
     private func reviewSuggestions() async {
@@ -225,7 +225,7 @@ struct TripView: View {
             photoAccessDenied = true
             return
         }
-        updateSuggestions()
+        await updateSuggestions()
         showingSuggestions = true
     }
 
@@ -284,13 +284,14 @@ struct TripView: View {
         let media = model.media
         let accountID = account.id
         let wanted = trip.steps.flatMap { step in
-            step.photos.prefix(4).map { ($0.id, step.photos.count == 1 ? MediaVariant.medium : .thumb) }
+            step.photos.prefix(4).map { ($0.id, $0.fileKey, step.photos.count == 1 ? MediaVariant.medium : .thumb) }
         }
         Task.detached(priority: .utility) {
-            for (photoID, variant) in wanted {
+            for (photoID, fileKey, variant) in wanted {
                 _ = try? await media.data(
                     accountID: accountID,
                     photoID: photoID,
+                    fileKey: fileKey,
                     variant: variant,
                     request: client.mediaRequest(photoID: photoID, variant: variant)
                 )
@@ -306,7 +307,7 @@ struct TripView: View {
             error = nil
             try? model.cache.saveTrip(fresh, for: account.id)
             prefetch(fresh)
-            updateSuggestions()
+            await updateSuggestions()
         } catch let api as APIError where api.isUnauthorized {
             model.signedOutByServer(account)
         } catch let api as APIError where api.code == "trip_not_found" {

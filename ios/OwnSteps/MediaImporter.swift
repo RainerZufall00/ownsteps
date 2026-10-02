@@ -128,16 +128,23 @@ enum MediaImporter {
         let options = PHVideoRequestOptions()
         options.isNetworkAccessAllowed = true
         options.version = .current
-        let source = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL?, any Error>) in
+        // Copied inside the callback: the library file is only readable while
+        // the AVAsset (which holds the sandbox extension for it) is alive.
+        let copied = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL?, any Error>) in
             PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, _ in
                 guard let avAsset else { return continuation.resume(throwing: Problem.unreadable) }
-                continuation.resume(returning: (avAsset as? AVURLAsset)?.url)
+                guard let source = (avAsset as? AVURLAsset)?.url else { return continuation.resume(returning: nil) }
+                let file = MediaPreparation.temporaryFile(source.pathExtension.isEmpty ? "mov" : source.pathExtension)
+                do {
+                    try FileManager.default.copyItem(at: source, to: file)
+                    continuation.resume(returning: file)
+                } catch {
+                    continuation.resume(throwing: Problem.unreadable)
+                }
             }
         }
-        if let source {
-            let file = MediaPreparation.temporaryFile(source.pathExtension.isEmpty ? "mov" : source.pathExtension)
-            try FileManager.default.copyItem(at: source, to: file)
-            return try await video(at: file, original: original, asset: asset, assetID: asset.localIdentifier)
+        if let copied {
+            return try await video(at: copied, original: original, asset: asset, assetID: asset.localIdentifier)
         }
 
         let preset = original ? AVAssetExportPresetHighestQuality : AVAssetExportPreset1920x1080
@@ -193,8 +200,4 @@ enum CurrentLocation {
         else { return nil }
         return [address.cityName, address.regionName].compactMap { $0 }.joined(separator: ", ").nilIfEmpty
     }
-}
-
-extension String {
-    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

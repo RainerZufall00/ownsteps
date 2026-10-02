@@ -7,11 +7,6 @@ import UIKit
 /// Which ones count is decided in `PhotoSuggestions` (OwnStepsKit); this
 /// part talks to the Photos framework.
 enum LibrarySuggestions {
-    static var isAllowed: Bool {
-        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        return status == .authorized || status == .limited
-    }
-
     /// Asks for photo access if that hasn't happened yet. False if denied.
     static func requestAccess() async -> Bool {
         switch PHPhotoLibrary.authorizationStatus(for: .readWrite) {
@@ -23,14 +18,34 @@ enum LibrarySuggestions {
         }
     }
 
-    /// Oldest first, like the trip.
+    /// Oldest first, like the trip. Off the main thread: it walks the whole
+    /// trip period of the library, and runs after every refresh.
     static func find(
         for trip: Components.Schemas.TripDetail,
         account: Account,
         calendar: TripCalendar,
         uploads: UploadQueue
-    ) -> [PHAsset] {
-        guard isAllowed,
+    ) async -> [PHAsset] {
+        let ids = await Task.detached(priority: .utility) {
+            scan(for: trip, accountID: account.id, calendar: calendar, uploads: uploads)
+        }.value
+        guard !ids.isEmpty else { return [] }
+        // PHAsset isn't Sendable; fetched again here by ID, in the scan's order.
+        var byID: [String: PHAsset] = [:]
+        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { asset, _, _ in
+            byID[asset.localIdentifier] = asset
+        }
+        return ids.compactMap { byID[$0] }
+    }
+
+    private nonisolated static func scan(
+        for trip: Components.Schemas.TripDetail,
+        accountID: UUID,
+        calendar: TripCalendar,
+        uploads: UploadQueue
+    ) -> [String] {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        guard status == .authorized || status == .limited,
               let window = PhotoSuggestions.window(
                   startDate: trip.startDate,
                   endDate: trip.endDate,
@@ -49,11 +64,9 @@ enum LibrarySuggestions {
             PHAssetMediaSubtype.photoScreenshot.rawValue
         )
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
-        var assets: [String: PHAsset] = [:]
         var candidates: [PhotoSuggestions.Candidate] = []
         PHAsset.fetchAssets(with: options).enumerateObjects { asset, _, _ in
             guard let created = asset.creationDate else { return }
-            assets[asset.localIdentifier] = asset
             candidates.append(.init(
                 id: asset.localIdentifier,
                 creationDate: created,
@@ -62,13 +75,12 @@ enum LibrarySuggestions {
                 durationMs: asset.mediaType == .video ? Int((asset.duration * 1000).rounded()) : nil
             ))
         }
-        let left = PhotoSuggestions.filter(
+        return PhotoSuggestions.filter(
             candidates,
-            uploaded: (try? uploads.uploadedAssetIDs(accountID: account.id)) ?? [],
-            ignored: (try? uploads.ignoredAssetIDs(accountID: account.id)) ?? [],
+            uploaded: (try? uploads.uploadedAssetIDs(accountID: accountID)) ?? [],
+            ignored: (try? uploads.ignoredAssetIDs(accountID: accountID)) ?? [],
             serverPhotos: trip.steps.flatMap(\.photos)
-        )
-        return left.compactMap { assets[$0.id] }
+        ).map(\.id)
     }
 
     /// "Not now" on the card: it stays away until newer photos turn up.
