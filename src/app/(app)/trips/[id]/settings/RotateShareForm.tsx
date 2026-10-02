@@ -39,8 +39,9 @@ export default function RotateShareForm({ tripId }: { tripId: number }) {
       <p className="text-[15px] font-medium">Neuen Link erzeugen?</p>
       <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
         Der bisherige Link wird sofort ungültig. Alle, denen du ihn geschickt
-        hast, kommen dann nicht mehr hinein – du müsstest ihnen den neuen Link
-        noch einmal schicken.
+        hast, kommen dann nicht mehr hinein – auch wer der Reise in der App
+        folgt, wird abgemeldet. Du müsstest ihnen den neuen Link noch einmal
+        schicken.
       </p>
 
       <div className="mt-3 flex gap-2">

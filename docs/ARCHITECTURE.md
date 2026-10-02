@@ -247,6 +247,65 @@ flowchart TD
 > use `resolveTripAccess`. That applies especially to route handlers – no
 > layout checks sign-in on the side there.
 
+### Brakes against guessing
+
+Every password check is braked, in `src/lib/rate-limit.ts` plus the services
+that use it – so the web form and the app share one budget:
+
+| What | Per client address | Per target, any address |
+| --- | --- | --- |
+| Account password (web login, `POST /api/v1/auth/token`) | 10 attempts/min | 10 failures per account per 15 min |
+| Share password (web unlock, `POST /api/v1/viewers/redeem`) | 10 attempts/min | 20 failures per trip per 15 min |
+| Redeeming a share link | 10/min | – |
+| Comments | 5/min | – |
+
+The per-target limits are the ones that matter: an attacker rotating
+addresses still only gets a handful of guesses per account or trip. A
+genuine user can be locked out for a quarter hour by someone attacking –
+the price for it. Share passwords need 8 characters (4 before; existing
+ones keep working). The app's empty first try ("does this trip have a
+password?") doesn't count as a failure.
+
+**The client address comes from `X-Forwarded-For`, counted from the right**
+(`clientAddress`): `TRUSTED_PROXIES` (default 1) says how many reverse proxies
+append to it. Taking the first entry, as before, let anyone fake an address
+per request and slip past every brake. Directly exposed servers set
+`TRUSTED_PROXIES=0`; all requests then share one bucket, the per-target
+limits still apply. Limiters live on `globalThis` by name: Server Actions and
+route handlers may end up in different bundles but must count together.
+
+### Headers and CSP
+
+`next.config.ts` sets `nosniff`, `Referrer-Policy: same-origin` (share links
+carry their secret in the path), `X-Frame-Options: DENY`, a
+`Permissions-Policy` (location only for the step editor) and HSTS without
+`includeSubDomains` (ignored over plain HTTP, so LAN setups keep working).
+
+The Content-Security-Policy comes from `src/proxy.ts` with a **fresh nonce
+per request**; Next puts it on its own scripts. That only works for pages
+rendered per request, hence `dynamic = "force-dynamic"` in the root layout.
+Scripts need the nonce ('strict-dynamic' lets them load chunks); styles
+stay `'unsafe-inline'` because React renders `style` attributes, which
+nonces don't cover. MapLibre needs `blob:` for its worker and sprites; map
+data comes through `/api/map` on our own origin. **An inline `<script>`
+without the nonce, or a third-party origin, is blocked** – extend the policy
+in `proxy.ts` deliberately. Not yet checked with a real map: the test setup
+has no MapTiler key.
+
+### Secrets and OIDC
+
+`APP_SECRET` signs the unlock cookies. Unset, one is generated into
+`DATA_DIR/.secret`. Set but shorter than 32 characters (or obviously not
+random), the server refuses to start (`exitOnWeakAppSecret()` in
+instrumentation) – it used to fall back silently.
+
+OIDC matches and creates accounts by email only if the provider marks the
+address `email_verified` (or `OIDC_TRUST_EMAIL=true` for providers that
+check addresses but never say so). Otherwise someone registering at the
+provider with your address would land in your account. Known identities
+sign in by `sub` as before; an unverified address never overwrites the one
+on record, and the allow list only counts verified addresses.
+
 **A new share token needs a confirmation.** `rotateShareTokenAction`
 overwrites the old token, which is then gone for good: every link sent out is
 dead, without the recipients knowing why. The button in the trip settings
@@ -279,8 +338,10 @@ services the web UI calls.
   another app catching the custom-scheme redirect can't redeem it.
 - **Readers.** `POST /api/v1/viewers/redeem` turns a share link (plus the
   password, once) into a viewer token. Any number of readers can redeem one
-  link. Rotating the share token keeps registered devices; authors remove them
-  in the trip settings.
+  link. A new share link or a new share password signs all devices out (the
+  password exists to shut people out, and the app's readers never typed the
+  new one); switching sharing off only locks them out until it's back on.
+  Authors also remove devices in the trip settings.
 - **Idempotency.** Steps and photos carry an optional `client_uuid`. A
   repeated `POST …/steps` or `POST …/media` with the same UUID returns what the
   first request created – retries after a dropped connection don't duplicate.

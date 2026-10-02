@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { db } from "@/db";
 import { trips, type Trip } from "@/db/schema";
 import { getCurrentUser } from "./auth";
-import { APP_SECRET } from "./env";
+import { appSecret } from "./env";
 
 export function newShareToken() {
   // 24 random bytes – unguessable, even if the link circulates publicly.
@@ -20,7 +20,7 @@ function unlockCookieName(tripId: number) {
 /** Signature an unlocked browser uses to identify itself again. */
 function unlockSignature(tripId: number, passwordHash: string) {
   return crypto
-    .createHmac("sha256", APP_SECRET)
+    .createHmac("sha256", appSecret())
     .update(`${tripId}:${passwordHash}`)
     .digest("base64url");
 }

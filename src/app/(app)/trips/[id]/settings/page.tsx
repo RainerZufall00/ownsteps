@@ -94,8 +94,8 @@ export default async function TripSettingsPage({
       <section className="card mt-5 p-6">
         <h2 className="text-lg font-semibold">Lesende in der App</h2>
         <p className="mt-1.5 text-[15px] text-ink-soft">
-          Wer den Link in der App geöffnet hat. Ein neuer Link wirft sie nicht
-          hinaus; ist das Teilen aus, sehen sie nichts mehr.
+          Wer den Link in der App geöffnet hat. Ein neuer Link oder ein neues
+          Passwort meldet alle ab; ist das Teilen aus, sehen sie nichts mehr.
         </p>
         {viewers.length === 0 ? (
           <p className="mt-4 text-[15px] text-ink-faint">Noch niemand.</p>

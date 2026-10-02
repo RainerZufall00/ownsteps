@@ -62,6 +62,10 @@ fallback in case the provider is unreachable.
 If not everyone on your identity provider should get access, use
 `OIDC_ALLOWED_EMAILS=you@example.com,partner@example.com`.
 
+Accounts are only matched or created by an email address the provider marks
+as verified (`email_verified`). If yours checks addresses but doesn't send that
+claim, set `OIDC_TRUST_EMAIL=true`.
+
 Once OIDC works, `PASSWORD_LOGIN=false` switches password sign-in off in the
 web UI and the app alike.
 
@@ -121,6 +125,11 @@ networks – this doesn't work for a proxy in the host network.
 Important: `X-Forwarded-Proto` must be passed through (Caddy and Traefik do
 this by default) so share links are created with `https://`. Alternatively set
 `PUBLIC_URL` explicitly – it always takes precedence.
+
+**`TRUSTED_PROXIES`** (default `1`) tells OwnSteps how many proxies append to
+`X-Forwarded-For` – the brakes against password guessing count per client
+address. One proxy (Caddy, nginx, Traefik, Pangolin): leave it. Two, e.g.
+Cloudflare in front of Caddy: `2`. Reachable directly without a proxy: `0`.
 
 The proxy must let large uploads through: 25 MB is enough for photos, videos
 can be up to 400 MB (nginx: `client_max_body_size 400m;`). Its timeout should

@@ -38,9 +38,26 @@ export const oidcEnabled = Boolean(
   OIDC_ISSUER && OIDC_CLIENT_ID && OIDC_CLIENT_SECRET,
 );
 
-export function isEmailAllowed(email: string) {
+/**
+ * `OIDC_TRUST_EMAIL=true` accepts addresses the provider doesn't mark as
+ * verified – only for providers that never send `email_verified` although
+ * every address on them is checked.
+ */
+const TRUST_UNVERIFIED_EMAIL = process.env.OIDC_TRUST_EMAIL?.trim().toLowerCase() === "true";
+
+/**
+ * Whether the address may be used to find or create an account. An
+ * unverified one could be anybody's: registered at the provider with your
+ * address, it would otherwise land in your account.
+ */
+export function isEmailTrusted(claims: OidcClaims) {
+  return claims.emailVerified || TRUST_UNVERIFIED_EMAIL;
+}
+
+/** The allow list only counts addresses the provider has verified. */
+export function isEmailAllowed(claims: OidcClaims) {
   if (ALLOWED_EMAILS.length === 0) return true;
-  return ALLOWED_EMAILS.includes(email.trim().toLowerCase());
+  return isEmailTrusted(claims) && ALLOWED_EMAILS.includes(claims.email.trim().toLowerCase());
 }
 
 type Discovery = {
@@ -119,9 +136,16 @@ export async function buildAuthorizationUrl(input: {
 export type OidcClaims = {
   subject: string;
   email: string;
+  /** The provider confirmed the address belongs to the user. */
+  emailVerified: boolean;
   name?: string | null;
   picture?: string | null;
 };
+
+/** Some providers send `"true"` as a string. */
+function isTrue(value: unknown) {
+  return value === true || value === "true";
+}
 
 export async function exchangeCode(input: {
   code: string;
@@ -178,6 +202,7 @@ export async function exchangeCode(input: {
         ? payload.preferred_username
         : null;
   let picture = typeof payload.picture === "string" ? payload.picture : null;
+  let emailVerified = isTrue(payload.email_verified);
 
   // Some providers only deliver profile data via userinfo.
   if ((!email || !name) && config.userinfo_endpoint && tokens.access_token) {
@@ -188,7 +213,10 @@ export async function exchangeCode(input: {
       });
       if (info.ok) {
         const profile = (await info.json()) as Record<string, unknown>;
-        if (!email && typeof profile.email === "string") email = profile.email;
+        if (!email && typeof profile.email === "string") {
+          email = profile.email;
+          emailVerified = isTrue(profile.email_verified);
+        }
         if (!name && typeof profile.name === "string") name = profile.name;
         if (!picture && typeof profile.picture === "string") {
           picture = profile.picture;
@@ -205,5 +233,8 @@ export async function exchangeCode(input: {
     );
   }
 
-  return { subject: String(payload.sub), email, name, picture };
+  if (typeof payload.sub !== "string" || !payload.sub) {
+    throw new Error("The ID token carries no subject.");
+  }
+  return { subject: payload.sub, email, emailVerified, name, picture };
 }

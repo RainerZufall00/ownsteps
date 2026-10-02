@@ -125,36 +125,41 @@ export async function createUser(input: {
   return created;
 }
 
+export async function findUserByOidcSubject(subject: string) {
+  const rows = await db.select().from(users).where(eq(users.oidcSubject, subject)).limit(1);
+  return rows[0] ?? null;
+}
+
 /**
  * Links an OIDC identity to a local account: first via `sub`, then via email
  * (so an existing password account is taken over), otherwise a new account
- * is created.
+ * is created. `emailTrusted` must only be true for an address the provider
+ * verified – the caller refuses everything but a known `sub` otherwise.
  */
 export async function upsertOidcUser(claims: {
   subject: string;
   email: string;
+  emailTrusted: boolean;
   name?: string | null;
   picture?: string | null;
 }): Promise<User> {
   const email = claims.email.trim().toLowerCase();
 
-  const bySubject = await db
-    .select()
-    .from(users)
-    .where(eq(users.oidcSubject, claims.subject))
-    .limit(1);
-  if (bySubject[0]) {
+  const linked = await findUserByOidcSubject(claims.subject);
+  if (linked) {
     const [updated] = await db
       .update(users)
       .set({
-        email,
-        name: claims.name?.trim() || bySubject[0].name,
-        avatarUrl: claims.picture ?? bySubject[0].avatarUrl,
+        // An unverified address must not overwrite the one on record.
+        email: claims.emailTrusted ? email : linked.email,
+        name: claims.name?.trim() || linked.name,
+        avatarUrl: claims.picture ?? linked.avatarUrl,
       })
-      .where(eq(users.id, bySubject[0].id))
+      .where(eq(users.id, linked.id))
       .returning();
     return updated;
   }
+  if (!claims.emailTrusted) throw new Error("Unverified email for an unknown subject.");
 
   const byEmail = await findUserByEmail(email);
   if (byEmail) {

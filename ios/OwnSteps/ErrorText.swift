@@ -66,6 +66,8 @@ enum ErrorText {
     private static func oidcMessage(_ reason: String) -> String {
         switch reason {
         case "oidc_not_allowed": String(localized: "This account isn't allowed on this server.")
+        case "oidc_unverified":
+            String(localized: "Your sign-in provider hasn't confirmed your email address. Confirm it there and try again.")
         case "oidc_denied": String(localized: "Sign-in was cancelled.")
         default: String(localized: "Sign-in failed. Please try again.")
         }

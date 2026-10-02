@@ -91,6 +91,7 @@ describe("accounts", () => {
     const linked = await upsertOidcUser({
       subject: "sub-123",
       email: "AUTHOR@example.com",
+      emailTrusted: true,
       name: "Author Via OIDC",
     });
     expect(linked.id).toBe(user.id);
@@ -100,16 +101,31 @@ describe("accounts", () => {
   });
 
   it("finds a linked account by subject even after an email change", async () => {
-    const first = await upsertOidcUser({ subject: "sub-123", email: "old@example.com" });
-    const again = await upsertOidcUser({ subject: "sub-123", email: "new@example.com" });
+    const first = await upsertOidcUser({ subject: "sub-123", email: "old@example.com", emailTrusted: true });
+    const again = await upsertOidcUser({ subject: "sub-123", email: "new@example.com", emailTrusted: true });
     expect(again.id).toBe(first.id);
     expect(again.email).toBe("new@example.com");
+  });
+
+  it("never matches or overwrites an account by an unverified address", async () => {
+    const user = await newUser();
+    // Registered at the provider with someone else's address, unverified.
+    await expect(
+      upsertOidcUser({ subject: "intruder", email: "author@example.com", emailTrusted: false }),
+    ).rejects.toThrow();
+
+    // A known identity still signs in, but keeps the address on record.
+    const linked = await upsertOidcUser({ subject: "sub-1", email: "author@example.com", emailTrusted: true });
+    const again = await upsertOidcUser({ subject: "sub-1", email: "other@example.com", emailTrusted: false });
+    expect(again.id).toBe(user.id);
+    expect(again.email).toBe(linked.email);
   });
 
   it("creates a password-less account for new OIDC identities", async () => {
     const created = await upsertOidcUser({
       subject: "sub-456",
       email: "traveler@example.com",
+      emailTrusted: true,
     });
     expect(created.passwordHash).toBeNull();
     expect(created.name).toBe("traveler");

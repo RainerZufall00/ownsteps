@@ -119,6 +119,10 @@ export default function ShareSettings({
               className="field"
               placeholder={hasPassword ? "Neues Passwort setzen" : "Kein Passwort"}
             />
+            <p className="mt-1.5 text-sm text-ink-faint">
+              Mindestens 8 Zeichen. Ein neues Passwort meldet alle ab, die der
+              Reise in der App folgen.
+            </p>
             {hasPassword && (
               <label className="mt-2 flex items-center gap-2 text-sm text-ink-soft">
                 <input

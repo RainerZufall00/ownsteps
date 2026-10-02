@@ -81,10 +81,10 @@ describe("trips", () => {
     const user = await author();
     const trip = await createTripFor(user.id, { title: "Norway" });
     await expectCode(
-      updateSharing(trip.id, { enabled: true, password: "abc" }),
+      updateSharing(trip.id, { enabled: true, password: "fjord" }),
       "share_password_too_short",
     );
-    await updateSharing(trip.id, { enabled: true, password: "fjord" });
+    await updateSharing(trip.id, { enabled: true, password: "fjordland" });
     const hash = (await getTrip(trip.id))!.sharePasswordHash;
     expect(hash).toBeTruthy();
 
@@ -256,6 +256,45 @@ describe("comments", () => {
   });
 });
 
+describe("brakes", () => {
+  it("locks an account after repeated failures, from any address", async () => {
+    await author();
+    for (let i = 0; i < 10; i++) {
+      // A new address every time, as with a faked X-Forwarded-For.
+      await expectCode(authenticate({ email: "a@example.com", password: "nope" }, `ip-${i}`), "credentials_invalid");
+    }
+    await expectCode(
+      authenticate({ email: "a@example.com", password: "long enough pw" }, "ip-new"),
+      "too_many_attempts",
+    );
+    // Other accounts aren't affected.
+    await createUser({ email: "b@example.com", name: "B", password: "long enough pw" });
+    expect((await authenticate({ email: "b@example.com", password: "long enough pw" }, "ip-new")).email).toBe(
+      "b@example.com",
+    );
+  });
+
+  it("brakes guessing a share password per trip", async () => {
+    const { unlockShare } = await import("@/lib/services/share");
+    const user = await author();
+    const trip = await createTripFor(user.id, { title: "Norway" });
+    await updateSharing(trip.id, { enabled: true, password: "fjordland" });
+    const token = (await getTrip(trip.id))!.shareToken;
+
+    for (let i = 0; i < 20; i++) {
+      await expectCode(unlockShare(token, `guess-${i}`, `ip-${i}`), "share_password_wrong");
+    }
+    await expectCode(unlockShare(token, "fjordland", "ip-new"), "too_many_attempts");
+  }, 30_000); // 20 bcrypt comparisons
+
+  it("brakes one address however many accounts it tries", async () => {
+    for (let i = 0; i < 10; i++) {
+      await expectCode(authenticate({ email: `u${i}@example.com`, password: "nope" }, "one-ip"), "credentials_invalid");
+    }
+    await expectCode(authenticate({ email: "z@example.com", password: "nope" }, "one-ip"), "too_many_attempts");
+  });
+});
+
 describe("accounts", () => {
   it("opens setup only while no account exists", async () => {
     await createFirstAccount({ email: "first@example.com", password: "long enough pw" });
@@ -267,10 +306,10 @@ describe("accounts", () => {
 
   it("gives no hint which part of the credentials was wrong", async () => {
     await author();
-    await expectCode(authenticate({ email: "a@example.com", password: "nope" }), "credentials_invalid");
-    await expectCode(authenticate({ email: "x@example.com", password: "nope" }), "credentials_invalid");
-    await expectCode(authenticate({ email: "", password: "" }), "credentials_missing");
-    expect((await authenticate({ email: "A@example.com", password: "long enough pw" })).email).toBe(
+    await expectCode(authenticate({ email: "a@example.com", password: "nope" }, "client"), "credentials_invalid");
+    await expectCode(authenticate({ email: "x@example.com", password: "nope" }, "client"), "credentials_invalid");
+    await expectCode(authenticate({ email: "", password: "" }, "client"), "credentials_missing");
+    expect((await authenticate({ email: "A@example.com", password: "long enough pw" }, "client")).email).toBe(
       "a@example.com",
     );
   });
@@ -285,6 +324,6 @@ describe("accounts", () => {
       currentPassword: "long enough pw",
       newPassword: "another long pw",
     });
-    await authenticate({ email: "a@example.com", password: "another long pw" });
+    await authenticate({ email: "a@example.com", password: "another long pw" }, "client");
   });
 });

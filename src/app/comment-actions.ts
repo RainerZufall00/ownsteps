@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { failure } from "@/lib/action-result";
 import { getCurrentUser } from "@/lib/auth";
+import { clientAddress } from "@/lib/rate-limit";
 import { postComment, removeComment } from "@/lib/services/comments";
 import { resolveTripAccess } from "@/lib/share";
 import type { ViewComment } from "@/lib/view-types";
@@ -13,14 +14,6 @@ export type CommentState = {
   comment?: ViewComment;
 };
 
-async function clientKey() {
-  const store = await headers();
-  return (
-    store.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    store.get("x-real-ip") ||
-    "unknown"
-  );
-}
 
 export async function addCommentAction(
   _prev: CommentState,
@@ -34,7 +27,7 @@ export async function addCommentAction(
         authorName: String(formData.get("authorName") ?? ""),
         body: String(formData.get("body") ?? ""),
       },
-      clientKey: await clientKey(),
+      clientKey: clientAddress(await headers()),
       resolveAccess: resolveTripAccess,
     });
 

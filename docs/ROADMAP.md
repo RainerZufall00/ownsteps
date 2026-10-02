@@ -26,7 +26,7 @@ architecture doc and the phase is ticked off here.
 | D14 | Author login | **OIDC preferred**, password as a secondary option. OIDC in the app: `ASWebAuthenticationSession` → server-side OIDC flow → one-time code via `ownsteps://auth?code=…` → exchanged for a device token. New env var `PASSWORD_LOGIN=false` disables password login everywhere. First-time setup stays web-only. |
 | D15 | Device tokens | New table `api_tokens` (hash, device name, last used). Revocable in web settings, plus "sign out this device" in the app. |
 | D16 | Push | **No push relay.** The app polls via `BGAppRefreshTask` and shows local notifications. Authors: new comments. Viewers: new steps. Can be turned off per trip. Server endpoint: `GET /api/v1/changes?since=<cursor>`. |
-| D17 | Viewers | **Registered viewer devices, no accounts.** Redeeming the share link plus a name returns a per-trip viewer token. Any number of people may redeem one link. The share password is asked once. Rotating the share token keeps registered devices. Disabling sharing locks all of them out, and re-enabling lets them back in. Authors can remove devices one by one or all at once. One app can follow trips on **several instances**. |
+| D17 | Viewers | **Registered viewer devices, no accounts.** Redeeming the share link plus a name returns a per-trip viewer token. Any number of people may redeem one link. The share password is asked once. A new share link or a new share password signs all of them out (changed on 2026-10-02; before, a new link kept them). Disabling sharing locks all of them out, and re-enabling lets them back in. Authors can remove devices one by one or all at once. One app can follow trips on **several instances**. |
 | D18 | Invite link | Derived from the **instance's own domain** (the existing share link). The share page shows a Smart App Banner, an "Open in app" button (`ownsteps://…`) and a QR code in the web UI. No Universal Links. |
 | D19 | Offline | **Only new content offline** (new steps, new media). Editing existing steps needs a connection. Steps and media carry a **client-generated UUID** so that retries are idempotent. Conflict detection comes later. |
 | D20 | Media from the app | The app converts **HEIC → JPEG** (full resolution, EXIF including GPS kept). Video poster frame via `AVAssetImageGenerator`. **Live Photos: still image only.** Videos are **compressed to 1080p** by default, with an "original quality" toggle. Plain multipart upload, resumable uploads come later. |
@@ -100,9 +100,10 @@ architecture doc and the phase is ticked off here.
 - [ ] String Catalogs en/de from day one (up to date through 4e).
 
 ### Phase 5 – Code review ("strangers run this now")
-- [ ] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices.
-- [ ] Rate limiting on the password login and token endpoints.
-- [ ] `APP_SECRET`: refuse to start with a missing or weak value, and document how to generate one.
+- [x] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices (2026-10-02). Fixed: brakes on every password check (per address from the right end of `X-Forwarded-For`, plus per account and per trip), share passwords ≥ 8 characters, OIDC only matches verified emails, security headers and a nonce CSP, readers signed out on a new link or password. Accepted: setup stays open until the first account exists; the map proxy is as open as the instance.
+- [x] Rate limiting on the password login and token endpoints.
+- [x] `APP_SECRET`: refuse to start with a weak value, and document how to generate one. (Missing stays allowed: one is generated into the data directory.)
+- [ ] Open from the review: an account password change doesn't sign out other sessions and devices; locked share pages show title and summary; upload size is checked only after the body is read (signed-in authors only); `docker-entrypoint.js` follows symlinks when fixing ownership.
 - [ ] Review defaults and env vars, and fail with clear startup errors.
 - [ ] Check HEIC handling in the web upload path (sharp prebuilds likely cannot decode HEVC-HEIC).
 

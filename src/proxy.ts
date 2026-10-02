@@ -15,7 +15,41 @@ export function proxy(request: NextRequest) {
     "/s/<token>",
   );
   console.log(`${request.method} ${logPath}`);
-  return NextResponse.next();
+
+  // Next reads the nonce from the request's CSP header and puts it on its
+  // own scripts; that's why every page is rendered per request (layout.tsx).
+  const csp = contentSecurityPolicy(btoa(crypto.randomUUID()));
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("Content-Security-Policy", csp);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
+/**
+ * Scripts only with the request's nonce ('strict-dynamic' lets them load
+ * their chunks). Styles stay 'unsafe-inline': React renders `style`
+ * attributes, which nonces don't cover. MapLibre needs blob: for its worker
+ * and for sprite images; photo placeholders are data: URIs. Map data comes
+ * through our own /api/map, so 'self' is enough everywhere else.
+ */
+function contentSecurityPolicy(nonce: string) {
+  const dev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    // React's dev tooling evaluates code; production doesn't.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "media-src 'self' blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
 }
 
 /**

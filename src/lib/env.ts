@@ -5,6 +5,34 @@ import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "@/db";
 
+/** What `openssl rand -base64 32` produces is 44 characters. */
+export const MIN_SECRET_LENGTH = 32;
+
+/**
+ * Why the configured `APP_SECRET` can't be used, or null if it's fine or
+ * unset. Checked at startup (instrumentation.ts), which refuses to run
+ * with a weak one rather than quietly falling back to another secret.
+ */
+export function appSecretProblem(value = process.env.APP_SECRET): string | null {
+  const secret = value?.trim();
+  if (!secret) return null;
+  if (secret.length < MIN_SECRET_LENGTH || new Set(secret).size < 8) {
+    return (
+      `APP_SECRET is too weak (at least ${MIN_SECRET_LENGTH} random characters). ` +
+      "Generate one with: openssl rand -base64 32 – or leave it empty to have one generated."
+    );
+  }
+  return null;
+}
+
+/** Startup check: a configured but weak secret stops the server. */
+export function exitOnWeakAppSecret() {
+  const problem = appSecretProblem();
+  if (!problem) return;
+  console.error(`[start] ${problem}`);
+  process.exit(1);
+}
+
 /**
  * Signing secret for share cookies. Comes from the environment; otherwise one
  * is generated on first start and stored in the data directory – so nothing
@@ -12,7 +40,11 @@ import { DATA_DIR } from "@/db";
  */
 function loadSecret(): string {
   const fromEnv = process.env.APP_SECRET?.trim();
-  if (fromEnv && fromEnv.length >= 16) return fromEnv;
+  if (fromEnv) {
+    const problem = appSecretProblem(fromEnv);
+    if (problem) throw new Error(problem);
+    return fromEnv;
+  }
 
   const secretFile = path.join(DATA_DIR, ".secret");
   try {
@@ -27,8 +59,14 @@ function loadSecret(): string {
 }
 
 const globalForEnv = globalThis as unknown as { __ownstepsSecret?: string };
-export const APP_SECRET = globalForEnv.__ownstepsSecret ?? loadSecret();
-globalForEnv.__ownstepsSecret = APP_SECRET;
+/**
+ * Loaded on first use, not on import: the startup check must be able to
+ * import this module and stop the server cleanly with a weak secret.
+ */
+export function appSecret() {
+  globalForEnv.__ownstepsSecret ??= loadSecret();
+  return globalForEnv.__ownstepsSecret;
+}
 
 export const MAPTILER_KEY = process.env.MAPTILER_KEY?.trim() ?? "";
 // Satellite imagery with subtle labels – photos and route stand out better on

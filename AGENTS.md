@@ -67,6 +67,13 @@ German for now; English and German UI translations follow before the release
   `getSteps()` sorts ascending; only `TripView` reverses the list when
   rendering. Reversing globally breaks day counting, date range and route
   line (see [E13]).
+- **Every password check goes through a brake** (`createRateLimit` in
+  `src/lib/rate-limit.ts`), keyed by `clientAddress()` – never by the first
+  `X-Forwarded-For` entry, which the client controls – and additionally per
+  account or trip.
+- **The CSP comes with a nonce from `src/proxy.ts`.** Inline scripts without
+  it and third-party origins are blocked; pages must render per request
+  (root layout is `force-dynamic`).
 - **Don't introduce permission management.** That every signed-in account may
   do everything is intended (see [E2] in the architecture doc).
 

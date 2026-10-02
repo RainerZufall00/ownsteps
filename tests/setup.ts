@@ -16,6 +16,8 @@ beforeEach(async () => {
   resetCookies();
   const { resetDatabase } = await import("./helpers/db");
   resetDatabase();
+  const { resetRateLimits } = await import("@/lib/rate-limit");
+  resetRateLimits();
 });
 
 afterEach(() => {

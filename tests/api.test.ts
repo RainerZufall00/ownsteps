@@ -293,7 +293,7 @@ describe("viewers", () => {
   }
 
   it("redeems a share link, asking for the password once", async () => {
-    const { trip } = await sharedTrip("fjord");
+    const { trip } = await sharedTrip("fjordland");
 
     const wrong = await call("POST", "/api/v1/viewers/redeem", {
       body: { shareLink: trip.share.url, password: "nope", name: "Grandma" },
@@ -301,7 +301,7 @@ describe("viewers", () => {
     expect(wrong.json.code).toBe("share_password_wrong");
 
     const redeemed = await call("POST", "/api/v1/viewers/redeem", {
-      body: { shareLink: trip.share.url, password: "fjord", name: "Grandma", deviceName: "iPad" },
+      body: { shareLink: trip.share.url, password: "fjordland", name: "Grandma", deviceName: "iPad" },
     });
     expect(redeemed.status).toBe(201);
     expect(redeemed.json.token).toMatch(/^osv_/);
@@ -389,11 +389,6 @@ describe("viewers", () => {
     });
     const viewer = json.token;
 
-    // Rotating the share link keeps registered devices ([D17]).
-    const { rotateShareToken } = await import("@/lib/services/trips");
-    await rotateShareToken(trip.id);
-    expect((await call("GET", "/api/v1/trips/{id}", { token: viewer, params: { id: trip.id } })).status).toBe(200);
-
     await call("PATCH", "/api/v1/trips/{id}", { token, params: { id: trip.id }, body: { shareEnabled: false } });
     const locked = await call("GET", "/api/v1/trips/{id}", { token: viewer, params: { id: trip.id } });
     expect(locked.json.code).toBe("trip_not_shared");
@@ -405,6 +400,49 @@ describe("viewers", () => {
     expect(viewers.json.items).toHaveLength(1);
     await call("DELETE", "/api/v1/viewers/{id}", { token, params: { id: viewers.json.items[0].id } });
     expect((await call("GET", "/api/v1/me", { token: viewer })).status).toBe(401);
+  });
+
+  it("signs every reader out when the link or the password changes ([D17])", async () => {
+    const { token, trip } = await sharedTrip();
+    const redeem = async () =>
+      (await call("POST", "/api/v1/viewers/redeem", { body: { shareLink: trip.share.url, name: "Grandma" } })).json
+        .token as string;
+    const { rotateShareToken, updateSharing } = await import("@/lib/services/trips");
+
+    const first = await redeem();
+    await rotateShareToken(trip.id);
+    expect((await call("GET", "/api/v1/me", { token: first })).status).toBe(401);
+
+    const detail = await call("GET", "/api/v1/trips/{id}", { token, params: { id: trip.id } });
+    const second = (
+      await call("POST", "/api/v1/viewers/redeem", { body: { shareLink: detail.json.share.url, name: "Grandpa" } })
+    ).json.token;
+    // Only a new password signs out; switching sharing on again doesn't.
+    await updateSharing(trip.id, { enabled: true, password: "" });
+    expect((await call("GET", "/api/v1/me", { token: second })).status).toBe(200);
+    await updateSharing(trip.id, { enabled: true, password: "a new secret" });
+    expect((await call("GET", "/api/v1/me", { token: second })).status).toBe(401);
+  });
+});
+
+describe("client address", () => {
+  it("trusts only the entries the reverse proxies added", async () => {
+    const { clientAddress } = await import("@/lib/rate-limit");
+    const headers = new Headers({ "x-forwarded-for": "6.6.6.6, 203.0.113.7" });
+    // The client sent "6.6.6.6" itself; the one proxy appended the real one.
+    expect(clientAddress(headers, 1)).toBe("203.0.113.7");
+    expect(clientAddress(new Headers({ "x-forwarded-for": "198.51.100.1, 6.6.6.6, 10.0.0.2" }), 2)).toBe("6.6.6.6");
+    expect(clientAddress(headers, 0)).toBe("unknown");
+    expect(clientAddress(new Headers(), 1)).toBe("unknown");
+  });
+
+  it("refuses a weak APP_SECRET", async () => {
+    const { appSecretProblem } = await import("@/lib/env");
+    expect(appSecretProblem(undefined)).toBeNull();
+    expect(appSecretProblem("")).toBeNull();
+    expect(appSecretProblem("change-me")).toMatch(/openssl rand/);
+    expect(appSecretProblem("a".repeat(40))).toMatch(/too weak/);
+    expect(appSecretProblem("Qm9zc2ViYWxsLXRlc3Qtc2VjcmV0LTEyMzQ1Njc4OTA=")).toBeNull();
   });
 });
 

@@ -8,6 +8,10 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+// Every page per request: the Content-Security-Policy carries a fresh nonce
+// (src/proxy.ts), which a prerendered page couldn't have on its scripts.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
   description: "Reisetagebuch mit Karte, Timeline und Fotos – selbst gehostet.",

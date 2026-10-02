@@ -5,6 +5,7 @@ import { ServiceError } from "@/lib/errors";
 import { getPhoto } from "@/lib/photos";
 import { parseInput, shareInput, tripInput } from "@/lib/schemas";
 import { newShareToken } from "@/lib/share";
+import { removeAllViewerDevices } from "@/lib/tokens";
 import { createTrip, deleteTrip, getTrip, updateTrip } from "@/lib/trips";
 
 /**
@@ -61,6 +62,9 @@ export async function updateSharing(tripId: number, raw: unknown) {
     patch.sharePasswordHash = await bcrypt.hash(input.password, 12);
   }
   await updateTrip(tripId, patch);
+  // A new password is meant to shut people out – the app's readers too,
+  // who never typed it ([D17]). Browsers already lose their unlock cookie.
+  if (input.password && !input.removePassword) await removeAllViewerDevices(tripId);
 }
 
 /**
@@ -90,10 +94,14 @@ export async function patchTrip(
   return requireTrip(tripId);
 }
 
-/** Creates a new link – the old one stops working afterwards. */
+/**
+ * Creates a new link – the old one stops working afterwards, and so do the
+ * devices that followed the trip through it ([D17]).
+ */
 export async function rotateShareToken(tripId: number) {
   await requireTrip(tripId);
   const shareToken = newShareToken();
   await updateTrip(tripId, { shareToken });
+  await removeAllViewerDevices(tripId);
   return shareToken;
 }

@@ -16,7 +16,7 @@ const MESSAGES: Record<ErrorCode, string> = {
   date_invalid: "Bitte ein gültiges Datum angeben.",
   trip_delete_confirmation: "Zum Löschen bitte „{title}“ genau so eintippen.",
   step_empty: "Bitte einen Ort, Text oder ein Foto hinzufügen.",
-  share_password_too_short: "Das Passwort braucht mindestens 4 Zeichen.",
+  share_password_too_short: "Das Passwort braucht mindestens 8 Zeichen.",
   share_password_wrong: "Das Passwort stimmt nicht.",
   email_invalid: "Bitte eine gültige E-Mail angeben.",
   email_taken: "Diese E-Mail-Adresse wird bereits verwendet.",

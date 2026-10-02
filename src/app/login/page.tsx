@@ -14,6 +14,8 @@ const ERRORS: Record<string, string> = {
   oidc_state: "Die Anmeldung konnte nicht zugeordnet werden. Bitte noch einmal.",
   oidc_denied: "Die Anmeldung wurde abgebrochen.",
   oidc_not_allowed: "Dieser Account ist für OwnSteps nicht freigegeben.",
+  oidc_unverified:
+    "Der Anmelde-Dienst hat deine E-Mail-Adresse nicht bestätigt. Bestätige sie dort und versuch es noch einmal.",
   oidc_failed: "Die Anmeldung ist fehlgeschlagen.",
   oidc_disabled: "Die Anmeldung über den Anbieter ist nicht aktiv.",
 };

@@ -1,6 +1,5 @@
 import "server-only";
 
-import bcrypt from "bcryptjs";
 import { ServiceError } from "@/lib/errors";
 import { createRateLimit } from "@/lib/rate-limit";
 import { getTripByShareToken } from "@/lib/share";
@@ -12,10 +11,11 @@ import {
   removeViewerDevice,
 } from "@/lib/tokens";
 import { NAME_MAX_LENGTH } from "@/lib/limits";
+import { checkSharePassword } from "./share";
 import { requireTrip } from "./trips";
 
-/** Guessing share passwords through the API is braked like the web form. */
-const redeemAttempts = createRateLimit({ windowMs: 60_000, max: 10 });
+/** Devices registered per address – no matter the password. */
+const redeemsPerClient = createRateLimit("redeem-client", { windowMs: 60_000, max: 10 });
 
 /** Accepts the full share link or just its token. */
 export function shareTokenFrom(shareLink: string) {
@@ -33,7 +33,7 @@ export async function redeemViewer(
   input: { shareLink: string; password?: string; name: string; deviceName?: string },
   clientKey: string,
 ) {
-  if (!redeemAttempts(clientKey)) throw new ServiceError("too_many_attempts");
+  if (!redeemsPerClient.allow(clientKey)) throw new ServiceError("too_many_attempts");
 
   const name = input.name.trim();
   if (name.length < 2) throw new ServiceError("comment_name_missing");
@@ -41,12 +41,8 @@ export async function redeemViewer(
 
   const trip = await getTripByShareToken(shareTokenFrom(input.shareLink));
   if (!trip) throw new ServiceError("share_link_invalid");
-  if (
-    trip.sharePasswordHash &&
-    !(await bcrypt.compare(input.password ?? "", trip.sharePasswordHash))
-  ) {
-    throw new ServiceError("share_password_wrong");
-  }
+  // Same brakes as the web unlock: guessing through the app gains nothing.
+  await checkSharePassword(trip, input.password ?? "", clientKey);
 
   const { token, device } = await createViewerDevice({
     trip,

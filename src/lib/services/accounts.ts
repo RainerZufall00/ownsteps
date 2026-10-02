@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth";
 import { PASSWORD_LOGIN } from "@/lib/env";
 import { ServiceError } from "@/lib/errors";
+import { createRateLimit } from "@/lib/rate-limit";
 import {
   credentialsInput,
   newAccountInput,
@@ -50,12 +51,30 @@ export async function changePassword(user: User, raw: unknown) {
     .where(eq(users.id, user.id));
 }
 
-/** Deliberately no hint as to which part was wrong. */
-export async function authenticate(raw: unknown) {
+/** Every attempt from one address – web form and app alike. */
+const loginsPerClient = createRateLimit("login-client", { windowMs: 60_000, max: 10 });
+/**
+ * Failed attempts per account, whichever address they come from – an
+ * attacker rotating addresses still only gets a handful per quarter hour.
+ */
+const failuresPerAccount = createRateLimit("login-account", { windowMs: 15 * 60_000, max: 10 });
+
+/**
+ * Deliberately no hint as to which part was wrong. `clientKey` identifies
+ * the sender for the brake (see `clientAddress`).
+ */
+export async function authenticate(raw: unknown, clientKey: string) {
   if (!PASSWORD_LOGIN) throw new ServiceError("password_login_disabled");
   const { email, password } = parseInput(credentialsInput, raw);
-  const user = await findUserByEmail(email);
+  const account = email.trim().toLowerCase();
+  if (!loginsPerClient.allow(clientKey) || failuresPerAccount.blocked(account)) {
+    throw new ServiceError("too_many_attempts");
+  }
+  const user = await findUserByEmail(account);
   const valid = await verifyPassword(password, user?.passwordHash ?? null);
-  if (!user || !valid) throw new ServiceError("credentials_invalid");
+  if (!user || !valid) {
+    failuresPerAccount.record(account);
+    throw new ServiceError("credentials_invalid");
+  }
   return user;
 }

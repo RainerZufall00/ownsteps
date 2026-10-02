@@ -76,7 +76,8 @@ export const shareInput = z.object({
   password: z
     .string()
     .default("")
-    .refine((value) => value === "" || value.length >= 4, {
+    // Guessing is braked (services/share.ts), but 4 digits were still too few.
+    .refine((value) => value === "" || value.length >= 8, {
       error: "share_password_too_short",
     }),
   removePassword: z.boolean().default(false),

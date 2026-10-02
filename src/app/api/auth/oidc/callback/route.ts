@@ -1,10 +1,11 @@
 import { cookies } from "next/headers";
-import { createSession, upsertOidcUser } from "@/lib/auth";
+import { createSession, findUserByOidcSubject, upsertOidcUser } from "@/lib/auth";
 import { redirectTo } from "@/lib/origin";
 import {
   APP_CALLBACK_URL,
   exchangeCode,
   isEmailAllowed,
+  isEmailTrusted,
   OIDC_FLOW_COOKIE,
   oidcEnabled,
   redirectUriFor,
@@ -66,12 +67,20 @@ export async function GET(request: Request) {
       nonce: flow.nonce,
     });
 
-    if (!isEmailAllowed(claims.email)) {
+    if (!isEmailAllowed(claims)) {
       console.warn("[oidc] Sign-in rejected for", claims.email);
       return fail("oidc_not_allowed");
     }
 
-    const user = await upsertOidcUser(claims);
+    // A new identity is matched and created by its address – only if the
+    // provider vouches for it. Known identities sign in by `sub` as before.
+    const emailTrusted = isEmailTrusted(claims);
+    if (!emailTrusted && !(await findUserByOidcSubject(claims.subject))) {
+      console.warn("[oidc] Unverified email, sign-in refused for", claims.email);
+      return fail("oidc_unverified");
+    }
+
+    const user = await upsertOidcUser({ ...claims, emailTrusted });
 
     if (flow.app) {
       const appCode = await createAuthCode({
