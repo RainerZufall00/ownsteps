@@ -51,4 +51,67 @@ export function rewriteMapTilerJson(text: string, origin: string) {
   });
 }
 
+/**
+ * maplibre-gl v5 renders source attributions as HTML through a sanitizer
+ * that can be tricked (GHSA-jrc7-96c5-q579, fixed only in v6, which we can't
+ * use – see AGENTS.md). So every `attribution` in a proxied style or
+ * TileJSON is reduced here to plain text and plain `https` links before
+ * MapLibre sees it – the workaround the advisory names. The CSP would block
+ * the inline handlers such a payload relies on anyway; this is the second
+ * line.
+ */
+export function sanitizeAttributions(text: string) {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return text;
+  }
+  let changed = false;
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === "object") {
+      for (const [key, entry] of Object.entries(value)) {
+        if (key === "attribution" && typeof entry === "string") {
+          const clean = sanitizeAttribution(entry);
+          if (clean !== entry) {
+            (value as Record<string, unknown>)[key] = clean;
+            changed = true;
+          }
+        } else visit(entry);
+      }
+    }
+  };
+  visit(json);
+  return changed ? JSON.stringify(json) : text;
+}
+
+const LINK_RE = /<a\b[^>]*?\bhref\s*=\s*(["'])(https?:\/\/[^"'<>\s]+)\1[^>]*>([\s\S]*?)<\/a\s*>/gi;
+
+/** Only text and `<a href="https://…">` survive; everything else is inert. */
+export function sanitizeAttribution(html: string) {
+  let out = "";
+  let last = 0;
+  for (const match of html.matchAll(LINK_RE)) {
+    out += plainText(html.slice(last, match.index));
+    out += `<a href="${escapeAmpersands(match[2])}" target="_blank" rel="noopener">${plainText(match[3])}</a>`;
+    last = match.index + match[0].length;
+  }
+  return out + plainText(html.slice(last));
+}
+
+/** Entities like `&copy;` stay, a bare `&` is escaped. */
+function escapeAmpersands(text: string) {
+  return text.replace(/&(?!(?:[a-z]+|#\d+|#x[0-9a-f]+);)/gi, "&amp;");
+}
+
+function plainText(html: string) {
+  // Drop every tag (an unclosed one at the end too), then escape what's
+  // left, so nothing can form a tag again.
+  return escapeAmpersands(html.replace(/<[^>]*>?/g, ""))
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export { UPSTREAM };

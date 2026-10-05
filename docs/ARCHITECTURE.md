@@ -248,7 +248,11 @@ flowchart TD
   not `/api/photos`. The token in the path is the credential; `/api/photos`
   never grants access merely because a trip is shared (otherwise every photo
   of every shared trip could be scraped via the sequential ID). Only a
-  separately uploaded cover is public there.
+  separately uploaded cover of a trip **without** share password is public
+  there.
+- **A locked share page tells nothing about the trip.** Behind a password,
+  page and link preview (`generateMetadata`) say "Geschützte Reise" – no
+  title, no summary, no cover – until the visitor has unlocked it.
 
 > **Rule:** every new path through which trip content leaves the server must
 > use `resolveTripAccess`. That applies especially to route handlers – no
@@ -267,8 +271,9 @@ that use it – so the web form and the app share one budget:
 | Comments | 5/min | – |
 
 A successful password change also ends every other web session of the
-account (`revokeOtherSessions`); app device tokens stay and are revoked
-individually in the settings.
+account (`revokeOtherSessions`) and signs out all its app devices
+(`revokeAllApiTokens`); the app keeps steps it hadn't sent and sends them
+after the next sign-in.
 
 The per-target limits are the ones that matter: an attacker rotating
 addresses still only gets a handful of guesses per account or trip. A
@@ -947,6 +952,14 @@ serves its 404 page there, and the browser rejects it as a module script
 v5 ships the worker as a blob and doesn't have the problem. **Before
 upgrading to v6, the map rendering must be checked in a real browser.**
 
+The price is GHSA-jrc7-96c5-q579, an XSS bypass in v5's HTML sanitizer that
+`npm audit` reports as critical; the fix is v6.4.1. The only HTML OwnSteps
+hands to MapLibre is source attribution (no popups, no `setHTML`): the OSM
+fallback's is our own constant, MapTiler's comes through `/api/map`, where
+`sanitizeAttributions` reduces it to text and plain `https` links – the
+workaround the advisory names. The nonce CSP blocks the inline handlers
+such a payload needs on top of that.
+
 ### [E10] Debian instead of Alpine in the image, install without scripts
 `better-sqlite3` and `sharp` ship ready-made binaries for glibc. On musl at
 least `sharp` would have to be resolved via the matching platform variant. A
@@ -1071,7 +1084,11 @@ That's why the container starts via `docker-entrypoint.js`: it briefly runs as
 root, creates `uploads/`, takes ownership of the data directory – but only if
 the ownership at the top isn't already right, otherwise that would be a long
 pass on every start with many photos – and then switches to `node` via
-`setuid`. If the container is started with a fixed `user:`, the switch is
+`setuid`, after dropping root's supplementary groups (`setgroups`). Below
+the data directory it never follows a symlink: links are changed with
+`lchown`, never descended into – otherwise a link planted in the data
+directory (`/data/x -> /etc/passwd`) would have root give its target away
+on the next start. If the container is started with a fixed `user:`, the switch is
 skipped; the entrypoint then only checks write permissions and reports in
 plain text what to do. For the same reason the Dockerfile has **no**
 `USER node`.

@@ -20,6 +20,13 @@ const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 const RUN_UID = Number(process.env.RUN_UID || 1000);
 const RUN_GID = Number(process.env.RUN_GID || 1000);
 
+/**
+ * Hands the data directory to the unprivileged user. Runs as root, so it
+ * must never follow a symlink below the top: whoever can write to the data
+ * directory could otherwise plant `/data/x -> /etc/passwd` and have root give
+ * that file away on the next start. Links are changed themselves (lchown),
+ * never their targets, and never descended into.
+ */
 function chownRecursive(target, uid, gid) {
   fs.chownSync(target, uid, gid);
   let entries;
@@ -33,7 +40,7 @@ function chownRecursive(target, uid, gid) {
     if (entry.isDirectory()) chownRecursive(child, uid, gid);
     else {
       try {
-        fs.chownSync(child, uid, gid);
+        fs.lchownSync(child, uid, gid);
       } catch {
         // Individual files may fail without preventing startup.
       }

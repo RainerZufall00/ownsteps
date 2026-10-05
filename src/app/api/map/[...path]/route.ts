@@ -3,6 +3,7 @@ import {
   isMapAsset,
   publicOrigin,
   rewriteMapTilerJson,
+  sanitizeAttributions,
   UPSTREAM,
 } from "@/lib/maptiler-rewrite";
 
@@ -57,11 +58,11 @@ export async function GET(request: Request) {
 
   // JSON responses (style.json, tiles.json, sprite.json) contain further
   // MapTiler URLs including the key – those must go through the proxy too.
+  // Their attributions are cleaned for maplibre v5's sanitizer.
   if (contentType.includes("json")) {
     const text = await upstream.text();
-    const rewritten = rewriteMapTilerJson(
-      text,
-      publicOrigin(request, PUBLIC_URL),
+    const rewritten = sanitizeAttributions(
+      rewriteMapTilerJson(text, publicOrigin(request, PUBLIC_URL)),
     );
     return new Response(rewritten, {
       headers: {

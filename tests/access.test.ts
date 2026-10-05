@@ -10,7 +10,9 @@ import {
   resolveTripAccess,
 } from "@/lib/share";
 import { createTrip, getTrip, updateTrip } from "@/lib/trips";
+import { uploadCover } from "@/lib/services/media";
 import { jar } from "./helpers/cookie-jar";
+import { makeJpeg } from "./helpers/exif";
 
 async function setup(options: { shared?: boolean; password?: string } = {}) {
   const user = await createUser({
@@ -151,3 +153,27 @@ describe("share tokens", () => {
   });
 });
 
+
+describe("public cover", () => {
+  async function coverRequest(photoId: number) {
+    const { GET } = await import("@/app/api/photos/[id]/[variant]/route");
+    const response = await GET(new Request(`http://localhost/api/photos/${photoId}/thumb`), {
+      params: Promise.resolve({ id: String(photoId), variant: "thumb" }),
+    });
+    return response.status;
+  }
+
+  it("serves the uploaded cover of a shared trip to anyone, but not behind a password", async () => {
+    const { trip } = await setup({ shared: true });
+    const cover = await uploadCover(trip.id, {
+      name: "cover.jpg",
+      type: "image/jpeg",
+      size: 0,
+      read: () => makeJpeg(300, 200),
+    });
+    expect(await coverRequest(cover.id)).toBe(200);
+
+    await updateTrip(trip.id, { sharePasswordHash: await bcrypt.hash("fjord-password", 4) });
+    expect(await coverRequest(cover.id)).toBe(403);
+  });
+});

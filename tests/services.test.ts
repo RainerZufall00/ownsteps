@@ -12,6 +12,7 @@ import { cleanupOrphanedCovers, getPhoto } from "@/lib/photos";
 import { getStep, getTrip, listTrips, updateTrip } from "@/lib/trips";
 import { authenticate, changePassword, createFirstAccount } from "@/lib/services/accounts";
 import { postComment } from "@/lib/services/comments";
+import { createApiToken, resolveApiToken } from "@/lib/tokens";
 import { addMediaToStep, type IncomingMedia, uploadCover } from "@/lib/services/media";
 import { saveStep, startStep } from "@/lib/services/steps";
 import {
@@ -434,10 +435,11 @@ describe("accounts", () => {
     );
   });
 
-  it("ends every other web session when the password changes", async () => {
+  it("ends every other web session and every app device when the password changes", async () => {
     const user = await author();
     await createSession(user.id); // another browser
     await createSession(user.id); // this one – its cookie is in the jar now
+    const { token } = await createApiToken(user.id, "iPhone");
 
     await changePassword(
       user,
@@ -447,6 +449,7 @@ describe("accounts", () => {
 
     expect(await db.select().from(sessions)).toHaveLength(1);
     expect((await getCurrentUser())?.id).toBe(user.id);
+    expect(await resolveApiToken(token)).toBeNull();
   });
 });
 

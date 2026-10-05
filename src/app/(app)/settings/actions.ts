@@ -59,5 +59,7 @@ export async function changePasswordAction(
   } catch (error) {
     return failure(error);
   }
+  // The device list shows the signed-out app devices as gone.
+  revalidatePath("/settings");
   return { ok: true };
 }

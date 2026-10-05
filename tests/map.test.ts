@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMapAsset } from "@/lib/maptiler-rewrite";
+import { isMapAsset, sanitizeAttribution, sanitizeAttributions } from "@/lib/maptiler-rewrite";
 
 describe("map proxy allowlist", () => {
   it("lets through what a MapTiler style loads", () => {
@@ -32,5 +32,46 @@ describe("map proxy allowlist", () => {
   it("is checked after dot segments are resolved", () => {
     const target = new URL("https://api.maptiler.com/maps/%2e%2e/geocoding/x.json");
     expect(isMapAsset(target.pathname.slice(1))).toBe(false);
+  });
+});
+
+describe("attribution sanitizing", () => {
+  it("keeps MapTiler's real attribution as it is", () => {
+    const real =
+      '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> ' +
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>';
+    expect(sanitizeAttribution(real)).toBe(
+      '<a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener">&copy; MapTiler</a> ' +
+        '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">&copy; OpenStreetMap contributors</a>',
+    );
+  });
+
+  it("defuses the advisory's payload and other tricks", () => {
+    for (const payload of [
+      '<details open onload="1" ontoggle="alert(1)">x</details>',
+      '<img src=x onerror="alert(1)">',
+      '<a href="javascript:alert(1)">click</a>',
+      '<a href="https://ok.example" onclick="alert(1)">ok</a>',
+      "<<b>script>alert(1)<</b>/script>",
+      "<svg/onload=alert(1)",
+    ]) {
+      const clean = sanitizeAttribution(payload);
+      expect(clean, payload).not.toMatch(/<(?!a href="https:\/\/[^"]*" target="_blank" rel="noopener">|\/a>)/);
+      expect(clean, payload).not.toMatch(/on\w+=|javascript:/i);
+    }
+  });
+
+  it("cleans every attribution in a style and leaves the rest untouched", () => {
+    const style = JSON.stringify({
+      version: 8,
+      sources: {
+        tiles: { type: "vector", url: "https://x.example/tiles/{z}/{x}/{y}.pbf", attribution: '<img src=x onerror="alert(1)">Map' },
+      },
+      glyphs: "https://x.example/fonts/{fontstack}/{range}.pbf",
+    });
+    const clean = JSON.parse(sanitizeAttributions(style));
+    expect(clean.sources.tiles.attribution).toBe("Map");
+    expect(clean.glyphs).toBe("https://x.example/fonts/{fontstack}/{range}.pbf");
+    expect(sanitizeAttributions("not json")).toBe("not json");
   });
 });

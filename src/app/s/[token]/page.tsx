@@ -15,6 +15,9 @@ import UnlockForm from "./UnlockForm";
 
 export const dynamic = "force-dynamic";
 
+/** What a password-protected trip is called until it's unlocked. */
+const LOCKED_TITLE = "Geschützte Reise";
+
 /** Same rules as everywhere else: PUBLIC_URL, then the proxy's headers. */
 async function baseUrl() {
   return originFromHeaders(await headers(), PUBLIC_URL, "http://localhost:2555");
@@ -26,6 +29,13 @@ export async function generateMetadata({
   const { token } = await params;
   const trip = await getTripByShareToken(token);
   if (!trip) return { title: "Nicht gefunden" };
+
+  // Behind a password, the link preview (messengers, crawlers – they never
+  // unlock) must not tell more than the locked page: no title, no summary,
+  // no cover.
+  if ((await resolveTripAccess(trip, token)).kind === "locked") {
+    return { title: LOCKED_TITLE, robots: { index: false, follow: false } };
+  }
 
   const steps = await getSteps(trip.id);
 
@@ -44,12 +54,14 @@ export async function generateMetadata({
       title: trip.title,
       description: trip.summary ?? undefined,
       type: "article",
-      // Only the separately uploaded cover is public; whether the trip has
-      // one is decided by the photo route (otherwise it returns 403 and the
-      // preview simply stays empty). Other photos never go to a crawler.
-      images: trip.coverPhotoId
-        ? [`${await baseUrl()}/api/photos/${trip.coverPhotoId}/medium`]
-        : undefined,
+      // Only the separately uploaded cover of a trip without password is
+      // public; whether the trip has one is decided by the photo route
+      // (otherwise it returns 403 and the preview simply stays empty). Other
+      // photos never go to a crawler.
+      images:
+        trip.coverPhotoId && !trip.sharePasswordHash
+          ? [`${await baseUrl()}/api/photos/${trip.coverPhotoId}/medium`]
+          : undefined,
     },
   };
 }
@@ -71,7 +83,7 @@ export default async function SharedTripPage({
           <div className="mb-8 flex flex-col items-center text-center">
             <Logo className="h-11 w-11 text-accent" />
             <h1 className="mt-4 text-2xl font-bold tracking-tight">
-              {trip.title}
+              {LOCKED_TITLE}
             </h1>
             <p className="mt-2 text-[15px] text-ink-soft">
               Diese Reise ist mit einem Passwort geschützt.

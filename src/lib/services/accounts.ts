@@ -12,6 +12,7 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { PASSWORD_LOGIN } from "@/lib/env";
+import { revokeAllApiTokens } from "@/lib/tokens";
 import { ServiceError } from "@/lib/errors";
 import { createRateLimit } from "@/lib/rate-limit";
 import {
@@ -48,7 +49,9 @@ const failuresPerAccount = createRateLimit("login-account", { windowMs: 15 * 60_
 /**
  * Checking the current password is a password check like a login – it
  * draws on the same brakes, so a stolen session can't be used to guess it.
- * Afterwards every other web session of the account ends.
+ * Afterwards every other web session and every app device of the account is
+ * signed out: whoever knew the old password must be out everywhere. The app
+ * keeps steps it hadn't sent yet and sends them after the next sign-in.
  */
 export async function changePassword(user: User, raw: unknown, clientKey: string) {
   const input = parseInput(passwordChangeInput, raw);
@@ -67,6 +70,7 @@ export async function changePassword(user: User, raw: unknown, clientKey: string
     .set({ passwordHash: await hashPassword(input.newPassword) })
     .where(eq(users.id, user.id));
   await revokeOtherSessions(user.id);
+  await revokeAllApiTokens(user.id);
 }
 
 /**

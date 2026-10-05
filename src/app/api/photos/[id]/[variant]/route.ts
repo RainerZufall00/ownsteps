@@ -38,9 +38,11 @@ export async function GET(
   const user = await getCurrentUser();
   // Only a separately uploaded cover is public (not attached to any step,
   // step_id is empty). A step photo declared as cover stays protected –
-  // otherwise "set as cover" would quietly make a photo public.
+  // otherwise "set as cover" would quietly make a photo public. Behind a
+  // share password nothing is public: the locked page shows no cover either.
   const isPublicCover =
     row.trip.shareEnabled &&
+    !row.trip.sharePasswordHash &&
     row.trip.coverPhotoId === row.photo.id &&
     row.photo.stepId === null;
   if (!user && !isPublicCover) {

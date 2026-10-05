@@ -104,7 +104,7 @@ architecture doc and the phase is ticked off here.
 - [x] Rate limiting on the password login and token endpoints.
 - [x] `APP_SECRET`: refuse to start with a weak value, and document how to generate one. (Missing stays allowed: one is generated into the data directory.)
 - [x] Review of the whole repo and app (2026-10-05). Fixed: guests need the share token (comments were possible on every shared trip via sequential IDs), no open redirect after OIDC sign-in, the map proxy only forwards map assets, a password change is braked and signs out other web sessions, the entrypoint drops root's groups, uploads stream to disk, images are decoded once, orphaned upload files and covers are removed, the OSM fallback map works under the CSP, and the app keeps unsent steps across signing in again or being signed out by the server.
-- [ ] Open from the reviews: locked share pages show title and summary; `docker-entrypoint.js` follows symlinks when fixing ownership; app device tokens survive a password change (revoked one by one in the settings).
+- [x] Rest of the reviews (2026-10-05): locked share pages and their link preview show neither title, summary nor cover; `docker-entrypoint.js` no longer follows symlinks when fixing ownership; a password change also signs out all app devices; map attributions are sanitized against the maplibre v5 advisory (O4).
 - [ ] Review defaults and env vars, and fail with clear startup errors.
 - [ ] Check HEIC handling in the web upload path (sharp prebuilds likely cannot decode HEVC-HEIC).
 
@@ -128,9 +128,8 @@ architecture doc and the phase is ticked off here.
 - ~~**O1 – App name and bundle ID**~~ – decided: "OwnSteps", prefix `de.ownsteps` (app `de.ownsteps.app`, Share Extension `de.ownsteps.app.ShareExtension`, app group `group.de.ownsteps.app`), set in `ios/Config/Base.xcconfig`; the team ID lives in the ignored `Secrets.xcconfig`. URL scheme `ownsteps://`.
 - **O2 – Release details:** Issues and Discussions on, a CLA is not needed (D10 avoids it), versioning scheme.
 - ~~**O3 – Changes feed design**~~ – decided: an append-only change log (table `changes`, cursor = `seq`), see ARCHITECTURE.md section 5.
-- **O4 – maplibre-gl advisory vs. [E9]:** `npm audit` reports a critical XSS
-  sanitizer bypass (GHSA-jrc7-96c5-q579) for maplibre-gl ≤ 6.4.0; the fix
-  needs v6.5+, but [E9] pins v5 because v6's worker breaks after bundling.
-  Check whether OwnSteps passes untrusted HTML into MapLibre (popups,
-  attribution) and whether a v6 upgrade with a fixed worker URL works – in a
-  real browser. Belongs to phase 5.
+- ~~**O4 – maplibre-gl advisory vs. [E9]**~~ – mitigated: the only HTML that
+  reaches MapLibre is source attribution, and `/api/map` sanitizes it
+  (`sanitizeAttributions`, see [E9]). `npm audit` keeps reporting the
+  advisory until v6; whether a v6 upgrade with a fixed worker URL works is
+  still worth a try – in a real browser.

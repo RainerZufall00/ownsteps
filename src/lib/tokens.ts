@@ -85,6 +85,11 @@ export async function revokeApiToken(tokenId: string, userId: number) {
     .where(and(eq(apiTokens.id, tokenId), eq(apiTokens.userId, userId)));
 }
 
+/** After a password change: every app device must sign in again. */
+export async function revokeAllApiTokens(userId: number) {
+  await db.delete(apiTokens).where(eq(apiTokens.userId, userId));
+}
+
 // ── One-time codes for the app's OIDC sign-in ───────────────────────────
 
 /** PKCE S256: base64url(sha256(verifier)). */

@@ -52,7 +52,9 @@ export default function PasswordForm({
         <p className="text-sm font-medium text-accent">{state.error}</p>
       )}
       {state.ok && (
-        <p className="text-sm font-medium text-sea">Passwort geändert.</p>
+        <p className="text-sm font-medium text-sea">
+          Passwort geändert. Andere Browser und deine App-Geräte sind jetzt abgemeldet.
+        </p>
       )}
 
       <SubmitButton className="btn btn-secondary" pendingLabel="Speichern …">
