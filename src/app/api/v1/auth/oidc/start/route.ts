@@ -1,13 +1,5 @@
-import { cookies } from "next/headers";
 import { problem } from "@/lib/api/http";
-import {
-  buildAuthorizationUrl,
-  createPkcePair,
-  OIDC_FLOW_COOKIE,
-  oidcEnabled,
-  randomState,
-  redirectUriFor,
-} from "@/lib/oidc";
+import { beginOidcFlow, oidcEnabled } from "@/lib/oidc";
 
 /**
  * Starts OIDC sign-in for the app ([D14]). The app opens this URL in an
@@ -29,35 +21,10 @@ export async function GET(request: Request) {
     return problem("invalid_request");
   }
 
-  const { verifier, challenge } = createPkcePair();
-  const state = randomState();
-  const nonce = randomState();
-
-  const store = await cookies();
-  store.set(
-    OIDC_FLOW_COOKIE,
-    JSON.stringify({
-      state,
-      verifier,
-      nonce,
+  try {
+    const url = await beginOidcFlow(request, {
       next: "/",
       app: { codeChallenge, state: appState, deviceName },
-    }),
-    {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 600,
-    },
-  );
-
-  try {
-    const url = await buildAuthorizationUrl({
-      redirectUri: redirectUriFor(request),
-      state,
-      nonce,
-      challenge,
     });
     return Response.redirect(url, 302);
   } catch (error) {

@@ -120,26 +120,6 @@
     "+%lld": {
       "shouldTranslate": false
     },
-    "A photo or video couldn't be read.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ein Foto oder Video ließ sich nicht lesen."
-          }
-        }
-      }
-    },
-    "A video is larger than 400 MB, even compressed.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ein Video ist auch komprimiert größer als 400 MB."
-          }
-        }
-      }
-    },
     "Account": {
       "localizations": {
         "de": {
@@ -560,12 +540,12 @@
         }
       }
     },
-    "Larger than 25 MB.": {
+    "Larger than %lld MB.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Größer als 25 MB."
+            "value": "Größer als %lld MB."
           }
         }
       }
@@ -1303,16 +1283,6 @@
         }
       }
     },
-    "Signed out – please sign in again.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abgemeldet – bitte erneut anmelden."
-          }
-        }
-      }
-    },
     "Start date": {
       "localizations": {
         "de": {
@@ -1443,6 +1413,16 @@
         }
       }
     },
+    "The description is too long.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Beschreibung ist zu lang."
+          }
+        }
+      }
+    },
     "The file is gone from the device.": {
       "localizations": {
         "de": {
@@ -1543,22 +1523,22 @@
         }
       }
     },
-    "The trip no longer exists.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Reise gibt es nicht mehr."
-          }
-        }
-      }
-    },
     "The trip's link, as the travellers sent it to you.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Der Link der Reise, so wie die Reisenden ihn dir geschickt haben."
+          }
+        }
+      }
+    },
+    "The trip's name is too long.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Name der Reise ist zu lang."
           }
         }
       }
@@ -1843,12 +1823,12 @@
         }
       }
     },
-    "Video larger than 400 MB.": {
+    "Video larger than %lld MB.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Video größer als 400 MB."
+            "value": "Video größer als %lld MB."
           }
         }
       }

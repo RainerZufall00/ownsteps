@@ -6,8 +6,6 @@ import { comments, steps } from "@/db/schema";
 import { recordChange } from "./changes";
 import { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH } from "./limits";
 
-export { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH };
-
 export async function addComment(input: {
   stepId: number;
   tripId: number;
@@ -27,29 +25,25 @@ export async function addComment(input: {
   return created;
 }
 
-export async function getComment(commentId: number) {
-  const rows = await db
-    .select()
-    .from(comments)
-    .where(eq(comments.id, commentId))
-    .limit(1);
-  return rows[0] ?? null;
-}
-
+/** Returns whether there was a comment to delete. */
 export async function deleteComment(commentId: number) {
   const [deleted] = await db
     .delete(comments)
     .where(eq(comments.id, commentId))
     .returning({ tripId: comments.tripId });
   if (deleted) await recordChange(deleted.tripId, "comment", commentId, "delete");
+  return Boolean(deleted);
 }
 
-/** Checks that the step really belongs to this trip. */
-export async function stepBelongsToTrip(stepId: number, tripId: number) {
-  const rows = await db
+/**
+ * Whether the step belongs to this trip and is published – drafts don't show
+ * in the timeline, so there's nothing to comment on.
+ */
+export async function isCommentableStep(stepId: number, tripId: number) {
+  const step = await db
     .select({ id: steps.id })
     .from(steps)
-    .where(and(eq(steps.id, stepId), eq(steps.tripId, tripId)))
-    .limit(1);
-  return rows.length > 0;
+    .where(and(eq(steps.id, stepId), eq(steps.tripId, tripId), eq(steps.published, true)))
+    .get();
+  return step !== undefined;
 }

@@ -1,6 +1,4 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { photos } from "@/db/schema";
+import { getPhoto } from "@/lib/photos";
 import { serveMediaVariant } from "@/lib/serve-media";
 import { getTripByShareToken, hasUnlock } from "@/lib/share";
 
@@ -28,12 +26,7 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const rows = await db
-    .select()
-    .from(photos)
-    .where(eq(photos.id, photoId))
-    .limit(1);
-  const photo = rows[0];
+  const photo = await getPhoto(photoId);
   // The photo must belong to exactly this trip – otherwise one trip's token
   // would be a master key for every other trip's photos.
   if (!photo || photo.tripId !== trip.id) {

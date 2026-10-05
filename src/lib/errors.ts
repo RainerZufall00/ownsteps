@@ -14,6 +14,8 @@ export const ERROR_STATUS = {
   share_link_invalid: 404,
   trip_not_shared: 403,
   trip_title_required: 400,
+  trip_title_too_long: 400,
+  trip_summary_too_long: 400,
   trip_dates_reversed: 400,
   date_invalid: 400,
   trip_delete_confirmation: 400,

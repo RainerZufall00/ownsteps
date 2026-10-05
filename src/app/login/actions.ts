@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { failure } from "@/lib/action-result";
 import { createSession } from "@/lib/auth";
+import { accountFields, formString } from "@/lib/form-data";
 import { clientAddress } from "@/lib/rate-limit";
 import { authenticate, createFirstAccount } from "@/lib/services/accounts";
 
@@ -16,10 +17,7 @@ export async function loginAction(
   let userId: number;
   try {
     const user = await authenticate(
-      {
-        email: String(formData.get("email") ?? ""),
-        password: String(formData.get("password") ?? ""),
-      },
+      { email: formString(formData, "email"), password: formString(formData, "password") },
       clientAddress(await headers()),
     );
     userId = user.id;
@@ -36,11 +34,7 @@ export async function setupAction(
 ): Promise<FormState> {
   let userId: number;
   try {
-    const user = await createFirstAccount({
-      email: String(formData.get("email") ?? ""),
-      name: String(formData.get("name") ?? ""),
-      password: String(formData.get("password") ?? ""),
-    });
+    const user = await createFirstAccount(accountFields(formData));
     userId = user.id;
   } catch (error) {
     return failure(error);

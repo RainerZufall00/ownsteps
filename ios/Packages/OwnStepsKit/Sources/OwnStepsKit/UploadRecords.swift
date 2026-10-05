@@ -1,14 +1,20 @@
 import Foundation
 import GRDB
 
-/// A step written on the device that the server may not have yet.
-public struct PendingStep: Codable, Hashable, Sendable, Identifiable, FetchableRecord, PersistableRecord {
-    public static let databaseTableName = "pending_step"
-    // Match the column types: UUIDs as text, dates as Unix seconds. (GRDB
-    // wants functions here; static properties would be silently ignored.)
+/// The queue's rows match the column types: UUIDs as text, dates as Unix
+/// seconds. (GRDB wants functions here; static properties would be silently
+/// ignored.)
+public protocol QueueRecord: Codable, FetchableRecord, PersistableRecord {}
+
+extension QueueRecord {
     public static func databaseUUIDEncodingStrategy(for column: String) -> DatabaseUUIDEncodingStrategy { .uppercaseString }
     public static func databaseDateEncodingStrategy(for column: String) -> DatabaseDateEncodingStrategy { .timeIntervalSince1970 }
     public static func databaseDateDecodingStrategy(for column: String) -> DatabaseDateDecodingStrategy { .timeIntervalSince1970 }
+}
+
+/// A step written on the device that the server may not have yet.
+public struct PendingStep: QueueRecord, Hashable, Sendable, Identifiable {
+    public static let databaseTableName = "pending_step"
 
     public var clientUUID: String
     public var accountID: UUID
@@ -73,13 +79,8 @@ public struct PendingStep: Codable, Hashable, Sendable, Identifiable, FetchableR
 }
 
 /// One photo or video on its way to the server.
-public struct PendingUpload: Codable, Hashable, Sendable, Identifiable, FetchableRecord, PersistableRecord {
+public struct PendingUpload: QueueRecord, Hashable, Sendable, Identifiable {
     public static let databaseTableName = "pending_upload"
-    // Match the column types: UUIDs as text, dates as Unix seconds. (GRDB
-    // wants functions here; static properties would be silently ignored.)
-    public static func databaseUUIDEncodingStrategy(for column: String) -> DatabaseUUIDEncodingStrategy { .uppercaseString }
-    public static func databaseDateEncodingStrategy(for column: String) -> DatabaseDateEncodingStrategy { .timeIntervalSince1970 }
-    public static func databaseDateDecodingStrategy(for column: String) -> DatabaseDateDecodingStrategy { .timeIntervalSince1970 }
 
     public enum State: String, Codable, Sendable {
         /// Waiting for its step to exist on the server, or for its turn.

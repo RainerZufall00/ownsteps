@@ -79,8 +79,7 @@ final class AppModel {
             directory: shared?.uploadsDirectory ?? oldUploads,
             transport: uploaders,
             clientFor: { [tokens, store] accountID in
-                guard let account = store.load().first(where: { $0.id == accountID }) else { return nil }
-                return ServerClient(baseURL: account.serverURL, token: try? tokens.token(for: accountID))
+                store.load().first { $0.id == accountID }?.client(tokens: tokens)
             }
         )
 
@@ -354,7 +353,7 @@ final class AppModel {
     }
 
     func client(for account: Account) -> ServerClient {
-        ServerClient(baseURL: account.serverURL, token: try? tokens.token(for: account.id))
+        account.client(tokens: tokens)
     }
 
     /// Signs out on the server (best effort – offline it just forgets the

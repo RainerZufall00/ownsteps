@@ -19,6 +19,14 @@ import Testing
         #expect(berlin.date(fromCalendarDay: "nonsense") == nil)
     }
 
+    @Test func writesCalendarDaysInTheServerZone() throws {
+        // 23:30 UTC on July 3rd is already July 4th in Berlin.
+        let late = try #require(ISO8601DateFormatter().date(from: "2026-07-03T23:30:00Z"))
+        #expect(berlin.calendarDay(of: late) == "2026-07-04")
+        let start = try #require(berlin.date(fromCalendarDay: "2026-07-01"))
+        #expect(berlin.calendarDay(of: start) == "2026-07-01")
+    }
+
     @Test func prefersTheEnteredStart() throws {
         let firstStep = try #require(ISO8601DateFormatter().date(from: "2026-07-03T10:00:00Z"))
         #expect(berlin.tripStart(startDate: "2026-07-01", firstStepAt: firstStep)
@@ -114,5 +122,24 @@ final class CountingProtocol: URLProtocol, @unchecked Sendable {
             request: client.mediaRequest(photoID: 7, variant: .medium)
         )
         #expect(CountingProtocol.requests == 3)
+    }
+}
+
+@Suite struct TripDetailTests {
+    /// Every field of `Trip` must be carried over – a new one in the API
+    /// would otherwise be silently dropped by `withoutSteps`.
+    @Test func keepsEveryTripField() throws {
+        let json = #"{"id":7,"title":"Norway","summary":"Fjords","startDate":"2026-07-01","endDate":"2026-07-20","coverPhotoId":3,"stepCount":2,"photoCount":5,"firstStepAt":"2026-07-02T10:00:00.000Z","lastStepAt":"2026-07-04T10:00:00.000Z","updatedAt":"2026-07-04T11:00:00.000Z","share":{"enabled":true,"url":"https://example.com/s/x","hasPassword":false},"steps":[]}"#
+        let detail = try JSONDecoder.api.decode(Components.Schemas.TripDetail.self, from: Data(json.utf8))
+        let fields = Dictionary(uniqueKeysWithValues: Mirror(reflecting: detail).children.compactMap { child in
+            child.label.map { ($0, String(describing: child.value)) }
+        })
+        let trip = Mirror(reflecting: detail.withoutSteps).children
+        #expect(!trip.isEmpty)
+        for child in trip {
+            let label = try #require(child.label)
+            #expect(fields[label] == String(describing: child.value), "\(label) differs")
+        }
+        #expect(Set(fields.keys).subtracting(trip.compactMap(\.label)) == ["steps"])
     }
 }

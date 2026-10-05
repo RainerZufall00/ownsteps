@@ -1,6 +1,6 @@
 import "server-only";
 
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/lib/auth";
 import { ServiceError } from "@/lib/errors";
 import type { Trip } from "@/db/schema";
 import { deletePhoto, getPhoto } from "@/lib/photos";
@@ -72,7 +72,7 @@ export async function updateSharing(tripId: number, raw: unknown) {
   if (input.removePassword) {
     patch.sharePasswordHash = null;
   } else if (input.password) {
-    patch.sharePasswordHash = await bcrypt.hash(input.password, 12);
+    patch.sharePasswordHash = await hashPassword(input.password);
   }
   await updateTrip(tripId, patch);
   // A new password is meant to shut people out – the app's readers too,

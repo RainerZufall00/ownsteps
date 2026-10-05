@@ -1,5 +1,5 @@
 import { handle, json, readJson } from "@/lib/api/http";
-import { requireAuthor, requirePrincipal } from "@/lib/api/principal";
+import { canRead, requireAuthor, requirePrincipal } from "@/lib/api/principal";
 import { tripCreateSchema } from "@/lib/api/schemas";
 import { summaryDto, tripSummaryDto } from "@/lib/api/trips";
 import { parseInput } from "@/lib/schemas";
@@ -12,10 +12,9 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   return handle(async () => {
     const principal = await requirePrincipal(request);
-    const trips =
-      principal.kind === "author"
-        ? await listTrips()
-        : (await listTrips({ ids: [principal.device.tripId] })).filter((trip) => trip.shareEnabled);
+    const trips = (
+      await listTrips(principal.kind === "viewer" ? { ids: [principal.device.tripId] } : {})
+    ).filter((trip) => canRead(principal, trip));
     return json({
       items: trips.map((trip) => summaryDto(principal, trip, request)),
       nextCursor: null,

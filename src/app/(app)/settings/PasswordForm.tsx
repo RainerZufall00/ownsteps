@@ -1,7 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
+import FormFeedback from "@/components/FormFeedback";
+import { NewPasswordInput } from "@/components/form-fields";
 import SubmitButton from "@/components/SubmitButton";
+import { useI18n } from "@/lib/i18n/client";
 import type { ActionState } from "../actions";
 import { changePasswordAction } from "./actions";
 
@@ -13,13 +16,14 @@ export default function PasswordForm({
   hasPassword: boolean;
 }) {
   const [state, action] = useActionState(changePasswordAction, initial);
+  const { t } = useI18n();
 
   return (
     <form action={action} className="space-y-4">
       {hasPassword && (
         <div>
           <label className="label" htmlFor="currentPassword">
-            Aktuelles Passwort
+            {t.settings.currentPassword}
           </label>
           <input
             id="currentPassword"
@@ -34,31 +38,15 @@ export default function PasswordForm({
 
       <div>
         <label className="label" htmlFor="newPassword">
-          Neues Passwort
+          {t.settings.newPassword}
         </label>
-        <input
-          id="newPassword"
-          name="newPassword"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={10}
-          className="field"
-          placeholder="mindestens 10 Zeichen"
-        />
+        <NewPasswordInput id="newPassword" name="newPassword" />
       </div>
 
-      {state.error && (
-        <p className="text-sm font-medium text-accent">{state.error}</p>
-      )}
-      {state.ok && (
-        <p className="text-sm font-medium text-sea">
-          Passwort geändert. Andere Browser und deine App-Geräte sind jetzt abgemeldet.
-        </p>
-      )}
+      <FormFeedback error={state.error} success={state.ok && t.settings.passwordChanged} />
 
-      <SubmitButton className="btn btn-secondary" pendingLabel="Speichern …">
-        {hasPassword ? "Passwort ändern" : "Passwort setzen"}
+      <SubmitButton className="btn btn-secondary" pendingLabel={t.common.saving}>
+        {hasPassword ? t.settings.changePassword : t.settings.setPassword}
       </SubmitButton>
     </form>
   );

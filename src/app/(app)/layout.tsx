@@ -3,10 +3,12 @@ import { redirect } from "next/navigation";
 import Logo from "@/components/Logo";
 import { getCurrentUser } from "@/lib/auth";
 import { SITE_NAME } from "@/lib/env";
+import { getI18n } from "@/lib/i18n/server";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const { t } = await getI18n();
 
   const initials = user.name.trim().charAt(0).toUpperCase() || "?";
 
@@ -22,7 +24,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <Link
             href="/settings"
             className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition hover:bg-surface-muted"
-            aria-label="Einstellungen"
+            aria-label={t.common.settings}
           >
             {user.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

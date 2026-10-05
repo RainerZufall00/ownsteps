@@ -5,7 +5,6 @@ import { withDate } from "@/lib/format";
 import { setPhotoCaption } from "@/lib/photos";
 import { parseInput, stepInput } from "@/lib/schemas";
 import {
-  createDraftStep,
   createStep,
   deleteStep,
   getStep,
@@ -23,7 +22,7 @@ export async function requireStep(stepId: number) {
 /** Creates an empty draft; it becomes visible with its first photo or on save ([E7]). */
 export async function startStep(tripId: number, userId: number) {
   await requireTrip(tripId);
-  return createDraftStep(tripId, userId);
+  return createStep({ tripId, userId, published: false });
 }
 
 export async function saveStep(stepId: number, raw: unknown) {

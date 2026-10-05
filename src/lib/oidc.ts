@@ -1,15 +1,18 @@
 import "server-only";
 
-import crypto from "node:crypto";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { cookies } from "next/headers";
+import { cookieOptions } from "./cookies";
+import { pkceChallenge, randomToken } from "./crypto";
 import { PUBLIC_URL } from "./env";
 import { publicOrigin } from "./origin";
 
 /** Short-lived cookie holding state, PKCE verifier and the login target. */
-export const OIDC_FLOW_COOKIE = "ownsteps_oidc";
+const OIDC_FLOW_COOKIE = "ownsteps_oidc";
+const OIDC_FLOW_TTL_S = 600;
 
 /** Where the app waits for the end of its OIDC sign-in (custom URL scheme). */
-export const APP_CALLBACK_URL = "ownsteps://auth";
+const APP_CALLBACK_URL = "ownsteps://auth";
 
 /**
  * Must match the callback URL registered with the provider (e.g. Pocket ID)
@@ -101,20 +104,7 @@ function jwks(jwksUri: string) {
   return globalForOidc.__oidcJwks;
 }
 
-export function createPkcePair() {
-  const verifier = crypto.randomBytes(48).toString("base64url");
-  const challenge = crypto
-    .createHash("sha256")
-    .update(verifier)
-    .digest("base64url");
-  return { verifier, challenge };
-}
-
-export function randomState() {
-  return crypto.randomBytes(24).toString("base64url");
-}
-
-export async function buildAuthorizationUrl(input: {
+async function buildAuthorizationUrl(input: {
   redirectUri: string;
   state: string;
   nonce: string;
@@ -130,6 +120,65 @@ export async function buildAuthorizationUrl(input: {
   url.searchParams.set("nonce", input.nonce);
   url.searchParams.set("code_challenge", input.challenge);
   url.searchParams.set("code_challenge_method", "S256");
+  return url.toString();
+}
+
+/** What the flow cookie carries from the start of a sign-in to its return. */
+export type OidcFlow = {
+  state: string;
+  verifier: string;
+  nonce: string;
+  /** Where the browser goes after signing in. */
+  next: string;
+  /** Set when the sign-in was started by the app (`/api/v1/auth/oidc/start`). */
+  app?: { codeChallenge: string; state: string; deviceName: string };
+};
+
+/**
+ * Starts a sign-in at the provider – for the web login and the app alike.
+ * State, nonce and PKCE verifier wait in a short-lived cookie for the
+ * callback; returns the provider's address to redirect to.
+ */
+export async function beginOidcFlow(
+  request: Request,
+  target: Pick<OidcFlow, "next" | "app">,
+): Promise<string> {
+  const flow: OidcFlow = {
+    state: randomToken(24),
+    verifier: randomToken(48),
+    nonce: randomToken(24),
+    ...target,
+  };
+  (await cookies()).set(OIDC_FLOW_COOKIE, JSON.stringify(flow), cookieOptions(OIDC_FLOW_TTL_S));
+  return buildAuthorizationUrl({
+    redirectUri: redirectUriFor(request),
+    state: flow.state,
+    nonce: flow.nonce,
+    challenge: pkceChallenge(flow.verifier),
+  });
+}
+
+/** Reads and clears the flow cookie – it's good for exactly one return. */
+export async function takeOidcFlow(): Promise<OidcFlow | null> {
+  const store = await cookies();
+  const raw = store.get(OIDC_FLOW_COOKIE)?.value;
+  store.delete(OIDC_FLOW_COOKIE);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as OidcFlow;
+  } catch {
+    return null;
+  }
+}
+
+/** The app's return address (`ownsteps://auth`) with `params` and its state. */
+export function appCallbackUrl(
+  app: NonNullable<OidcFlow["app"]>,
+  params: Record<string, string>,
+) {
+  const url = new URL(APP_CALLBACK_URL);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  url.searchParams.set("state", app.state);
   return url.toString();
 }
 

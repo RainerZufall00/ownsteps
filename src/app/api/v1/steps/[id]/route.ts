@@ -1,4 +1,4 @@
-import { handle, idParam, json, readJson } from "@/lib/api/http";
+import { handle, idParam, json, noContent, readJson } from "@/lib/api/http";
 import { requireAuthor } from "@/lib/api/principal";
 import { stepPatchSchema } from "@/lib/api/schemas";
 import { stepDto } from "@/lib/api/serialize";
@@ -20,6 +20,6 @@ export async function DELETE(request: Request, context: RouteContext<"/api/v1/st
     await requireAuthor(request);
     const stepId = idParam((await context.params).id, "step_not_found");
     await removeStep(stepId);
-    return new Response(null, { status: 204 });
+    return noContent();
   });
 }

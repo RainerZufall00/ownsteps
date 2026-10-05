@@ -1,6 +1,5 @@
 import "server-only";
 
-import crypto from "node:crypto";
 import { and, desc, eq, lt } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -12,6 +11,7 @@ import {
   type User,
   type ViewerDevice,
 } from "@/db/schema";
+import { pkceChallenge, randomToken, safeEqual, sha256Hex } from "./crypto";
 import { ServiceError } from "./errors";
 
 /**
@@ -25,12 +25,8 @@ const AUTH_CODE_TTL_MS = 2 * 60 * 1000;
 /** `last_used_at` doesn't need to be exact; spares a write per request. */
 const TOUCH_INTERVAL_MS = 60 * 1000;
 
-function randomToken(prefix: string) {
-  return `${prefix}${crypto.randomBytes(32).toString("base64url")}`;
-}
-
-export function hashToken(token: string) {
-  return crypto.createHash("sha256").update(token).digest("hex");
+function prefixedToken(prefix: string) {
+  return `${prefix}${randomToken()}`;
 }
 
 export function isAuthorToken(token: string) {
@@ -44,10 +40,10 @@ export function isViewerToken(token: string) {
 // ── Author device tokens ────────────────────────────────────────────────
 
 export async function createApiToken(userId: number, deviceName: string) {
-  const token = randomToken(AUTHOR_PREFIX);
+  const token = prefixedToken(AUTHOR_PREFIX);
   const [row] = await db
     .insert(apiTokens)
-    .values({ id: hashToken(token), userId, deviceName: deviceName.trim() || "App" })
+    .values({ id: sha256Hex(token), userId, deviceName: deviceName.trim() || "App" })
     .returning();
   return { token, row };
 }
@@ -55,14 +51,13 @@ export async function createApiToken(userId: number, deviceName: string) {
 export async function resolveApiToken(
   token: string,
 ): Promise<{ user: User; tokenId: string } | null> {
-  const id = hashToken(token);
-  const rows = await db
+  const id = sha256Hex(token);
+  const row = await db
     .select({ user: users, lastUsedAt: apiTokens.lastUsedAt })
     .from(apiTokens)
     .innerJoin(users, eq(users.id, apiTokens.userId))
     .where(eq(apiTokens.id, id))
-    .limit(1);
-  const row = rows[0];
+    .get();
   if (!row) return null;
   if (!row.lastUsedAt || Date.now() - row.lastUsedAt > TOUCH_INTERVAL_MS) {
     await db.update(apiTokens).set({ lastUsedAt: Date.now() }).where(eq(apiTokens.id, id));
@@ -92,20 +87,15 @@ export async function revokeAllApiTokens(userId: number) {
 
 // ── One-time codes for the app's OIDC sign-in ───────────────────────────
 
-/** PKCE S256: base64url(sha256(verifier)). */
-export function pkceChallenge(verifier: string) {
-  return crypto.createHash("sha256").update(verifier).digest("base64url");
-}
-
 export async function createAuthCode(input: {
   userId: number;
   codeChallenge: string;
   deviceName: string;
 }) {
-  const code = crypto.randomBytes(32).toString("base64url");
+  const code = randomToken();
   await db.delete(authCodes).where(lt(authCodes.expiresAt, Date.now()));
   await db.insert(authCodes).values({
-    id: hashToken(code),
+    id: sha256Hex(code),
     userId: input.userId,
     codeChallenge: input.codeChallenge,
     deviceName: input.deviceName,
@@ -119,13 +109,11 @@ export async function createAuthCode(input: {
  * The code is gone after the first attempt, successful or not.
  */
 export async function exchangeAuthCode(code: string, verifier: string) {
-  const id = hashToken(code);
+  const id = sha256Hex(code);
   const [row] = await db.delete(authCodes).where(eq(authCodes.id, id)).returning();
   if (!row || row.expiresAt < Date.now()) throw new ServiceError("auth_code_invalid");
 
-  const expected = Buffer.from(row.codeChallenge);
-  const actual = Buffer.from(pkceChallenge(verifier));
-  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
+  if (!safeEqual(pkceChallenge(verifier), row.codeChallenge)) {
     throw new ServiceError("auth_code_invalid");
   }
   return createApiToken(row.userId, row.deviceName);
@@ -138,12 +126,12 @@ export async function createViewerDevice(input: {
   name: string;
   deviceName?: string | null;
 }) {
-  const token = randomToken(VIEWER_PREFIX);
+  const token = prefixedToken(VIEWER_PREFIX);
   const [device] = await db
     .insert(viewerDevices)
     .values({
       tripId: input.trip.id,
-      tokenHash: hashToken(token),
+      tokenHash: sha256Hex(token),
       name: input.name,
       deviceName: input.deviceName ?? null,
     })
@@ -152,12 +140,11 @@ export async function createViewerDevice(input: {
 }
 
 export async function resolveViewerToken(token: string): Promise<ViewerDevice | null> {
-  const rows = await db
+  const device = await db
     .select()
     .from(viewerDevices)
-    .where(eq(viewerDevices.tokenHash, hashToken(token)))
-    .limit(1);
-  const device = rows[0];
+    .where(eq(viewerDevices.tokenHash, sha256Hex(token)))
+    .get();
   if (!device) return null;
   if (!device.lastSeenAt || Date.now() - device.lastSeenAt > TOUCH_INTERVAL_MS) {
     await db
@@ -177,8 +164,7 @@ export async function listViewerDevices(tripId: number) {
 }
 
 export async function getViewerDevice(id: number) {
-  const rows = await db.select().from(viewerDevices).where(eq(viewerDevices.id, id)).limit(1);
-  return rows[0] ?? null;
+  return (await db.select().from(viewerDevices).where(eq(viewerDevices.id, id)).get()) ?? null;
 }
 
 export async function removeViewerDevice(id: number) {

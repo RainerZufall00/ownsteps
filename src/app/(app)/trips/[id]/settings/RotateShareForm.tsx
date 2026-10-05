@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import SubmitButton from "@/components/SubmitButton";
+import { useI18n } from "@/lib/i18n/client";
 import { rotateShareTokenAction } from "../../../actions";
 
 /**
@@ -11,6 +12,7 @@ import { rotateShareTokenAction } from "../../../actions";
  */
 export default function RotateShareForm({ tripId }: { tripId: number }) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
 
   if (!open) {
     return (
@@ -20,10 +22,10 @@ export default function RotateShareForm({ tripId }: { tripId: number }) {
           onClick={() => setOpen(true)}
           className="text-sm font-medium text-ink-soft transition hover:text-accent"
         >
-          Neuen Link erzeugen
+          {t.rotateShare.action}
         </button>
         <p className="mt-1 text-[13px] text-ink-faint">
-          Der bisherige Link funktioniert danach nicht mehr.
+          {t.rotateShare.hint}
         </p>
       </div>
     );
@@ -36,12 +38,9 @@ export default function RotateShareForm({ tripId }: { tripId: number }) {
     >
       <input type="hidden" name="tripId" value={tripId} />
 
-      <p className="text-[15px] font-medium">Neuen Link erzeugen?</p>
+      <p className="text-[15px] font-medium">{t.rotateShare.confirmTitle}</p>
       <p className="mt-1 text-[14px] leading-relaxed text-ink-soft">
-        Der bisherige Link wird sofort ungültig. Alle, denen du ihn geschickt
-        hast, kommen dann nicht mehr hinein – auch wer der Reise in der App
-        folgt, wird abgemeldet. Du müsstest ihnen den neuen Link noch einmal
-        schicken.
+        {t.rotateShare.confirmText}
       </p>
 
       <div className="mt-3 flex gap-2">
@@ -50,13 +49,13 @@ export default function RotateShareForm({ tripId }: { tripId: number }) {
           onClick={() => setOpen(false)}
           className="btn btn-secondary flex-1 px-4 py-2.5 text-sm"
         >
-          Abbrechen
+          {t.common.cancel}
         </button>
         <SubmitButton
           className="btn flex-1 border border-accent px-4 py-2.5 text-sm text-accent"
-          pendingLabel="Wird erzeugt …"
+          pendingLabel={t.rotateShare.pending}
         >
-          Neuen Link erzeugen
+          {t.rotateShare.action}
         </SubmitButton>
       </div>
     </form>

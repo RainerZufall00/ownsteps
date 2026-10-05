@@ -3,24 +3,30 @@ import "server-only";
 import fs from "node:fs/promises";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { photos, steps, type Photo } from "@/db/schema";
+import { photos, type Photo } from "@/db/schema";
 import { ServiceError, type ErrorCode } from "@/lib/errors";
 import { reverseGeocode } from "@/lib/geocode";
-import { deletePhotoFiles, processUpload, processVideo } from "@/lib/images";
-import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
-import { recordChange } from "@/lib/changes";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locales";
+import { DEFAULT_VIDEO_MIME, processUpload, processVideo } from "@/lib/images";
+import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
 import type { UploadedFile } from "@/lib/multipart";
 import {
+  createPhoto,
   deletePhoto,
   getPhoto,
   getPhotoByClientUuid,
   setPhotoCaption,
 } from "@/lib/photos";
+import { normalizeCaption } from "@/lib/schemas";
+import { touchTrip, updateStep } from "@/lib/trips";
 import { requireStep } from "./steps";
 import { requireTrip, switchCover } from "./trips";
 
-const ACCEPTED_IMAGE = /^image\/(jpeg|png|webp|avif|heic|heif|tiff)$/i;
 const ACCEPTED_VIDEO = /^video\//i;
+
+function isAcceptedImage(type: string) {
+  return (ACCEPTED_IMAGE_TYPES as readonly string[]).includes(type.toLowerCase());
+}
 
 /**
  * An uploaded file as the services see it. The bytes are only read on demand,
@@ -67,7 +73,7 @@ function rejectReason(file: IncomingMedia): ErrorCode | null {
   const video = isVideo(file);
   if (video && file.size > MAX_VIDEO_BYTES) return "video_too_large";
   if (!video && file.size > MAX_IMAGE_BYTES) return "image_too_large";
-  if (file.type && !video && !ACCEPTED_IMAGE.test(file.type)) return "unsupported_format";
+  if (file.type && !video && !isAcceptedImage(file.type)) return "unsupported_format";
   if (video && !file.poster) return "poster_missing";
   return null;
 }
@@ -79,6 +85,8 @@ function rejectReason(file: IncomingMedia): ErrorCode | null {
 export async function addMediaToStep(
   stepId: number,
   files: IncomingMedia[],
+  /** Language of the place name derived from the photos' GPS position. */
+  language: Locale = DEFAULT_LOCALE,
 ): Promise<MediaResult> {
   const step = await requireStep(stepId);
   if (files.length === 0) throw new ServiceError("no_file");
@@ -127,47 +135,32 @@ export async function addMediaToStep(
       );
 
       const duration = file.durationMs ?? NaN;
-      let photo: Photo;
       try {
-        [photo] = await db
-          .insert(photos)
-          .values({
+        created.push(
+          await createPhoto(meta, {
             tripId: step.tripId,
             stepId: step.id,
-            storageKey: meta.storageKey,
             originalName: file.name,
-            width: meta.width,
-            height: meta.height,
-            bytes: meta.bytes,
             takenAt: meta.takenAt,
             lat: meta.lat,
             lon: meta.lon,
-            placeholder: meta.placeholder,
             sortOrder: nextOrder++,
             mediaType: video ? "video" : "photo",
-            videoMime: video ? file.type || "video/mp4" : null,
+            videoMime: video ? file.type || DEFAULT_VIDEO_MIME : null,
             durationMs:
               video && Number.isFinite(duration) && duration > 0
                 ? Math.round(duration)
                 : null,
             clientUuid: file.clientUuid ?? null,
-          })
-          .returning();
+          }),
+        );
       } catch (error) {
-        // The files are on disk already – without a row nothing would ever
-        // find or delete them.
-        await deletePhotoFiles(meta.storageKey);
         // A parallel retry with the same UUID got in first: its photo is
         // the answer to this request too.
         const winner = file.clientUuid ? await getPhotoByClientUuid(file.clientUuid) : null;
-        if (winner?.stepId === step.id) {
-          created.push(winner);
-          continue;
-        }
-        throw error;
+        if (winner?.stepId !== step.id) throw error;
+        created.push(winner);
       }
-      await recordChange(photo.tripId, "photo", photo.id, "upsert");
-      created.push(photo);
     } catch (error) {
       console.error("[upload] failed", file.name, error);
       failed.push({ name: file.name, code: "media_unprocessable" });
@@ -176,12 +169,12 @@ export async function addMediaToStep(
 
   // Take the step's place and time from the photos as long as nothing is set.
   const withGps = created.find((p) => p.lat !== null && p.lon !== null);
-  const patch: Partial<typeof steps.$inferInsert> = {};
+  const patch: Parameters<typeof updateStep>[1] = {};
   if (withGps && step.lat === null) {
     patch.lat = withGps.lat;
     patch.lon = withGps.lon;
     if (!step.placeName) {
-      const place = await reverseGeocode(withGps.lat!, withGps.lon!);
+      const place = await reverseGeocode(withGps.lat!, withGps.lon!, language);
       if (place.placeName) patch.placeName = place.placeName;
       if (place.countryCode) patch.countryCode = place.countryCode;
     }
@@ -200,13 +193,10 @@ export async function addMediaToStep(
     patch.published = true;
   }
 
-  if (Object.keys(patch).length > 0) {
-    await db
-      .update(steps)
-      .set({ ...patch, updatedAt: Date.now() })
-      .where(eq(steps.id, step.id));
-    await recordChange(step.tripId, "step", step.id, "upsert");
-  }
+  // Through `updateStep` like every step write: it logs the change and
+  // moves the trip up the list.
+  if (Object.keys(patch).length > 0) await updateStep(step.id, patch);
+  else if (created.length > 0) await touchTrip(step.tripId);
 
   return {
     photos: created,
@@ -227,7 +217,7 @@ export async function addMediaToStep(
 export async function uploadCover(tripId: number, file: IncomingMedia) {
   const trip = await requireTrip(tripId);
   if (file.size > MAX_IMAGE_BYTES) throw new ServiceError("image_too_large");
-  if (file.type && !ACCEPTED_IMAGE.test(file.type)) {
+  if (file.type && !isAcceptedImage(file.type)) {
     throw new ServiceError("unsupported_format");
   }
 
@@ -239,29 +229,13 @@ export async function uploadCover(tripId: number, file: IncomingMedia) {
     throw new ServiceError("media_unprocessable");
   }
 
-  let photo: Photo;
-  try {
-    [photo] = await db
-      .insert(photos)
-      .values({
-        tripId,
-        stepId: null,
-        storageKey: meta.storageKey,
-        originalName: file.name,
-        width: meta.width,
-        height: meta.height,
-        bytes: meta.bytes,
-        placeholder: meta.placeholder,
-        mediaType: "photo",
-        sortOrder: -1,
-      })
-      .returning();
-  } catch (error) {
-    await deletePhotoFiles(meta.storageKey);
-    throw error;
-  }
-  await recordChange(tripId, "photo", photo.id, "upsert");
-
+  const photo = await createPhoto(meta, {
+    tripId,
+    stepId: null,
+    originalName: file.name,
+    mediaType: "photo",
+    sortOrder: -1,
+  });
   await switchCover(trip, photo.id);
   return photo;
 }
@@ -274,7 +248,7 @@ export async function requirePhoto(photoId: number) {
 
 export async function updateCaption(photoId: number, caption: string | null) {
   await requirePhoto(photoId);
-  await setPhotoCaption(photoId, caption?.trim().slice(0, 500) || null);
+  await setPhotoCaption(photoId, normalizeCaption(caption));
   return (await getPhoto(photoId))!;
 }
 
@@ -287,7 +261,7 @@ export async function removePhoto(photoId: number) {
 /**
  * Turns a streamed upload (`parseMultipart`) into an `IncomingMedia`. Only
  * images are read into memory – sharp needs them whole and they're capped
- * at 25 MB; a video is moved into place.
+ * (`MAX_IMAGE_BYTES`); a video is moved into place.
  */
 export function fromUpload(
   file: UploadedFile,

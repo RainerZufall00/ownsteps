@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import type { Change, Comment, Photo, Trip, User, ViewerDevice } from "@/db/schema";
-import type { StepWithPhotos, TripSummary } from "@/lib/trips";
+import { summarizeSteps, type StepWithPhotos, type TripStats } from "@/lib/trips";
 import { toIso } from "./http";
 import type {
   ChangeDto,
@@ -75,11 +75,6 @@ export function stepDto(step: StepWithPhotos): StepDto {
   };
 }
 
-type TripStats = Pick<
-  TripSummary,
-  "stepCount" | "photoCount" | "firstStepAt" | "lastStepAt"
-> & { coverPhotoId: number | null };
-
 export function tripDto(
   trip: Trip,
   stats: TripStats,
@@ -109,24 +104,13 @@ export function tripDto(
   };
 }
 
-/** Stats computed from already loaded steps, for the detail view. */
-export function statsFromSteps(trip: Trip, steps: StepWithPhotos[]): TripStats {
-  return {
-    coverPhotoId: trip.coverPhotoId ?? steps[0]?.photos[0]?.id ?? null,
-    stepCount: steps.length,
-    photoCount: steps.reduce((sum, step) => sum + step.photos.length, 0),
-    firstStepAt: steps[0]?.occurredAt ?? null,
-    lastStepAt: steps.at(-1)?.occurredAt ?? null,
-  };
-}
-
 export function tripDetailDto(
   trip: Trip,
   steps: StepWithPhotos[],
   share: { url: string } | null,
 ): TripDetailDto {
   return {
-    ...tripDto(trip, statsFromSteps(trip, steps), share),
+    ...tripDto(trip, summarizeSteps(trip, steps), share),
     steps: steps.map(stepDto),
   };
 }

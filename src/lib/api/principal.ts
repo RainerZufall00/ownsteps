@@ -59,8 +59,15 @@ export async function requireAuthor(request: Request) {
 export async function requireReadableTrip(principal: Principal, tripId: number): Promise<Trip> {
   const trip = await getTrip(tripId);
   if (!trip) throw new ServiceError("trip_not_found");
-  if (principal.kind === "author") return trip;
-  if (principal.device.tripId !== trip.id) throw new ServiceError("trip_not_found");
-  if (!trip.shareEnabled) throw new ServiceError("trip_not_shared");
+  if (principal.kind === "viewer" && principal.device.tripId !== trip.id) {
+    throw new ServiceError("trip_not_found");
+  }
+  if (!canRead(principal, trip)) throw new ServiceError("trip_not_shared");
   return trip;
+}
+
+/** The rule behind `requireReadableTrip`, for filtering lists. */
+export function canRead(principal: Principal, trip: Pick<Trip, "id" | "shareEnabled">) {
+  if (principal.kind === "author") return true;
+  return principal.device.tripId === trip.id && trip.shareEnabled;
 }

@@ -18,13 +18,19 @@ import { newShareToken } from "./share";
 
 export type StepWithPhotos = Step & { photos: Photo[]; comments: Comment[] };
 
-export type TripSummary = Trip & {
+/** What a trip's list entry and API shape show besides the trip itself. */
+export type TripStats = {
+  coverPhotoId: number | null;
   stepCount: number;
   photoCount: number;
   firstStepAt: number | null;
   lastStepAt: number | null;
-  coverPhoto: Photo | null;
 };
+
+export type TripSummary = Trip &
+  Omit<TripStats, "coverPhotoId"> & {
+    coverPhoto: Photo | null;
+  };
 
 /** Drafts are created when the editor opens – clean up unused ones eventually. */
 const DRAFT_TTL_MS = 1000 * 60 * 60 * 24 * 7;
@@ -38,6 +44,24 @@ export async function cleanupStaleDrafts() {
     );
   if (stale.length === 0) return;
   await Promise.all(stale.map((s) => deleteStep(s.id)));
+}
+
+/**
+ * The stats of a trip whose published steps are already loaded (oldest
+ * first). The rule for the lead image is the same as in `listTrips`: the
+ * cover if set, otherwise the timeline's first photo.
+ */
+export function summarizeSteps(
+  trip: Pick<Trip, "coverPhotoId">,
+  stepList: StepWithPhotos[],
+): TripStats {
+  return {
+    coverPhotoId: trip.coverPhotoId ?? stepList.find((s) => s.photos.length > 0)?.photos[0].id ?? null,
+    stepCount: stepList.length,
+    photoCount: stepList.reduce((sum, step) => sum + step.photos.length, 0),
+    firstStepAt: stepList[0]?.occurredAt ?? null,
+    lastStepAt: stepList.at(-1)?.occurredAt ?? null,
+  };
 }
 
 /** All trips, newest first – or only those with the given IDs. */
@@ -62,56 +86,86 @@ export async function listTrips(options: { ids?: number[] } = {}): Promise<TripS
     .where(and(eq(steps.published, true), inArray(steps.tripId, tripIds)))
     .groupBy(steps.tripId);
 
-  const photoStats = await db
-    .select({
-      tripId: photos.tripId,
-      // The cover isn't attached to any step and doesn't count as a trip photo.
-      photoCount: sql<number>`count(${photos.stepId})`,
-      // Without an explicit cover, the trip's first photo serves as the lead image.
-      firstPhotoId: sql<number>`min(${photos.id})`,
-    })
+  // The photos of published steps in timeline order – only their IDs. The
+  // cover isn't attached to any step and doesn't count as a trip photo.
+  const stepPhotos = await db
+    .select({ tripId: photos.tripId, id: photos.id })
     .from(photos)
-    .where(inArray(photos.tripId, tripIds))
-    .groupBy(photos.tripId);
+    .innerJoin(steps, eq(steps.id, photos.stepId))
+    .where(and(eq(steps.published, true), inArray(photos.tripId, tripIds)))
+    .orderBy(asc(steps.occurredAt), asc(steps.id), asc(photos.sortOrder), asc(photos.id));
+  const photoCount = new Map<number, number>();
+  const firstPhotoId = new Map<number, number>();
+  for (const photo of stepPhotos) {
+    photoCount.set(photo.tripId, (photoCount.get(photo.tripId) ?? 0) + 1);
+    if (!firstPhotoId.has(photo.tripId)) firstPhotoId.set(photo.tripId, photo.id);
+  }
 
   // Only the photos that end up as covers – not every photo of every trip.
-  const coverIds = new Set<number>();
-  for (const trip of rows) if (trip.coverPhotoId) coverIds.add(trip.coverPhotoId);
-  for (const stat of photoStats) coverIds.add(stat.firstPhotoId);
+  const coverIds = new Map<number, number>();
+  for (const trip of rows) {
+    const coverId = trip.coverPhotoId ?? firstPhotoId.get(trip.id);
+    if (coverId) coverIds.set(trip.id, coverId);
+  }
   const coverRows =
     coverIds.size > 0
-      ? await db.select().from(photos).where(inArray(photos.id, [...coverIds]))
+      ? await db.select().from(photos).where(inArray(photos.id, [...coverIds.values()]))
       : [];
 
   const statsByTrip = new Map(stats.map((s) => [s.tripId, s]));
-  const photoStatsByTrip = new Map(photoStats.map((s) => [s.tripId, s]));
   const photoById = new Map(coverRows.map((p) => [p.id, p]));
 
   return rows.map((trip) => {
     const stat = statsByTrip.get(trip.id);
-    const photoStat = photoStatsByTrip.get(trip.id);
-    const cover =
-      (trip.coverPhotoId ? photoById.get(trip.coverPhotoId) : undefined) ??
-      (photoStat ? photoById.get(photoStat.firstPhotoId) : undefined) ??
-      null;
+    const coverId = coverIds.get(trip.id);
     return {
       ...trip,
       stepCount: stat?.stepCount ?? 0,
-      photoCount: photoStat?.photoCount ?? 0,
+      photoCount: photoCount.get(trip.id) ?? 0,
       firstStepAt: stat?.firstStepAt ?? null,
       lastStepAt: stat?.lastStepAt ?? null,
-      coverPhoto: cover,
+      coverPhoto: (coverId ? photoById.get(coverId) : undefined) ?? null,
     };
   });
 }
 
 export async function getTrip(tripId: number): Promise<Trip | null> {
-  const rows = await db
+  return (await db.select().from(trips).where(eq(trips.id, tripId)).get()) ?? null;
+}
+
+/** Steps with their photos and comments, in the order given. */
+async function withChildren(stepRows: Step[]): Promise<StepWithPhotos[]> {
+  if (stepRows.length === 0) return [];
+  const stepIds = stepRows.map((s) => s.id);
+
+  const photoRows = await db
     .select()
-    .from(trips)
-    .where(eq(trips.id, tripId))
-    .limit(1);
-  return rows[0] ?? null;
+    .from(photos)
+    .where(inArray(photos.stepId, stepIds))
+    .orderBy(asc(photos.sortOrder), asc(photos.id));
+  const commentRows = await db
+    .select()
+    .from(comments)
+    .where(inArray(comments.stepId, stepIds))
+    .orderBy(asc(comments.createdAt));
+
+  const photosByStep = groupBy(photoRows, (photo) => photo.stepId);
+  const commentsByStep = groupBy(commentRows, (comment) => comment.stepId);
+  return stepRows.map((step) => ({
+    ...step,
+    photos: photosByStep.get(step.id) ?? [],
+    comments: commentsByStep.get(step.id) ?? [],
+  }));
+}
+
+function groupBy<T, K>(items: T[], key: (item: T) => K) {
+  const groups = new Map<K, T[]>();
+  for (const item of items) {
+    const list = groups.get(key(item));
+    if (list) list.push(item);
+    else groups.set(key(item), [item]);
+  }
+  return groups;
 }
 
 export async function getSteps(
@@ -127,75 +181,19 @@ export async function getSteps(
     .from(steps)
     .where(where)
     .orderBy(asc(steps.occurredAt), asc(steps.id));
-
-  if (stepRows.length === 0) return [];
-
-  const photoRows = await db
-    .select()
-    .from(photos)
-    .where(
-      inArray(
-        photos.stepId,
-        stepRows.map((s) => s.id),
-      ),
-    )
-    .orderBy(asc(photos.sortOrder), asc(photos.id));
-
-  const commentRows = await db
-    .select()
-    .from(comments)
-    .where(
-      inArray(
-        comments.stepId,
-        stepRows.map((s) => s.id),
-      ),
-    )
-    .orderBy(asc(comments.createdAt));
-
-  const byStep = new Map<number, Photo[]>();
-  for (const photo of photoRows) {
-    if (photo.stepId === null) continue;
-    const list = byStep.get(photo.stepId);
-    if (list) list.push(photo);
-    else byStep.set(photo.stepId, [photo]);
-  }
-
-  const commentsByStep = new Map<number, Comment[]>();
-  for (const comment of commentRows) {
-    const list = commentsByStep.get(comment.stepId);
-    if (list) list.push(comment);
-    else commentsByStep.set(comment.stepId, [comment]);
-  }
-
-  return stepRows.map((step) => ({
-    ...step,
-    photos: byStep.get(step.id) ?? [],
-    comments: commentsByStep.get(step.id) ?? [],
-  }));
+  return withChildren(stepRows);
 }
 
 export async function getStep(stepId: number): Promise<StepWithPhotos | null> {
-  const rows = await db
-    .select()
-    .from(steps)
-    .where(eq(steps.id, stepId))
-    .limit(1);
-  const step = rows[0];
+  const step = await db.select().from(steps).where(eq(steps.id, stepId)).get();
   if (!step) return null;
+  const [withPhotos] = await withChildren([step]);
+  return withPhotos;
+}
 
-  const photoRows = await db
-    .select()
-    .from(photos)
-    .where(eq(photos.stepId, stepId))
-    .orderBy(asc(photos.sortOrder), asc(photos.id));
-
-  const commentRows = await db
-    .select()
-    .from(comments)
-    .where(eq(comments.stepId, stepId))
-    .orderBy(asc(comments.createdAt));
-
-  return { ...step, photos: photoRows, comments: commentRows };
+/** The trip list is sorted by this: a trip that got new content moves up. */
+export async function touchTrip(tripId: number) {
+  await db.update(trips).set({ updatedAt: Date.now() }).where(eq(trips.id, tripId));
 }
 
 export async function createTrip(input: {
@@ -255,10 +253,6 @@ export async function deleteTrip(tripId: number) {
   await deletePhotoFilesFor(photoRows);
 }
 
-export async function createDraftStep(tripId: number, userId: number) {
-  return createStep({ tripId, userId, published: false });
-}
-
 /** Creates a step; the app sends content right away, the web editor a draft. */
 export async function createStep(input: {
   tripId: number;
@@ -285,17 +279,15 @@ export async function createStep(input: {
       lon: input.lon ?? null,
     })
     .returning();
-  if (step.published) await recordChange(step.tripId, "step", step.id, "upsert");
+  if (step.published) {
+    await touchTrip(step.tripId);
+    await recordChange(step.tripId, "step", step.id, "upsert");
+  }
   return step;
 }
 
 export async function getStepByClientUuid(clientUuid: string) {
-  const rows = await db
-    .select()
-    .from(steps)
-    .where(eq(steps.clientUuid, clientUuid))
-    .limit(1);
-  return rows[0] ?? null;
+  return (await db.select().from(steps).where(eq(steps.clientUuid, clientUuid)).get()) ?? null;
 }
 
 export async function updateStep(
@@ -303,7 +295,6 @@ export async function updateStep(
   patch: Partial<
     Pick<
       Step,
-      | "title"
       | "body"
       | "lat"
       | "lon"
@@ -314,36 +305,27 @@ export async function updateStep(
     >
   >,
 ) {
-  await db
+  const [row] = await db
     .update(steps)
     .set({ ...patch, updatedAt: Date.now() })
-    .where(eq(steps.id, stepId));
-
-  const [row] = await db
-    .select({ tripId: steps.tripId })
-    .from(steps)
     .where(eq(steps.id, stepId))
-    .limit(1);
+    .returning({ tripId: steps.tripId });
   if (row) {
-    await db
-      .update(trips)
-      .set({ updatedAt: Date.now() })
-      .where(eq(trips.id, row.tripId));
+    await touchTrip(row.tripId);
     await recordChange(row.tripId, "step", stepId, "upsert");
   }
 }
 
 export async function deleteStep(stepId: number) {
-  const [row] = await db
-    .select({ tripId: steps.tripId })
-    .from(steps)
-    .where(eq(steps.id, stepId))
-    .limit(1);
   const photoRows = await db
     .select({ storageKey: photos.storageKey })
     .from(photos)
     .where(eq(photos.stepId, stepId));
-  await db.delete(steps).where(eq(steps.id, stepId));
+  // Rows vanish via ON DELETE CASCADE, the files don't.
+  const [row] = await db
+    .delete(steps)
+    .where(eq(steps.id, stepId))
+    .returning({ tripId: steps.tripId });
   // The step's delete implies its photos and comments.
   if (row) await recordChange(row.tripId, "step", stepId, "delete");
   await deletePhotoFilesFor(photoRows);

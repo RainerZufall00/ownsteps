@@ -113,8 +113,8 @@ struct TripFormView: View {
             defer { busy = false }
             do {
                 let client = model.client(for: account)
-                let startDay = hasStart ? isoDay(start) : nil
-                let endDay = hasEnd ? isoDay(end) : nil
+                let startDay = hasStart ? calendar.calendarDay(of: start) : nil
+                let endDay = hasEnd ? calendar.calendarDay(of: end) : nil
                 var saved: Components.Schemas.Trip
                 if let trip {
                     saved = try await client.updateTrip(id: trip.id, .init(
@@ -132,9 +132,8 @@ struct TripFormView: View {
                         endDate: endDay
                     )
                 }
-                if let coverItem {
-                    try await uploadCover(coverItem, tripID: saved.id, client: client)
-                    saved = try await client.trips().first { $0.id == saved.id } ?? saved
+                if let coverItem, let coverID = try await uploadCover(coverItem, tripID: saved.id, client: client) {
+                    saved.coverPhotoId = coverID
                 }
                 onSaved(saved)
                 dismiss()
@@ -146,25 +145,10 @@ struct TripFormView: View {
 
     /// The cover goes up right away, not through the queue – it's one image
     /// and the form waits for it.
-    private func uploadCover(_ item: PhotosPickerItem, tripID: Int, client: ServerClient) async throws {
+    private func uploadCover(_ item: PhotosPickerItem, tripID: Int, client: ServerClient) async throws -> Int? {
         let prepared = try await MediaImporter.prepare([item], timeZone: calendar.calendar.timeZone, originalVideos: false)
-        guard let cover = prepared.first else { return }
-        let media = cover.media
+        guard let cover = prepared.first else { return nil }
         defer { cover.discard() }
-        let body = MultipartBody()
-        let bodyFile = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).body")
-        defer { try? FileManager.default.removeItem(at: bodyFile) }
-        try body.write([.file(name: "file", fileName: "cover.jpg", mime: "image/jpeg", url: media.file)], to: bodyFile)
-        let (_, response) = try await URLSession.shared.upload(
-            for: client.coverUploadRequest(tripID: tripID, contentType: body.contentType),
-            fromFile: bodyFile
-        )
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status) else { throw APIError.unexpected(status: status) }
-    }
-
-    private func isoDay(_ date: Date) -> String {
-        let parts = calendar.calendar.dateComponents([.year, .month, .day], from: date)
-        return String(format: "%04d-%02d-%02d", parts.year!, parts.month!, parts.day!)
+        return try await client.uploadCover(tripID: tripID, jpeg: cover.media.file)
     }
 }

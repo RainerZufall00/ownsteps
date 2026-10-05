@@ -38,4 +38,16 @@ public enum APIError: Error, Equatable, Sendable {
     static func from(_ problem: Components.Schemas.Problem) -> APIError {
         .problem(code: problem.code, status: problem.status)
     }
+
+    /// The `code` of a problem document – for responses that bypass the
+    /// generated client (uploads).
+    static func problemCode(in body: Data) -> String? {
+        struct Problem: Decodable { let code: String }
+        return (try? JSONDecoder().decode(Problem.self, from: body))?.code
+    }
+
+    /// A failed upload response as an error, like the generated client's.
+    static func from(responseBody body: Data, status: Int) -> APIError {
+        problemCode(in: body).map { .problem(code: $0, status: status) } ?? .unexpected(status: status)
+    }
 }

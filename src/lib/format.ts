@@ -1,20 +1,49 @@
-import { de } from "date-fns/locale";
+import { de, enUS, type Locale as DateLocale } from "date-fns/locale";
 import { differenceInCalendarDays, format } from "date-fns";
+import type { Locale } from "./i18n/locales";
 
-export function formatDate(ms: number) {
-  return format(new Date(ms), "d. MMMM yyyy", { locale: de });
+/**
+ * Date patterns per UI language. English the US way ("July 1, 2026"),
+ * German with day first ("1. Juli 2026").
+ */
+const PATTERNS: Record<
+  Locale,
+  {
+    dateLocale: DateLocale;
+    short: string;
+    weekday: string;
+    /** Same month: "July 1–20, 2026" / "1.–20. Juli 2026". */
+    sameMonth: [string, string];
+    /** Same year: "Jul 1 – Aug 3, 2026" / "1. Jul – 3. Aug 2026". */
+    sameYear: [string, string];
+  }
+> = {
+  en: {
+    dateLocale: enUS,
+    short: "MMM d, yyyy",
+    weekday: "EEEE, MMMM d",
+    sameMonth: ["MMMM d", "d, yyyy"],
+    sameYear: ["MMM d", "MMM d, yyyy"],
+  },
+  de: {
+    dateLocale: de,
+    short: "d. MMM yyyy",
+    weekday: "EEEE, d. MMMM",
+    sameMonth: ["d.", "d. MMMM yyyy"],
+    sameYear: ["d. MMM", "d. MMM yyyy"],
+  },
+};
+
+function formatIn(locale: Locale, date: Date, pattern: string) {
+  return format(date, pattern, { locale: PATTERNS[locale].dateLocale });
 }
 
-export function formatDateShort(ms: number) {
-  return format(new Date(ms), "d. MMM yyyy", { locale: de });
+export function formatDateShort(ms: number, locale: Locale) {
+  return formatIn(locale, new Date(ms), PATTERNS[locale].short);
 }
 
-export function formatWeekday(ms: number) {
-  return format(new Date(ms), "EEEE, d. MMMM", { locale: de });
-}
-
-export function formatTime(ms: number) {
-  return format(new Date(ms), "HH:mm", { locale: de });
+export function formatWeekday(ms: number, locale: Locale) {
+  return formatIn(locale, new Date(ms), PATTERNS[locale].weekday);
 }
 
 /** Value for <input type="date"> in local time. */
@@ -52,19 +81,23 @@ export function tripDay(startMs: number, stepMs: number) {
   return differenceInCalendarDays(new Date(stepMs), new Date(startMs)) + 1;
 }
 
-export function formatRange(from: number | null, to: number | null) {
-  if (!from) return "Noch keine Beiträge";
-  if (!to || from === to) return formatDateShort(from);
+/** `null` when there's nothing to show yet – the caller says so in words. */
+export function formatRange(from: number | null, to: number | null, locale: Locale) {
+  if (!from) return null;
+  if (!to || from === to) return formatDateShort(from, locale);
 
   const start = new Date(from);
   const end = new Date(to);
+  const patterns = PATTERNS[locale];
   if (start.getFullYear() === end.getFullYear()) {
     if (start.getMonth() === end.getMonth()) {
-      return `${format(start, "d.", { locale: de })}–${format(end, "d. MMMM yyyy", { locale: de })}`;
+      const [a, b] = patterns.sameMonth;
+      return `${formatIn(locale, start, a)}–${formatIn(locale, end, b)}`;
     }
-    return `${format(start, "d. MMM", { locale: de })} – ${format(end, "d. MMM yyyy", { locale: de })}`;
+    const [a, b] = patterns.sameYear;
+    return `${formatIn(locale, start, a)} – ${formatIn(locale, end, b)}`;
   }
-  return `${formatDateShort(from)} – ${formatDateShort(to)}`;
+  return `${formatDateShort(from, locale)} – ${formatDateShort(to, locale)}`;
 }
 
 /**
@@ -77,16 +110,11 @@ export function formatTripRange(
   trip: { startDate: string | null; endDate: string | null },
   firstStepAt: number | null,
   lastStepAt: number | null,
+  locale: Locale,
 ) {
   const from = fromDateInput(trip.startDate) ?? firstStepAt;
   const to = fromDateInput(trip.endDate) ?? lastStepAt;
-  return formatRange(from, to);
-}
-
-export function formatDuration(from: number | null, to: number | null) {
-  if (!from || !to) return null;
-  const days = differenceInCalendarDays(new Date(to), new Date(from)) + 1;
-  return days === 1 ? "1 Tag" : `${days} Tage`;
+  return formatRange(from, to, locale);
 }
 
 /** A video's length as m:ss – over an hour as h:mm:ss. */
@@ -99,8 +127,4 @@ export function formatMediaDuration(ms: number) {
   return hours > 0
     ? `${hours}:${pad(minutes)}:${pad(seconds)}`
     : `${minutes}:${pad(seconds)}`;
-}
-
-export function pluralize(count: number, one: string, many: string) {
-  return `${count} ${count === 1 ? one : many}`;
 }

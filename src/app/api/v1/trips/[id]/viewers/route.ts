@@ -1,4 +1,4 @@
-import { handle, idParam, json } from "@/lib/api/http";
+import { handle, idParam, json, noContent } from "@/lib/api/http";
 import { requireAuthor } from "@/lib/api/principal";
 import { viewerDto } from "@/lib/api/serialize";
 import { removeAllViewers, viewersOf } from "@/lib/services/viewers";
@@ -21,6 +21,6 @@ export async function DELETE(request: Request, context: RouteContext<"/api/v1/tr
     await requireAuthor(request);
     const tripId = idParam((await context.params).id, "trip_not_found");
     await removeAllViewers(tripId);
-    return new Response(null, { status: 204 });
+    return noContent();
   });
 }

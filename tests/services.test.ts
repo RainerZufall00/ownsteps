@@ -6,10 +6,11 @@ import { db, UPLOAD_DIR } from "@/db";
 import { sessions, users } from "@/db/schema";
 import { createSession, createUser, getCurrentUser } from "@/lib/auth";
 import { ServiceError } from "@/lib/errors";
+import { TRIP_SUMMARY_MAX_LENGTH, TRIP_TITLE_MAX_LENGTH } from "@/lib/limits";
 import { messageFor } from "@/lib/messages";
 import type { TripAccess } from "@/lib/share";
 import { cleanupOrphanedCovers, getPhoto } from "@/lib/photos";
-import { getStep, getTrip, listTrips, updateTrip } from "@/lib/trips";
+import { getStep, getSteps, getTrip, listTrips, summarizeSteps, updateTrip } from "@/lib/trips";
 import { authenticate, changePassword, createFirstAccount } from "@/lib/services/accounts";
 import { postComment } from "@/lib/services/comments";
 import { createApiToken, resolveApiToken } from "@/lib/tokens";
@@ -58,13 +59,59 @@ describe("trips", () => {
     expect(trip).toMatchObject({ title: "Norway", summary: null, endDate: null });
   });
 
+  it("caps title and description", async () => {
+    const user = await author();
+    await expectCode(
+      createTripFor(user.id, { title: "x".repeat(TRIP_TITLE_MAX_LENGTH + 1) }),
+      "trip_title_too_long",
+    );
+    await expectCode(
+      createTripFor(user.id, { title: "X", summary: "x".repeat(TRIP_SUMMARY_MAX_LENGTH + 1) }),
+      "trip_summary_too_long",
+    );
+  });
+
+  it("leads with the timeline's first photo in the list and the API alike", async () => {
+    const user = await author();
+    const trip = await createTripFor(user.id, { title: "Norway" });
+    const later = await startStep(trip.id, user.id);
+    await saveStep(later.id, { body: "Later", occurredDate: "2026-07-10" });
+    const earlier = await startStep(trip.id, user.id);
+    await saveStep(earlier.id, { body: "Earlier", occurredDate: "2026-07-01" });
+    // Uploaded first, but to the later step.
+    await addMediaToStep(later.id, [jpegFile("late.jpg", await makeJpeg(200, 100))]);
+    const { photos } = await addMediaToStep(earlier.id, [
+      jpegFile("early.jpg", await makeJpeg(200, 100)),
+    ]);
+
+    const [summary] = await listTrips({ ids: [trip.id] });
+    const stats = summarizeSteps(trip, await getSteps(trip.id));
+    expect(summary.coverPhoto?.id).toBe(photos[0].id);
+    expect(stats.coverPhotoId).toBe(photos[0].id);
+    expect(summary.photoCount).toBe(2);
+    expect(stats.photoCount).toBe(2);
+  });
+
+  it("moves a trip up the list when photos arrive", async () => {
+    const user = await author();
+    const trip = await createTripFor(user.id, { title: "Norway" });
+    const step = await startStep(trip.id, user.id);
+    await saveStep(step.id, { body: "Fjords" });
+    await updateTrip(trip.id, {});
+    const before = (await getTrip(trip.id))!.updatedAt;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await addMediaToStep(step.id, [jpegFile("a.jpg", await makeJpeg(200, 100))]);
+    expect((await getTrip(trip.id))!.updatedAt).toBeGreaterThan(before);
+  });
+
   it("only deletes after the exact title was typed", async () => {
     const user = await author();
     const trip = await createTripFor(user.id, { title: "Norway" });
     await expect(deleteTripConfirmed(trip.id, "norway")).rejects.toSatisfy(
       (error) =>
         error instanceof ServiceError &&
-        messageFor(error.code, error.params).includes("„Norway“"),
+        messageFor("en", error.code, error.params).includes("“Norway”") &&
+        messageFor("de", error.code, error.params).includes("„Norway“"),
     );
     await deleteTripConfirmed(trip.id, " Norway ");
     expect(await getTrip(trip.id)).toBeNull();
@@ -267,9 +314,25 @@ describe("comments", () => {
     const user = await author();
     const trip = await createTripFor(user.id, { title: "Norway" });
     const step = await startStep(trip.id, user.id);
+    await saveStep(step.id, { body: "Fjords" });
     const resolveAccess = async (_trip: Trip) => ({ kind: access }) as TripAccess;
     return { trip, step, resolveAccess };
   }
+
+  it("refuses drafts – they aren't in the timeline", async () => {
+    const { trip, resolveAccess } = await commentable("guest");
+    const draft = await startStep(trip.id, trip.createdBy!);
+    await expectCode(
+      postComment({
+        tripId: trip.id,
+        stepId: draft.id,
+        raw: { authorName: "Eve", body: "Hi" },
+        clientKey: "eve",
+        resolveAccess,
+      }),
+      "step_not_found",
+    );
+  });
 
   it("lets guests comment and trims the input", async () => {
     const { trip, step, resolveAccess } = await commentable("guest");

@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { failure } from "@/lib/action-result";
 import { destroySession, requireUser } from "@/lib/auth";
+import { accountFields, formString } from "@/lib/form-data";
 import { clientAddress } from "@/lib/rate-limit";
 import { addAccount, changePassword } from "@/lib/services/accounts";
 import { revokeApiToken } from "@/lib/tokens";
@@ -18,7 +19,7 @@ export async function logoutAction() {
 /** Signs one of your app devices out; its token stops working immediately. */
 export async function revokeDeviceAction(formData: FormData) {
   const user = await requireUser();
-  const tokenId = String(formData.get("tokenId") ?? "");
+  const tokenId = formString(formData, "tokenId");
   if (!tokenId) return;
   await revokeApiToken(tokenId, user.id);
   revalidatePath("/settings");
@@ -30,11 +31,7 @@ export async function addUserAction(
 ): Promise<ActionState> {
   await requireUser();
   try {
-    await addAccount({
-      email: String(formData.get("email") ?? ""),
-      name: String(formData.get("name") ?? ""),
-      password: String(formData.get("password") ?? ""),
-    });
+    await addAccount(accountFields(formData));
   } catch (error) {
     return failure(error);
   }
@@ -51,8 +48,8 @@ export async function changePasswordAction(
     await changePassword(
       user,
       {
-        currentPassword: String(formData.get("currentPassword") ?? ""),
-        newPassword: String(formData.get("newPassword") ?? ""),
+        currentPassword: formString(formData, "currentPassword"),
+        newPassword: formString(formData, "newPassword"),
       },
       clientAddress(await headers()),
     );

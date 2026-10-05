@@ -98,7 +98,9 @@ struct EditStepView: View {
                 body: bodyText,
                 // An empty string clears the place.
                 placeName: placeName.trimmingCharacters(in: .whitespaces),
-                occurredDate: dayChanged ? isoDay(date) : nil
+                // The server keeps the time of day from the photos and only
+                // swaps the date.
+                occurredDate: dayChanged ? calendar.calendarDay(of: date) : nil
             ))
             for photo in step.photos where removedPhotos.contains(photo.id) {
                 try await client.deletePhoto(id: photo.id)
@@ -129,12 +131,5 @@ struct EditStepView: View {
                 self.error = ErrorText.message(for: error)
             }
         }
-    }
-
-    /// "2027-07-04" in the server's time zone – the server keeps the time of
-    /// day from the photos and only swaps the date.
-    private func isoDay(_ date: Date) -> String {
-        let parts = calendar.calendar.dateComponents([.year, .month, .day], from: date)
-        return String(format: "%04d-%02d-%02d", parts.year!, parts.month!, parts.day!)
     }
 }

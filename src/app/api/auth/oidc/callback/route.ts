@@ -1,48 +1,24 @@
-import { cookies } from "next/headers";
 import { createSession, findUserByOidcSubject, upsertOidcUser } from "@/lib/auth";
 import { redirectTo } from "@/lib/origin";
 import {
-  APP_CALLBACK_URL,
+  appCallbackUrl,
   exchangeCode,
   isEmailAllowed,
   isEmailTrusted,
-  OIDC_FLOW_COOKIE,
   oidcEnabled,
   redirectUriFor,
+  takeOidcFlow,
 } from "@/lib/oidc";
 import { createAuthCode } from "@/lib/tokens";
-
-type Flow = {
-  state: string;
-  verifier: string;
-  nonce: string;
-  next: string;
-  /** Set when the sign-in was started by the app (`/api/v1/auth/oidc/start`). */
-  app?: { codeChallenge: string; state: string; deviceName: string };
-};
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
-  const store = await cookies();
-  const raw = store.get(OIDC_FLOW_COOKIE)?.value;
-  store.delete(OIDC_FLOW_COOKIE);
-
-  let flow: Flow | null = null;
-  try {
-    flow = raw ? JSON.parse(raw) : null;
-  } catch {
-    flow = null;
-  }
+  const flow = await takeOidcFlow();
 
   // The app waits for its URL scheme, the browser for a page.
   const fail = (reason: string) => {
-    if (flow?.app) {
-      const url = new URL(APP_CALLBACK_URL);
-      url.searchParams.set("error", reason);
-      url.searchParams.set("state", flow.app.state);
-      return redirectTo(url.toString());
-    }
+    if (flow?.app) return redirectTo(appCallbackUrl(flow.app, { error: reason }));
     return redirectTo(`/login?error=${reason}`);
   };
 
@@ -88,10 +64,7 @@ export async function GET(request: Request) {
         codeChallenge: flow.app.codeChallenge,
         deviceName: flow.app.deviceName,
       });
-      const url = new URL(APP_CALLBACK_URL);
-      url.searchParams.set("code", appCode);
-      url.searchParams.set("state", flow.app.state);
-      return redirectTo(url.toString());
+      return redirectTo(appCallbackUrl(flow.app, { code: appCode }));
     }
 
     await createSession(user.id);

@@ -15,29 +15,8 @@ struct LocalStepCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                if let day {
-                    Text("Day \(day)")
-                        .font(.caption.bold())
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(.tint.opacity(0.15), in: .capsule)
-                        .foregroundStyle(.tint)
-                }
-                Text(step.occurredAt.formatted(
-                    Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
-                ))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                Spacer()
-                Menu {
-                    Button("Discard step", systemImage: "trash", role: .destructive) { confirmDiscard = true }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .foregroundStyle(.secondary)
-                        .frame(minWidth: 32, minHeight: 32)
-                }
-                .buttonStyle(.plain)
+            StepHeader(day: day, date: step.occurredAt, calendar: calendar) {
+                Button("Discard step", systemImage: "trash", role: .destructive) { confirmDiscard = true }
             }
 
             if let place = step.placeName {
@@ -53,7 +32,7 @@ struct LocalStepCard: View {
             }
 
             if let error = step.lastError {
-                Label(UploadText.problem(error), systemImage: "exclamationmark.triangle")
+                Label(ErrorText.uploadProblem(error), systemImage: "exclamationmark.triangle")
                     .font(.footnote)
                     .foregroundStyle(.red)
             } else if local.uploads.isEmpty {
@@ -106,7 +85,7 @@ struct PendingUploadsView: View {
             }
             ForEach(failed) { upload in
                 HStack {
-                    Label(UploadText.problem(upload.lastError ?? ""), systemImage: "exclamationmark.triangle")
+                    Label(ErrorText.uploadProblem(upload.lastError ?? ""), systemImage: "exclamationmark.triangle")
                         .font(.footnote)
                         .foregroundStyle(.red)
                     Spacer()
@@ -150,23 +129,5 @@ struct LocalThumbnails: View {
             }
         }
         .scrollIndicators(.hidden)
-    }
-}
-
-enum UploadText {
-    /// The server's problem codes, in words.
-    static func problem(_ code: String) -> String {
-        switch code {
-        case "image_too_large": String(localized: "Larger than 25 MB.")
-        case "video_too_large": String(localized: "Video larger than 400 MB.")
-        case "unsupported_format": String(localized: "Format not supported.")
-        case "media_unprocessable": String(localized: "The server couldn't process it.")
-        case "trip_not_found": String(localized: "The trip no longer exists.")
-        case "step_not_found": String(localized: "The step no longer exists.")
-        case "not_signed_in": String(localized: "Signed out – please sign in again.")
-        case "file_missing": String(localized: "The file is gone from the device.")
-        case "http_413": String(localized: "Too large for the server or its proxy.")
-        default: String(localized: "Upload failed (\(code)).")
-        }
     }
 }

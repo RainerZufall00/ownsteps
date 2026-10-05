@@ -1,0 +1,26 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "A photo or video couldn't be read.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Foto oder Video ließ sich nicht lesen."
+          }
+        }
+      }
+    },
+    "A video is larger than %lld MB, even compressed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Video ist auch komprimiert größer als %lld MB."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

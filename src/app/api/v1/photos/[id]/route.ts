@@ -1,4 +1,4 @@
-import { handle, idParam, json, readJson } from "@/lib/api/http";
+import { handle, idParam, json, noContent, readJson } from "@/lib/api/http";
 import { requireAuthor } from "@/lib/api/principal";
 import { photoPatchSchema } from "@/lib/api/schemas";
 import { photoDto } from "@/lib/api/serialize";
@@ -20,6 +20,6 @@ export async function DELETE(request: Request, context: RouteContext<"/api/v1/ph
     await requireAuthor(request);
     const photoId = idParam((await context.params).id, "photo_not_found");
     await removePhoto(photoId);
-    return new Response(null, { status: 204 });
+    return noContent();
   });
 }

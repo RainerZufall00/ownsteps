@@ -1,7 +1,4 @@
-// Kept available here because the map route needs both together.
-export { publicOrigin } from "./origin";
-
-const UPSTREAM = "https://api.maptiler.com";
+export const UPSTREAM = "https://api.maptiler.com";
 const MAPTILER_URL_RE = /https:\/\/api\.maptiler\.com\/([^"'\s\\]*)/g;
 
 /**
@@ -114,4 +111,3 @@ function plainText(html: string) {
     .replace(/"/g, "&quot;");
 }
 
-export { UPSTREAM };

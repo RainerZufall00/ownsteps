@@ -32,9 +32,23 @@ extension ServerClient {
         }
     }
 
-    /// The upload request for a trip's cover (multipart, field `file`).
-    public func coverUploadRequest(tripID: Int, contentType: String) -> URLRequest {
-        uploadRequest(path: "api/v1/trips/\(tripID)/cover", contentType: contentType)
+    /// Uploads a prepared JPEG as the trip's cover and returns the photo's
+    /// ID. Directly, not through the queue: it's one image and the form waits.
+    public func uploadCover(tripID: Int, jpeg: URL, session: URLSession = .shared) async throws -> Int {
+        let multipart = MultipartBody()
+        let bodyFile = MediaPreparation.temporaryFile("body")
+        defer { try? FileManager.default.removeItem(at: bodyFile) }
+        try multipart.write([.file(name: "file", fileName: "cover.jpg", mime: "image/jpeg", url: jpeg)], to: bodyFile)
+        let (data, response) = try await session.upload(
+            for: uploadRequest(path: "api/v1/trips/\(tripID)/cover", contentType: multipart.contentType),
+            fromFile: bodyFile
+        )
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else { throw APIError.from(responseBody: data, status: status) }
+        guard let photo = try? JSONDecoder().decode(CreatedPhoto.self, from: data) else {
+            throw APIError.unexpected(status: status)
+        }
+        return photo.id
     }
 
     // MARK: Steps
@@ -114,11 +128,16 @@ extension ServerClient {
     // MARK: Helpers
 
     private func uploadRequest(path: String, contentType: String) -> URLRequest {
-        var request = URLRequest(url: baseURL.appending(path: path))
+        var request = authorized(URLRequest(url: baseURL.appending(path: path)))
         request.httpMethod = "POST"
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         return request
     }
+}
+
+/// What an upload answers that the queue and the cover need: the photo's ID.
+/// (Media uploads wrap it as `{ photo, step }`.)
+struct CreatedPhoto: Decodable {
+    let id: Int
 }

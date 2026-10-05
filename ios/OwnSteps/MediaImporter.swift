@@ -15,9 +15,7 @@ struct PickedMovie: Transferable {
         FileRepresentation(contentType: .movie) { movie in
             SentTransferredFile(movie.url)
         } importing: { received in
-            let copy = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).\(received.file.pathExtension)")
-            try FileManager.default.copyItem(at: received.file, to: copy)
-            return PickedMovie(url: copy)
+            PickedMovie(url: try MediaPreparation.temporaryCopy(ofVideoAt: received.file))
         }
     }
 }
@@ -27,19 +25,9 @@ typealias PreparedMedia = MediaPreparation.Prepared
 
 /// Turns picker items and library assets into files the server takes
 /// ([D20]): photos as JPEG with their metadata, Live Photos as their still,
-/// videos compressed to 1080p unless the user wants originals.
+/// videos compressed to 1080p unless the user wants originals. Failures are
+/// `MediaPreparation.Problem`s, which word themselves.
 enum MediaImporter {
-    enum Problem: LocalizedError {
-        case unreadable
-        case videoTooLarge
-
-        var errorDescription: String? {
-            switch self {
-            case .unreadable: String(localized: "A photo or video couldn't be read.")
-            case .videoTooLarge: String(localized: "A video is larger than 400 MB, even compressed.")
-            }
-        }
-    }
 
     static func prepare(
         _ items: [PhotosPickerItem],
@@ -50,11 +38,15 @@ enum MediaImporter {
         for item in items {
             let asset = libraryAsset(for: item)
             if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
-                guard let movie = try await item.loadTransferable(type: PickedMovie.self) else { throw Problem.unreadable }
+                guard let movie = try await item.loadTransferable(type: PickedMovie.self) else {
+                    throw MediaPreparation.Problem.unreadableVideo
+                }
                 prepared.append(try await video(at: movie.url, original: originalVideos, asset: asset, assetID: item.itemIdentifier))
             } else {
                 // For a Live Photo this is the still image.
-                guard let data = try await item.loadTransferable(type: Data.self) else { throw Problem.unreadable }
+                guard let data = try await item.loadTransferable(type: Data.self) else {
+                    throw MediaPreparation.Problem.unreadableImage
+                }
                 prepared.append(try photo(data, asset: asset, timeZone: timeZone, assetID: item.itemIdentifier))
             }
         }
@@ -96,18 +88,14 @@ enum MediaImporter {
                 timeZone: timeZone, assetID: assetID
             )
         } catch {
-            throw Problem.unreadable
+            throw MediaPreparation.Problem.unreadableImage
         }
     }
 
     private static func video(at url: URL, original: Bool, asset: PHAsset?, assetID: String?) async throws -> PreparedMedia {
-        do {
-            return try await MediaPreparation.prepareVideo(
-                at: url, original: original, fallbackDate: asset?.creationDate, assetID: assetID
-            )
-        } catch MediaPreparation.Problem.videoTooLarge {
-            throw Problem.videoTooLarge
-        }
+        try await MediaPreparation.prepareVideo(
+            at: url, original: original, fallbackDate: asset?.creationDate, assetID: assetID
+        )
     }
 
     private static func imageData(for asset: PHAsset) async throws -> Data {
@@ -117,7 +105,7 @@ enum MediaImporter {
         options.deliveryMode = .highQualityFormat
         return try await withCheckedThrowingContinuation { continuation in
             PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { data, _, _, _ in
-                if let data { continuation.resume(returning: data) } else { continuation.resume(throwing: Problem.unreadable) }
+                if let data { continuation.resume(returning: data) } else { continuation.resume(throwing: MediaPreparation.Problem.unreadableImage) }
             }
         }
     }
@@ -132,14 +120,12 @@ enum MediaImporter {
         // the AVAsset (which holds the sandbox extension for it) is alive.
         let copied = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL?, any Error>) in
             PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, _ in
-                guard let avAsset else { return continuation.resume(throwing: Problem.unreadable) }
+                guard let avAsset else { return continuation.resume(throwing: MediaPreparation.Problem.unreadableVideo) }
                 guard let source = (avAsset as? AVURLAsset)?.url else { return continuation.resume(returning: nil) }
-                let file = MediaPreparation.temporaryFile(source.pathExtension.isEmpty ? "mov" : source.pathExtension)
                 do {
-                    try FileManager.default.copyItem(at: source, to: file)
-                    continuation.resume(returning: file)
+                    continuation.resume(returning: try MediaPreparation.temporaryCopy(ofVideoAt: source))
                 } catch {
-                    continuation.resume(throwing: Problem.unreadable)
+                    continuation.resume(throwing: MediaPreparation.Problem.unreadableVideo)
                 }
             }
         }
@@ -150,7 +136,7 @@ enum MediaImporter {
         let preset = original ? AVAssetExportPresetHighestQuality : AVAssetExportPreset1920x1080
         let export = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExportBox, any Error>) in
             PHImageManager.default().requestExportSession(forVideo: asset, options: options, exportPreset: preset) { session, _ in
-                guard let session else { return continuation.resume(throwing: Problem.unreadable) }
+                guard let session else { return continuation.resume(throwing: MediaPreparation.Problem.exportFailed) }
                 continuation.resume(returning: ExportBox(session: session))
             }
         }

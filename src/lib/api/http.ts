@@ -15,20 +15,21 @@ function titleFor(code: ErrorCode) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-export function problem(code: ErrorCode, detail?: string) {
+function problemResponse(code: string, title: string, status: number, detail?: string) {
   return new Response(
     JSON.stringify({
       type: `${PROBLEM_TYPE_PREFIX}${code}`,
-      title: titleFor(code),
-      status: ERROR_STATUS[code],
+      title,
+      status,
       code,
       ...(detail ? { detail } : {}),
     }),
-    {
-      status: ERROR_STATUS[code],
-      headers: { "Content-Type": "application/problem+json" },
-    },
+    { status, headers: { "Content-Type": "application/problem+json" } },
   );
+}
+
+export function problem(code: ErrorCode, detail?: string) {
+  return problemResponse(code, titleFor(code), ERROR_STATUS[code], detail);
 }
 
 export function json(body: unknown, status = 200) {
@@ -48,16 +49,13 @@ export async function handle(fn: () => Promise<Response>): Promise<Response> {
   } catch (error) {
     if (error instanceof ServiceError) return problem(error.code);
     console.error("[api] unexpected error", error);
-    return new Response(
-      JSON.stringify({
-        type: `${PROBLEM_TYPE_PREFIX}internal`,
-        title: "Internal server error",
-        status: 500,
-        code: "internal",
-      }),
-      { status: 500, headers: { "Content-Type": "application/problem+json" } },
-    );
+    return problemResponse("internal", "Internal server error", 500);
   }
+}
+
+/** 204 – for deletes and other changes with nothing to report. */
+export function noContent() {
+  return new Response(null, { status: 204 });
 }
 
 export async function readJson(request: Request): Promise<unknown> {

@@ -1,20 +1,23 @@
 "use client";
 
-import type { StyleSpecification } from "maplibre-gl";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { formatWeekday, fromDateInput, tripDay } from "@/lib/format";
+import { formatWeekday, fromDateInput } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/client";
+import type { MapStyleConfig } from "@/lib/map";
 import type { ViewStep, ViewTrip } from "@/lib/view-types";
 import CommentSection from "./CommentSection";
 import MapCanvas, { type MapStep } from "./MapCanvas";
 import MapTimelineStrip from "./MapTimelineStrip";
 import { MediaBaseProvider } from "./media-context";
+import { ChevronRightIcon, PinIcon } from "./icons";
 import PhotoGrid from "./PhotoGrid";
+import { useDayLabel } from "./trip-day";
 
 type Props = {
   trip: ViewTrip;
   steps: ViewStep[];
-  mapStyle: string | StyleSpecification;
+  mapStyle: MapStyleConfig;
   /** Shows edit links on the steps. */
   editable?: boolean;
   /**
@@ -38,6 +41,7 @@ export default function TripView({
   shareToken,
   header,
 }: Props) {
+  const { locale, t } = useI18n();
   const [mobileView, setMobileView] = useState<"timeline" | "map">("timeline");
   const [activeStepId, setActiveStepId] = useState<number | null>(
     steps.at(-1)?.id ?? null,
@@ -48,19 +52,21 @@ export default function TripView({
   const mapBox = useRef<HTMLDivElement>(null);
   const [mapHeight, setMapHeight] = useState<number | null>(null);
 
+  /** Steps with a place – the ones the map and the strip over it show. */
+  const located = useMemo(
+    () => steps.filter((step) => step.lat !== null && step.lon !== null),
+    [steps],
+  );
   const mapSteps = useMemo<MapStep[]>(
     () =>
-      steps
-        .filter((step) => step.lat !== null && step.lon !== null)
-        .map((step) => ({
-          id: step.id,
-          title: step.title,
-          lat: step.lat as number,
-          lon: step.lon as number,
-          occurredAt: step.occurredAt,
-          coverPhotoId: step.photos[0]?.id ?? null,
-        })),
-    [steps],
+      located.map((step) => ({
+        id: step.id,
+        label: step.placeName ?? "",
+        lat: step.lat as number,
+        lon: step.lon as number,
+        coverPhotoId: step.photos[0]?.id ?? null,
+      })),
+    [located],
   );
 
   /**
@@ -69,6 +75,7 @@ export default function TripView({
    * the third day – not "day 1" again.
    */
   const firstDay = fromDateInput(trip.startDate) ?? steps[0]?.occurredAt ?? null;
+  const dayLabel = useDayLabel(firstDay);
 
   /**
    * The timeline shows the newest step on top – readers following along want
@@ -159,216 +166,190 @@ export default function TripView({
 
   return (
     <MediaBaseProvider value={mediaBase}>
-    <div
-      /*
-       * Below the two-column layout the mode decides the width: the timeline
-       * gets a reading column, the map all the space. Without the cap, lines
-       * on a tablet ran over 1150 px.
-       */
-      /*
-       * `w-full` is mandatory: `<body>` is a flex container, and a flex child
-       * with `margin: auto` on the cross axis no longer stretches but shrinks
-       * to its content. The map has no width of its own – without this line
-       * it collapsed to a hundred-odd pixels.
-       */
-      className={`mx-auto w-full px-4 pt-5 xl:max-w-7xl xl:pb-10 ${
-        mobileView === "map" ? "max-w-6xl pb-0" : "max-w-3xl pb-24"
-      }`}
-    >
-      {/* In map mode the header steps back on phones so the map gets the
-          screen. */}
-      <div className={mobileView === "map" ? "hidden xl:block" : ""}>
-        {header}
-      </div>
-
-      {/* Toggle only on narrow screens. Deliberately not sticky: a bar
-          scrolling along above the timeline feels restless. */}
-      <div className="mb-4 xl:hidden">
-        <div className="flex rounded-full border border-line bg-surface p-1">
-          {(["timeline", "map"] as const).map((view) => (
-            <button
-              key={view}
-              type="button"
-              onClick={() => setMobileView(view)}
-              aria-pressed={mobileView === view}
-              className={`flex-1 rounded-full py-2 text-sm font-semibold transition ${
-                mobileView === view
-                  ? "bg-accent text-accent-ink shadow-card"
-                  : "text-ink-soft"
-              }`}
-            >
-              {view === "timeline" ? "Timeline" : "Karte"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/*
-        Side by side only from `xl`. On a tablet in landscape (around 1194 px)
-        the timeline got 628 px and the map 460 px – both too little, both
-        felt cramped. Below that, each view gets the full width via the
-        toggle.
-      */}
-      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)] xl:items-start xl:gap-8">
+      <div
+        /*
+         * Below the two-column layout the mode decides the width: the timeline
+         * gets a reading column, the map all the space. Without the cap, lines
+         * on a tablet ran over 1150 px.
+         *
+         * `w-full` is mandatory: `<body>` is a flex container, and a flex child
+         * with `margin: auto` on the cross axis no longer stretches but shrinks
+         * to its content. The map has no width of its own – without this line
+         * it collapsed to a hundred-odd pixels.
+         */
+        className={`mx-auto w-full px-4 pt-5 xl:max-w-7xl xl:pb-10 ${
+          mobileView === "map" ? "max-w-6xl pb-0" : "max-w-3xl pb-24"
+        }`}
+      >
+        {/* In map mode the header steps back on phones so the map gets the
+            screen. */}
         <div className={mobileView === "map" ? "hidden xl:block" : ""}>
-          {steps.length === 0 ? (
-            <div className="card px-6 py-14 text-center">
-              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-2xl">
-                📍
+          {header}
+        </div>
+
+        {/* Toggle only on narrow screens. Deliberately not sticky: a bar
+            scrolling along above the timeline feels restless. */}
+        <div className="mb-4 xl:hidden">
+          <div className="flex rounded-full border border-line bg-surface p-1">
+            {(["timeline", "map"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                onClick={() => setMobileView(view)}
+                aria-pressed={mobileView === view}
+                className={`flex-1 rounded-full py-2 text-sm font-semibold transition ${
+                  mobileView === view
+                    ? "bg-accent text-accent-ink shadow-card"
+                    : "text-ink-soft"
+                }`}
+              >
+                {view === "timeline" ? t.timeline.timeline : t.timeline.map}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/*
+          Side by side only from `xl`. On a tablet in landscape (around 1194 px)
+          the timeline got 628 px and the map 460 px – both too little, both
+          felt cramped. Below that, each view gets the full width via the
+          toggle.
+        */}
+        <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)] xl:items-start xl:gap-8">
+          <div className={mobileView === "map" ? "hidden xl:block" : ""}>
+            {steps.length === 0 ? (
+              <div className="card px-6 py-14 text-center">
+                <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-2xl">
+                  📍
+                </div>
+                <h2 className="mt-4 text-lg font-semibold">
+                  {t.timeline.emptyTitle}
+                </h2>
+                <p className="mx-auto mt-2 max-w-xs text-[15px] text-ink-soft">
+                  {editable
+                    ? t.timeline.emptyAuthor
+                    : t.timeline.emptyReader}
+                </p>
               </div>
-              <h2 className="mt-4 text-lg font-semibold">
-                Noch keine Stationen
-              </h2>
-              <p className="mx-auto mt-2 max-w-xs text-[15px] text-ink-soft">
-                {editable
-                  ? "Lade dein erstes Foto hoch – Ort und Zeit holt sich OwnSteps direkt aus dem Bild."
-                  : "Hier erscheinen die Beiträge, sobald die Reise losgeht."}
-              </p>
-            </div>
-          ) : (
-            <ol className="relative">
-              {/* Continuous line behind the dots. */}
-              <span
-                aria-hidden="true"
-                className="absolute bottom-6 left-[7px] top-3 w-0.5 bg-line"
-              />
+            ) : (
+              <ol className="relative">
+                {/* Continuous line behind the dots. */}
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-6 left-[7px] top-3 w-0.5 bg-line"
+                />
 
-              {timelineSteps.map((step, index) => {
-                const isActive = step.id === activeStepId;
-                return (
-                  <li key={step.id} className="relative pb-9 pl-8">
-                    <span
-                      aria-hidden="true"
-                      className={`absolute left-0 top-2.5 h-4 w-4 rounded-full border-[3px] border-paper transition ${
-                        isActive
-                          ? "scale-125 bg-accent"
-                          : "bg-ink-faint/60"
-                      }`}
-                    />
-
-                    <article
-                      id={`step-${step.id}`}
-                      data-step-id={step.id}
-                      ref={(element) => {
-                        if (element) articleRefs.current.set(step.id, element);
-                        else articleRefs.current.delete(step.id);
-                      }}
-                      className="scroll-mt-20"
-                    >
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px] font-medium text-ink-soft">
-                        {firstDay && (
-                          <span className="rounded-full bg-accent-soft px-2.5 py-0.5 font-semibold text-accent">
-                            Tag {tripDay(firstDay, step.occurredAt)}
-                          </span>
-                        )}
-                        <span>{formatWeekday(step.occurredAt)}</span>
-                      </div>
-
-                      {step.placeName && (
-                        <h2 className="mt-1.5 flex items-start gap-1.5 text-xl font-bold leading-snug tracking-tight">
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="mt-0.5 h-5 w-5 shrink-0 text-accent"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11Z"
-                              fill="currentColor"
-                              opacity="0.25"
-                            />
-                            <circle cx="12" cy="10" r="2.6" fill="currentColor" />
-                          </svg>
-                          {step.placeName}
-                        </h2>
-                      )}
-
-                      {step.photos.length > 0 && (
-                        <div className="mt-3">
-                          <PhotoGrid photos={step.photos} priority={index === 0} />
-                        </div>
-                      )}
-
-                      {step.body && (
-                        <p className="mt-3 whitespace-pre-wrap text-[16px] leading-relaxed text-ink/90">
-                          {step.body}
-                        </p>
-                      )}
-
-                      <CommentSection
-                        tripId={trip.id}
-                        stepId={step.id}
-                        shareToken={shareToken}
-                        comments={step.comments}
-                        canDelete={editable}
+                {timelineSteps.map((step, index) => {
+                  const isActive = step.id === activeStepId;
+                  return (
+                    <li key={step.id} className="relative pb-9 pl-8">
+                      <span
+                        aria-hidden="true"
+                        className={`absolute left-0 top-2.5 h-4 w-4 rounded-full border-[3px] border-paper transition ${
+                          isActive
+                            ? "scale-125 bg-accent"
+                            : "bg-ink-faint/60"
+                        }`}
                       />
 
-                      {editable && (
-                        <Link
-                          href={`/trips/${trip.id}/steps/${step.id}`}
-                          className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-accent"
-                        >
-                          Bearbeiten
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-4 w-4"
-                            aria-hidden="true"
+                      <article
+                        id={`step-${step.id}`}
+                        data-step-id={step.id}
+                        ref={(element) => {
+                          if (element) articleRefs.current.set(step.id, element);
+                          else articleRefs.current.delete(step.id);
+                        }}
+                        className="scroll-mt-20"
+                      >
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px] font-medium text-ink-soft">
+                          {firstDay && (
+                            <span className="rounded-full bg-accent-soft px-2.5 py-0.5 font-semibold text-accent">
+                              {dayLabel(step.occurredAt)}
+                            </span>
+                          )}
+                          <span>{formatWeekday(step.occurredAt, locale)}</span>
+                        </div>
+
+                        {step.placeName && (
+                          <h2 className="mt-1.5 flex items-start gap-1.5 text-xl font-bold leading-snug tracking-tight">
+                            <PinIcon className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+                            {step.placeName}
+                          </h2>
+                        )}
+
+                        {step.photos.length > 0 && (
+                          <div className="mt-3">
+                            <PhotoGrid photos={step.photos} priority={index === 0} />
+                          </div>
+                        )}
+
+                        {step.body && (
+                          <p className="mt-3 whitespace-pre-wrap text-[16px] leading-relaxed text-ink/90">
+                            {step.body}
+                          </p>
+                        )}
+
+                        <CommentSection
+                          tripId={trip.id}
+                          stepId={step.id}
+                          shareToken={shareToken}
+                          comments={step.comments}
+                          canDelete={editable}
+                        />
+
+                        {editable && (
+                          <Link
+                            href={`/trips/${trip.id}/steps/${step.id}`}
+                            className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-accent"
                           >
-                            <path
-                              d="m9 5 7 7-7 7"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              fill="none"
-                            />
-                          </svg>
-                        </Link>
-                      )}
-                    </article>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </div>
-
-        <div
-          className={`${
-            mobileView === "timeline" ? "hidden" : ""
-          } xl:sticky xl:top-20 xl:block`}
-        >
-          <div
-            ref={mapBox}
-            style={mapHeight ? { height: mapHeight } : undefined}
-            className="relative h-[70dvh] overflow-hidden rounded-3xl border border-line shadow-card xl:h-[calc(100dvh-7rem)]"
-          >
-            <MapCanvas
-              steps={mapSteps}
-              mapStyle={mapStyle}
-              activeStepId={activeStepId}
-              onSelect={setActiveStepId}
-              className="h-full w-full"
-            />
-
-            {/* Page through steps over the map without having to hit the markers. */}
-            <MapTimelineStrip
-              steps={steps.filter((s) => s.lat !== null && s.lon !== null)}
-              firstDay={firstDay}
-              activeStepId={activeStepId}
-              onFocus={setActiveStepId}
-              onOpen={openStep}
-            />
-
-            {mapSteps.length === 0 && (
-              <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-2xl bg-surface/90 px-4 py-3 text-center text-sm text-ink-soft backdrop-blur">
-                Noch keine Orte – Fotos mit GPS-Daten setzen die Marker
-                automatisch.
-              </div>
+                            {t.timeline.edit}
+                            <ChevronRightIcon />
+                          </Link>
+                        )}
+                      </article>
+                    </li>
+                  );
+                })}
+              </ol>
             )}
+          </div>
+
+          <div
+            className={`${
+              mobileView === "timeline" ? "hidden" : ""
+            } xl:sticky xl:top-20 xl:block`}
+          >
+            <div
+              ref={mapBox}
+              style={mapHeight ? { height: mapHeight } : undefined}
+              className="relative h-[70dvh] overflow-hidden rounded-3xl border border-line shadow-card xl:h-[calc(100dvh-7rem)]"
+            >
+              <MapCanvas
+                steps={mapSteps}
+                mapStyle={mapStyle}
+                activeStepId={activeStepId}
+                onSelect={setActiveStepId}
+                className="h-full w-full"
+              />
+
+              {/* Page through steps over the map without having to hit the markers. */}
+              <MapTimelineStrip
+                steps={located}
+                firstDay={firstDay}
+                activeStepId={activeStepId}
+                onFocus={setActiveStepId}
+                onOpen={openStep}
+              />
+
+              {mapSteps.length === 0 && (
+                <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-2xl bg-surface/90 px-4 py-3 text-center text-sm text-ink-soft backdrop-blur">
+                  {t.timeline.noPlaces}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </MediaBaseProvider>
   );
 }

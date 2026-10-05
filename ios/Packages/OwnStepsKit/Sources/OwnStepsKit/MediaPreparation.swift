@@ -101,6 +101,14 @@ public enum MediaPreparation {
         URL.temporaryDirectory.appending(path: "\(UUID().uuidString).\(pathExtension)")
     }
 
+    /// Copies a video someone else hands out (picker, library, share sheet)
+    /// into the temporary folder – their file is only readable for a moment.
+    public static func temporaryCopy(ofVideoAt url: URL) throws -> URL {
+        let copy = temporaryFile(url.pathExtension.isEmpty ? "mov" : url.pathExtension)
+        try FileManager.default.copyItem(at: url, to: copy)
+        return copy
+    }
+
     /// Server limit for images ([limits.ts]).
     public static let maxImageBytes = 25 * 1024 * 1024
     /// Server limit for videos.
@@ -232,5 +240,17 @@ public enum MediaPreparation {
         session.metadata = try? await asset.load(.metadata)
         try? FileManager.default.removeItem(at: destination)
         try await session.export(to: destination, as: .mp4)
+    }
+}
+
+extension MediaPreparation.Problem: LocalizedError {
+    /// The same words in the app and the Share Extension – both show it.
+    public var errorDescription: String? {
+        switch self {
+        case .videoTooLarge:
+            String(localized: "A video is larger than \(MediaPreparation.maxVideoBytes / 1024 / 1024) MB, even compressed.", bundle: .module)
+        case .unreadableImage, .unreadableVideo, .exportFailed:
+            String(localized: "A photo or video couldn't be read.", bundle: .module)
+        }
     }
 }

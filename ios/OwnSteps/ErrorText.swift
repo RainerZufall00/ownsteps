@@ -21,7 +21,7 @@ enum ErrorText {
             case .incompatible(let version):
                 return String(localized: "This server (version \(version)) doesn't fit this app version. Please update both.")
             case .problem(let code, _):
-                return problemMessage(code)
+                return problem(code)
             case .unexpected(let status):
                 return String(localized: "The server answered unexpectedly (\(status)).")
             }
@@ -40,7 +40,9 @@ enum ErrorText {
         }
     }
 
-    private static func problemMessage(_ code: String) -> String {
+    /// The server's problem codes ([D12]) – and the upload queue's own – in
+    /// words. `unknown` is for a code this app doesn't know yet.
+    static func problem(_ code: String, unknown: ((String) -> String)? = nil) -> String {
         switch code {
         case "credentials_invalid": String(localized: "Email or password is wrong.")
         case "credentials_missing": String(localized: "Please enter email and password.")
@@ -59,8 +61,23 @@ enum ErrorText {
         case "comment_rate_limited": String(localized: "That was a lot of comments. Please wait a moment.")
         case "comment_not_found": String(localized: "This comment no longer exists.")
         case "viewer_not_found": String(localized: "This reader no longer exists.")
-        default: String(localized: "The server reported an error (\(code)).")
+        case "step_not_found": String(localized: "The step no longer exists.")
+        case "image_too_large": String(localized: "Larger than \(MediaPreparation.maxImageBytes / 1024 / 1024) MB.")
+        case "video_too_large": String(localized: "Video larger than \(MediaPreparation.maxVideoBytes / 1024 / 1024) MB.")
+        case "unsupported_format": String(localized: "Format not supported.")
+        case "media_unprocessable": String(localized: "The server couldn't process it.")
+        case "trip_title_too_long": String(localized: "The trip's name is too long.")
+        case "trip_summary_too_long": String(localized: "The description is too long.")
+        // Set by the upload queue, not the server.
+        case "file_missing": String(localized: "The file is gone from the device.")
+        case "http_413": String(localized: "Too large for the server or its proxy.")
+        default: unknown?(code) ?? String(localized: "The server reported an error (\(code)).")
         }
+    }
+
+    /// Why an upload is stuck, from its `lastError`.
+    static func uploadProblem(_ code: String) -> String {
+        problem(code) { String(localized: "Upload failed (\($0)).") }
     }
 
     private static func oidcMessage(_ reason: String) -> String {

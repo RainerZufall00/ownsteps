@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getI18n } from "@/lib/i18n/server";
 import { getMapStyle } from "@/lib/map";
 import { getStep, getTrip } from "@/lib/trips";
+import { toViewPhoto } from "@/lib/view-types";
 import StepEditor from "./StepEditor";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Beitrag" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t.stepEditor.title };
+}
 
 export default async function StepEditorPage({
   params,
@@ -25,22 +30,13 @@ export default async function StepEditorPage({
       step={{
         id: step.id,
         tripId: step.tripId,
-        title: step.title,
         body: step.body,
         lat: step.lat,
         lon: step.lon,
         placeName: step.placeName,
         occurredAt: step.occurredAt,
         published: step.published,
-        photos: step.photos.map((photo) => ({
-          id: photo.id,
-          width: photo.width,
-          height: photo.height,
-          placeholder: photo.placeholder,
-          caption: photo.caption,
-          mediaType: photo.mediaType,
-          durationMs: photo.durationMs,
-        })),
+        photos: step.photos.map(toViewPhoto),
       }}
     />
   );

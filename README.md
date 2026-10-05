@@ -10,9 +10,9 @@ follow along gets a secret link – no account, no sign-up.
   are only served to signed-in users or holders of a valid share link.
 - **One container, one file** – SQLite plus a folder of images, that's it.
 
-> The user interface is currently German only. English and German UI
-> translations are planned before the first public release (see
-> [docs/ROADMAP.md](docs/ROADMAP.md)).
+> The user interface speaks English and German. It follows the browser's
+> language; a switch in the settings, on the sign-in page and on shared trips
+> overrides it.
 
 ## Quick start
 

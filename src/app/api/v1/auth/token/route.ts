@@ -1,4 +1,4 @@
-import { handle, json, readJson } from "@/lib/api/http";
+import { handle, json, noContent, readJson } from "@/lib/api/http";
 import { requireAuthor } from "@/lib/api/principal";
 import { tokenRequestSchema } from "@/lib/api/schemas";
 import { userDto } from "@/lib/api/serialize";
@@ -23,6 +23,6 @@ export async function DELETE(request: Request) {
   return handle(async () => {
     const principal = await requireAuthor(request);
     await revokeApiToken(principal.tokenId, principal.user.id);
-    return new Response(null, { status: 204 });
+    return noContent();
   });
 }

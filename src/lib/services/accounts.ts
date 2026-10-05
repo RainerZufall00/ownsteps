@@ -8,13 +8,14 @@ import {
   createUser,
   findUserByEmail,
   hashPassword,
+  normalizeEmail,
   revokeOtherSessions,
   verifyPassword,
 } from "@/lib/auth";
 import { PASSWORD_LOGIN } from "@/lib/env";
 import { revokeAllApiTokens } from "@/lib/tokens";
 import { ServiceError } from "@/lib/errors";
-import { createRateLimit } from "@/lib/rate-limit";
+import { checkWithBrakes, createRateLimit } from "@/lib/rate-limit";
 import {
   credentialsInput,
   newAccountInput,
@@ -25,10 +26,7 @@ import {
 /** Every signed-in account may add further accounts ([E2]). */
 export async function addAccount(raw: unknown, options: { onlyIfFirst?: boolean } = {}) {
   const input = parseInput(newAccountInput, raw);
-  return createUser(
-    { email: input.email, name: input.name || input.email, password: input.password },
-    options,
-  );
+  return createUser(input, options);
 }
 
 /** Initial setup is only open as long as not a single account exists. */
@@ -56,14 +54,16 @@ const failuresPerAccount = createRateLimit("login-account", { windowMs: 15 * 60_
 export async function changePassword(user: User, raw: unknown, clientKey: string) {
   const input = parseInput(passwordChangeInput, raw);
   // Accounts without a password (OIDC only) may set one without knowing the old one.
-  if (user.passwordHash) {
-    if (!loginsPerClient.allow(clientKey) || failuresPerAccount.blocked(user.email)) {
-      throw new ServiceError("too_many_attempts");
-    }
-    if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
-      failuresPerAccount.record(user.email);
-      throw new ServiceError("current_password_wrong");
-    }
+  const { passwordHash } = user;
+  if (passwordHash) {
+    const valid = await checkWithBrakes({
+      attempts: loginsPerClient,
+      failures: failuresPerAccount,
+      clientKey,
+      subjectKey: user.email,
+      verify: () => verifyPassword(input.currentPassword, passwordHash),
+    });
+    if (!valid) throw new ServiceError("current_password_wrong");
   }
   await db
     .update(users)
@@ -80,15 +80,15 @@ export async function changePassword(user: User, raw: unknown, clientKey: string
 export async function authenticate(raw: unknown, clientKey: string) {
   if (!PASSWORD_LOGIN) throw new ServiceError("password_login_disabled");
   const { email, password } = parseInput(credentialsInput, raw);
-  const account = email.trim().toLowerCase();
-  if (!loginsPerClient.allow(clientKey) || failuresPerAccount.blocked(account)) {
-    throw new ServiceError("too_many_attempts");
-  }
+  const account = normalizeEmail(email);
   const user = await findUserByEmail(account);
-  const valid = await verifyPassword(password, user?.passwordHash ?? null);
-  if (!user || !valid) {
-    failuresPerAccount.record(account);
-    throw new ServiceError("credentials_invalid");
-  }
+  const valid = await checkWithBrakes({
+    attempts: loginsPerClient,
+    failures: failuresPerAccount,
+    clientKey,
+    subjectKey: account,
+    verify: () => verifyPassword(password, user?.passwordHash ?? null),
+  });
+  if (!valid || !user) throw new ServiceError("credentials_invalid");
   return user;
 }

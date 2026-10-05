@@ -25,14 +25,12 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const rows = await db
+  const row = await db
     .select({ photo: photos, trip: trips })
     .from(photos)
     .innerJoin(trips, eq(trips.id, photos.tripId))
     .where(eq(photos.id, photoId))
-    .limit(1);
-
-  const row = rows[0];
+    .get();
   if (!row) return new Response("Not found", { status: 404 });
 
   const user = await getCurrentUser();

@@ -118,6 +118,20 @@ export async function parseMultipart(
   };
 }
 
+/** Parses the upload, hands it to `fn` and removes the temporary files afterwards. */
+export async function withMultipart<T>(
+  request: Request,
+  limitFor: (type: string) => number,
+  fn: (form: MultipartForm) => Promise<T>,
+): Promise<T> {
+  const form = await parseMultipart(request, limitFor);
+  try {
+    return await fn(form);
+  } finally {
+    await form.dispose();
+  }
+}
+
 /** Removes what aborted requests left behind in `tmp/`; runs at startup. */
 export async function clearTmp() {
   await fs.rm(TMP_DIR, { recursive: true, force: true });

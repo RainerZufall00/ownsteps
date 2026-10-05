@@ -1,11 +1,7 @@
 import "server-only";
 
 import type { Trip } from "@/db/schema";
-import {
-  addComment,
-  deleteComment,
-  stepBelongsToTrip,
-} from "@/lib/comments";
+import { addComment, deleteComment, isCommentableStep } from "@/lib/comments";
 import { ServiceError } from "@/lib/errors";
 import { createRateLimit } from "@/lib/rate-limit";
 import { commentInput, parseInput } from "@/lib/schemas";
@@ -38,7 +34,7 @@ export async function postComment(input: {
   if (access.kind !== "owner" && access.kind !== "guest") {
     throw new ServiceError("trip_not_shared");
   }
-  if (!(await stepBelongsToTrip(input.stepId, trip.id))) {
+  if (!(await isCommentableStep(input.stepId, trip.id))) {
     throw new ServiceError("step_not_found");
   }
   if (!commentsPerSender.allow(input.clientKey)) {
@@ -56,6 +52,7 @@ export async function postComment(input: {
 
 /** Deleting is reserved for signed-in authors; the caller checks that. */
 export async function removeComment(commentId: number) {
-  if (!Number.isInteger(commentId)) throw new ServiceError("invalid_request");
-  await deleteComment(commentId);
+  if (!Number.isInteger(commentId) || !(await deleteComment(commentId))) {
+    throw new ServiceError("comment_not_found");
+  }
 }

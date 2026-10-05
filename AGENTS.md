@@ -12,9 +12,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Self-hosted travel journal (a Polarsteps replacement). One container, SQLite,
 photos on disk. Several authors writing together on the same trips. Language
-of code, comments, docs and commits: **English.** The user interface is still
-German for now; English and German UI translations follow before the release
-(see `docs/ROADMAP.md`).
+of code, comments, docs and commits: **English.** The user interface speaks
+English (default) and German.
 
 > **Read `docs/ARCHITECTURE.md` before larger changes.** It covers the data
 > model, the flows and above all the reasoning behind every decision –
@@ -40,8 +39,8 @@ German for now; English and German UI translations follow before the release
   database (that happened with `/setup` and made initial setup impossible).
   In the build output the route must be marked `ƒ`, not `○`.
 - **Route handlers must check for themselves.** No layout sits above
-  `src/app/api/` that checks sign-in – `getCurrentUser()` or
-  `resolveTripAccess()` belongs in there explicitly. Under `/api/v1` that's
+  `src/app/api/` that checks sign-in – `handleWeb()` (`src/lib/web-route.ts`)
+  or `resolveTripAccess()` belongs in there explicitly. Under `/api/v1` that's
   `requireAuthor()` / `requireReadableTrip()` from `src/lib/api/principal.ts`,
   and every new route must also appear in `src/lib/api/openapi.ts` (a test
   checks both).
@@ -74,6 +73,15 @@ German for now; English and German UI translations follow before the release
 - **The CSP comes with a nonce from `src/proxy.ts`.** Inline scripts without
   it and third-party origins are blocked; pages must render per request
   (root layout is `force-dynamic`).
+- **No UI text inline in components.** Every visible string – labels,
+  placeholders, `aria-label`s, error messages – goes into both
+  `src/lib/i18n/en.ts` and `de.ts` and is read via `getI18n()` (server) or
+  `useI18n()` (client). The language comes from a cookie or
+  `Accept-Language`, never from the URL – share links stay the same for
+  everyone (see [E16]).
+- **Limits live in `src/lib/limits.ts` only.** Schemas, form fields and
+  texts read them from there; dictionary strings use `{passwordMin}`,
+  `{maxImageMb}` and friends instead of the numbers.
 - **Don't introduce permission management.** That every signed-in account may
   do everything is intended (see [E2] in the architecture doc).
 

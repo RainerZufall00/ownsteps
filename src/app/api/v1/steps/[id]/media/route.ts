@@ -1,7 +1,8 @@
 import { handle, idParam, json, problem } from "@/lib/api/http";
 import { requireAuthor } from "@/lib/api/principal";
 import { photoDto, stepDto } from "@/lib/api/serialize";
-import { parseMultipart } from "@/lib/multipart";
+import { negotiateLocale } from "@/lib/i18n/locales";
+import { withMultipart } from "@/lib/multipart";
 import { addMediaToStep, fromUpload, uploadLimitFor } from "@/lib/services/media";
 import { getStep } from "@/lib/trips";
 
@@ -19,11 +20,12 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/step
     await requireAuthor(request);
     const stepId = idParam((await context.params).id, "step_not_found");
 
-    const form = await parseMultipart(request, uploadLimitFor);
-    try {
+    return withMultipart(request, uploadLimitFor, async (form) => {
       const file = form.file("file");
       if (!file) return problem("no_file");
 
+      // The app's URLSession sends the app language as Accept-Language.
+      const language = negotiateLocale(request.headers.get("accept-language"));
       const result = await addMediaToStep(stepId, [
         {
           ...fromUpload(file, {
@@ -32,7 +34,7 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/step
           }),
           clientUuid: form.fields.get("clientUuid") || null,
         },
-      ]);
+      ], language);
 
       const failure = result.failed[0];
       if (failure) return problem(failure.code);
@@ -40,8 +42,6 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/step
         { photo: photoDto(result.photos[0]), step: stepDto((await getStep(stepId))!) },
         201,
       );
-    } finally {
-      await form.dispose();
-    }
+    });
   });
 }

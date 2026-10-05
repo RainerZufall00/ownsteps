@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { failure } from "@/lib/action-result";
+import { formString } from "@/lib/form-data";
 import { clientAddress } from "@/lib/rate-limit";
 import { unlockShare } from "@/lib/services/share";
 
@@ -13,8 +14,8 @@ export async function unlockAction(
 ): Promise<UnlockState> {
   try {
     await unlockShare(
-      String(formData.get("token") ?? ""),
-      String(formData.get("password") ?? ""),
+      formString(formData, "token"),
+      formString(formData, "password"),
       clientAddress(await headers()),
     );
   } catch (error) {

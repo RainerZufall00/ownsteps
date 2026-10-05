@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
 import type { ViewPhoto } from "@/lib/view-types";
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "./icons";
 import { useMediaBase } from "./media-context";
 
 type Props = {
@@ -29,6 +31,7 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 export default function Lightbox({ photos, startIndex, onClose }: Props) {
   const base = useMediaBase();
+  const { t } = useI18n();
   const [index, setIndex] = useState(startIndex);
   const [drag, setDrag] = useState(0);
   const [zoom, setZoom] = useState<Zoom>(NO_ZOOM);
@@ -310,7 +313,7 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
       className="ownsteps-lightbox fixed inset-x-0 top-0 z-[100] flex h-[100svh] flex-col bg-black/95 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Medien"
+      aria-label={t.lightbox.label}
     >
       <div className="flex shrink-0 items-center justify-between px-4 py-3 text-white/80">
         <span className="text-sm tabular-nums">
@@ -320,7 +323,7 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
               onClick={() => setZoom(NO_ZOOM)}
               className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold transition hover:bg-white/20"
             >
-              Zoom zurücksetzen
+              {t.lightbox.resetZoom}
             </button>
           ) : (
             `${index + 1} / ${photos.length}`
@@ -330,11 +333,9 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
           type="button"
           onClick={onClose}
           className="grid h-10 w-10 place-items-center rounded-full bg-white/10 transition hover:bg-white/20"
-          aria-label="Schließen"
+          aria-label={t.common.close}
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-            <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          <CloseIcon className="h-5 w-5" />
         </button>
       </div>
 
@@ -423,34 +424,52 @@ export default function Lightbox({ photos, startIndex, onClose }: Props) {
             For videos the arrows are visible on every device: a tap belongs
             to playback there, so it can't page onwards.
           */}
-          <button
-            type="button"
-            aria-label="Vorheriges Medium"
+          <PageButton
+            side="left"
+            label={t.lightbox.previous}
             disabled={index === 0}
-            className={`absolute left-2 top-1/2 h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-25 sm:grid ${
-              isVideo ? "grid" : "hidden"
-            }`}
+            alwaysVisible={isVideo}
             onClick={() => flip(-1)}
-          >
-            <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-              <path d="m15 5-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            aria-label="Nächstes Medium"
+          />
+          <PageButton
+            side="right"
+            label={t.lightbox.next}
             disabled={index === photos.length - 1}
-            className={`absolute right-2 top-1/2 h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-25 sm:grid ${
-              isVideo ? "grid" : "hidden"
-            }`}
+            alwaysVisible={isVideo}
             onClick={() => flip(1)}
-          >
-            <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
-              <path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            </svg>
-          </button>
+          />
         </>
       )}
     </div>
+  );
+}
+
+/** The arrows at the sides – on phones only for videos, where a tap plays. */
+function PageButton({
+  side,
+  label,
+  disabled,
+  alwaysVisible,
+  onClick,
+}: {
+  side: "left" | "right";
+  label: string;
+  disabled: boolean;
+  alwaysVisible: boolean;
+  onClick: () => void;
+}) {
+  const Icon = side === "left" ? ChevronLeftIcon : ChevronRightIcon;
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      className={`absolute ${side === "left" ? "left-2" : "right-2"} top-1/2 h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-25 sm:grid ${
+        alwaysVisible ? "grid" : "hidden"
+      }`}
+      onClick={onClick}
+    >
+      <Icon className="h-6 w-6" />
+    </button>
   );
 }

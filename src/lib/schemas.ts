@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { isErrorCode, ServiceError, type ErrorCode } from "./errors";
-import { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH } from "./limits";
+import {
+  CAPTION_MAX_LENGTH,
+  COMMENT_MAX_LENGTH,
+  NAME_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  SHARE_PASSWORD_MIN_LENGTH,
+  TRIP_SUMMARY_MAX_LENGTH,
+  TRIP_TITLE_MAX_LENGTH,
+} from "./limits";
 
 /**
  * Input schemas shared by Server Actions and the REST API. Each issue carries
@@ -35,14 +43,26 @@ const optionalCoordinate = z
     return Number.isFinite(number) ? number : null;
   });
 
+/** A caption as stored: trimmed and capped; empty means none. */
+export function normalizeCaption(text: string | null | undefined) {
+  return text?.trim().slice(0, CAPTION_MAX_LENGTH) || null;
+}
+
 function datesInOrder(value: { startDate: string | null; endDate: string | null }) {
   return !(value.startDate && value.endDate && value.endDate < value.startDate);
 }
 
 export const tripInput = z
   .object({
-    title: z.string().trim().min(1, { error: "trip_title_required" }),
-    summary: optionalText,
+    title: z
+      .string()
+      .trim()
+      .min(1, { error: "trip_title_required" })
+      .max(TRIP_TITLE_MAX_LENGTH, { error: "trip_title_too_long" }),
+    summary: optionalText.refine(
+      (value) => value === null || value.length <= TRIP_SUMMARY_MAX_LENGTH,
+      { error: "trip_summary_too_long" },
+    ),
     startDate: optionalIsoDate,
     endDate: optionalIsoDate,
   })
@@ -63,7 +83,7 @@ export const stepInput = z.object({
     .default({})
     .transform((captions) =>
       Object.fromEntries(
-        Object.entries(captions).map(([id, text]) => [id, text.trim().slice(0, 500)]),
+        Object.entries(captions).map(([id, text]) => [id, normalizeCaption(text) ?? ""]),
       ),
     ),
 });
@@ -76,8 +96,7 @@ export const shareInput = z.object({
   password: z
     .string()
     .default("")
-    // Guessing is braked (services/share.ts), but 4 digits were still too few.
-    .refine((value) => value === "" || value.length >= 8, {
+    .refine((value) => value === "" || value.length >= SHARE_PASSWORD_MIN_LENGTH, {
       error: "share_password_too_short",
     }),
   removePassword: z.boolean().default(false),
@@ -85,12 +104,15 @@ export const shareInput = z.object({
 
 export type ShareInput = z.infer<typeof shareInput>;
 
+/** The name a guest comments under – and a reader follows a trip under. */
+export const authorNameInput = z
+  .string()
+  .trim()
+  .min(2, { error: "comment_name_missing" })
+  .max(NAME_MAX_LENGTH, { error: "comment_name_too_long" });
+
 export const commentInput = z.object({
-  authorName: z
-    .string()
-    .trim()
-    .min(2, { error: "comment_name_missing" })
-    .max(NAME_MAX_LENGTH, { error: "comment_name_too_long" }),
+  authorName: authorNameInput,
   body: z
     .string()
     .trim()
@@ -100,20 +122,22 @@ export const commentInput = z.object({
 
 export type CommentInput = z.infer<typeof commentInput>;
 
+const newPassword = z.string().min(PASSWORD_MIN_LENGTH, { error: "password_too_short" });
+
 export const newAccountInput = z.object({
   email: z
     .string()
     .trim()
     .refine((value) => value.includes("@"), { error: "email_invalid" }),
   name: optionalText,
-  password: z.string().min(10, { error: "password_too_short" }),
+  password: newPassword,
 });
 
 export type NewAccountInput = z.infer<typeof newAccountInput>;
 
 export const passwordChangeInput = z.object({
   currentPassword: z.string().default(""),
-  newPassword: z.string().min(10, { error: "password_too_short" }),
+  newPassword,
 });
 
 export const credentialsInput = z.object({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
+import { useI18n } from "@/lib/i18n/client";
 
 export default function SubmitButton({
   children,
@@ -12,9 +13,10 @@ export default function SubmitButton({
   pendingLabel?: string;
 }) {
   const { pending } = useFormStatus();
+  const { t } = useI18n();
   return (
     <button type="submit" className={className} disabled={pending}>
-      {pending ? (pendingLabel ?? "Moment …") : children}
+      {pending ? (pendingLabel ?? t.common.moment) : children}
     </button>
   );
 }

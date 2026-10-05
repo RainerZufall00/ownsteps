@@ -27,6 +27,12 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
         timeZoneIdentifier.flatMap(TimeZone.init(identifier:)) ?? .current
     }
 
+    /// The account's server, with its token from `tokens` – signed out if
+    /// there is none.
+    public func client(tokens: any TokenStore) -> ServerClient {
+        ServerClient(baseURL: serverURL, token: try? tokens.token(for: id))
+    }
+
     public init(
         id: UUID = UUID(),
         serverURL: URL,

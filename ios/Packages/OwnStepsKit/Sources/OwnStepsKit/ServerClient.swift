@@ -137,15 +137,20 @@ public struct ServerClient: Sendable {
     /// cached by `MediaStore`, videos streamed by AVPlayer.
     public func mediaRequest(photoID: Int, variant: MediaVariant) -> URLRequest {
         // MediaStore keeps the files; nothing goes into URLCache.
-        var request = URLRequest(
+        authorized(URLRequest(
             url: baseURL.appending(path: "api/v1/photos/\(photoID)/\(variant.rawValue)"),
             cachePolicy: .reloadIgnoringLocalCacheData
-        )
-        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        return request
+        ))
     }
 
     // MARK: Helpers
+
+    /// For requests that go around the generated client (and its middleware).
+    func authorized(_ request: URLRequest) -> URLRequest {
+        var request = request
+        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        return request
+    }
 
     func problem<Body>(_ body: Body, status: Int) -> APIError {
         // Every error response is a problem document; the generated enums

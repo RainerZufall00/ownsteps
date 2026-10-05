@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { failure } from "@/lib/action-result";
 import { requireUser } from "@/lib/auth";
 import { ServiceError } from "@/lib/errors";
+import { formChecked, formId, formString, formText } from "@/lib/form-data";
 import { removePhoto } from "@/lib/services/media";
 import { removeStep, saveStep, startStep } from "@/lib/services/steps";
 import { removeAllViewers, removeViewer } from "@/lib/services/viewers";
@@ -25,18 +26,29 @@ import {
 
 export type ActionState = { error?: string; ok?: boolean; tripId?: number };
 
-function text(formData: FormData, name: string) {
-  const value = formData.get(name);
-  return typeof value === "string" ? value : null;
-}
-
 function tripFields(formData: FormData) {
   return {
-    title: text(formData, "title") ?? "",
-    summary: text(formData, "summary"),
-    startDate: text(formData, "startDate"),
-    endDate: text(formData, "endDate"),
+    title: formString(formData, "title"),
+    summary: formText(formData, "summary"),
+    startDate: formText(formData, "startDate"),
+    endDate: formText(formData, "endDate"),
   };
+}
+
+/** A trip's page and the overview, which shows its counts and cover. */
+function refreshTrip(tripId: number) {
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath("/");
+}
+
+/** Already gone – e.g. deleted in another tab – means there's nothing to do. */
+async function ignoringMissing<T>(work: Promise<T>): Promise<T | null> {
+  try {
+    return await work;
+  } catch (error) {
+    if (error instanceof ServiceError) return null;
+    throw error;
+  }
 }
 
 export async function createTripAction(
@@ -66,8 +78,7 @@ export async function updateTripAction(
   } catch (error) {
     return failure(error);
   }
-  revalidatePath(`/trips/${tripId}`);
-  revalidatePath("/");
+  refreshTrip(tripId);
   return { ok: true };
 }
 
@@ -77,10 +88,7 @@ export async function deleteTripAction(
 ): Promise<ActionState> {
   await requireUser();
   try {
-    await deleteTripConfirmed(
-      Number(formData.get("tripId")),
-      text(formData, "confirmTitle") ?? "",
-    );
+    await deleteTripConfirmed(Number(formData.get("tripId")), formString(formData, "confirmTitle"));
   } catch (error) {
     return failure(error);
   }
@@ -91,8 +99,8 @@ export async function deleteTripAction(
 /** Creates an empty step and jumps straight into the editor. */
 export async function startStepAction(formData: FormData) {
   const user = await requireUser();
-  const tripId = Number(formData.get("tripId"));
-  if (!Number.isInteger(tripId)) return;
+  const tripId = formId(formData, "tripId");
+  if (tripId === null) return;
 
   const step = await startStep(tripId, user.id);
   redirect(`/trips/${tripId}/steps/${step.id}`);
@@ -116,11 +124,11 @@ export async function saveStepAction(
   let tripId: number;
   try {
     const step = await saveStep(stepId, {
-      body: text(formData, "body") ?? "",
-      placeName: text(formData, "placeName"),
-      occurredDate: text(formData, "occurredDate"),
-      lat: text(formData, "lat"),
-      lon: text(formData, "lon"),
+      body: formString(formData, "body"),
+      placeName: formText(formData, "placeName"),
+      occurredDate: formText(formData, "occurredDate"),
+      lat: formText(formData, "lat"),
+      lon: formText(formData, "lon"),
       captions,
     });
     tripId = step.tripId;
@@ -128,33 +136,25 @@ export async function saveStepAction(
     return failure(error);
   }
 
-  revalidatePath(`/trips/${tripId}`);
-  revalidatePath("/");
+  refreshTrip(tripId);
   redirect(`/trips/${tripId}#step-${stepId}`);
 }
 
 export async function deleteStepAction(formData: FormData) {
   await requireUser();
-  const stepId = Number(formData.get("stepId"));
-  if (!Number.isInteger(stepId)) return;
+  const stepId = formId(formData, "stepId");
+  if (stepId === null) return;
 
-  let step;
-  try {
-    step = await removeStep(stepId);
-  } catch (error) {
-    // Already gone – nothing to do.
-    if (error instanceof ServiceError) return;
-    throw error;
-  }
-  revalidatePath(`/trips/${step.tripId}`);
-  revalidatePath("/");
+  const step = await ignoringMissing(removeStep(stepId));
+  if (!step) return;
+  refreshTrip(step.tripId);
   redirect(`/trips/${step.tripId}`);
 }
 
 export async function deletePhotoAction(formData: FormData) {
   await requireUser();
-  const photoId = Number(formData.get("photoId"));
-  if (!Number.isInteger(photoId)) return;
+  const photoId = formId(formData, "photoId");
+  if (photoId === null) return;
 
   const photo = await removePhoto(photoId);
   if (photo?.stepId) {
@@ -164,13 +164,12 @@ export async function deletePhotoAction(formData: FormData) {
 
 export async function setCoverPhotoAction(formData: FormData) {
   await requireUser();
-  const tripId = Number(formData.get("tripId"));
-  const photoId = Number(formData.get("photoId"));
-  if (!Number.isInteger(tripId) || !Number.isInteger(photoId)) return;
+  const tripId = formId(formData, "tripId");
+  const photoId = formId(formData, "photoId");
+  if (tripId === null || photoId === null) return;
 
   await setCoverPhoto(tripId, photoId);
-  revalidatePath(`/trips/${tripId}`);
-  revalidatePath("/");
+  refreshTrip(tripId);
 }
 
 export async function updateShareAction(
@@ -181,9 +180,9 @@ export async function updateShareAction(
   const tripId = Number(formData.get("tripId"));
   try {
     await updateSharing(tripId, {
-      enabled: formData.get("shareEnabled") === "on",
-      password: text(formData, "sharePassword") ?? "",
-      removePassword: formData.get("removePassword") === "on",
+      enabled: formChecked(formData, "shareEnabled"),
+      password: formString(formData, "sharePassword"),
+      removePassword: formChecked(formData, "removePassword"),
     });
   } catch (error) {
     return failure(error);
@@ -196,20 +195,17 @@ export async function updateShareAction(
 /** Removes one reader's device; the app then loses access to the trip. */
 export async function removeViewerAction(formData: FormData) {
   await requireUser();
-  const viewerId = Number(formData.get("viewerId"));
-  if (!Number.isInteger(viewerId)) return;
+  const viewerId = formId(formData, "viewerId");
+  if (viewerId === null) return;
 
-  const device = await removeViewer(viewerId).catch((error) => {
-    if (error instanceof ServiceError) return null;
-    throw error;
-  });
+  const device = await ignoringMissing(removeViewer(viewerId));
   if (device) revalidatePath(`/trips/${device.tripId}/settings`);
 }
 
 export async function removeAllViewersAction(formData: FormData) {
   await requireUser();
-  const tripId = Number(formData.get("tripId"));
-  if (!Number.isInteger(tripId)) return;
+  const tripId = formId(formData, "tripId");
+  if (tripId === null) return;
 
   await removeAllViewers(tripId);
   revalidatePath(`/trips/${tripId}/settings`);
@@ -218,8 +214,8 @@ export async function removeAllViewersAction(formData: FormData) {
 /** Creates a new link – the old one stops working afterwards. */
 export async function rotateShareTokenAction(formData: FormData) {
   await requireUser();
-  const tripId = Number(formData.get("tripId"));
-  if (!Number.isInteger(tripId)) return;
+  const tripId = formId(formData, "tripId");
+  if (tripId === null) return;
 
   await rotateShareToken(tripId);
   revalidatePath(`/trips/${tripId}/settings`);

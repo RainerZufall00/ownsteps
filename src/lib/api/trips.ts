@@ -1,7 +1,9 @@
 import "server-only";
 
 import { PUBLIC_URL } from "@/lib/env";
+import { ServiceError } from "@/lib/errors";
 import { publicOrigin } from "@/lib/origin";
+import { shareUrl } from "@/lib/share";
 import { getSteps, listTrips, type TripSummary } from "@/lib/trips";
 import type { Trip } from "@/db/schema";
 import type { Principal } from "./principal";
@@ -10,7 +12,7 @@ import { tripDetailDto, tripDto } from "./serialize";
 /** Share settings go to authors only; viewers never see the link's secrets. */
 export function shareFor(principal: Principal, trip: Trip, request: Request) {
   if (principal.kind !== "author") return null;
-  return { url: `${publicOrigin(request, PUBLIC_URL)}/s/${trip.shareToken}` };
+  return { url: shareUrl(publicOrigin(request, PUBLIC_URL), trip.shareToken) };
 }
 
 export function summaryDto(principal: Principal, summary: TripSummary, request: Request) {
@@ -29,13 +31,9 @@ export function summaryDto(principal: Principal, summary: TripSummary, request: 
 
 export async function tripSummaryDto(principal: Principal, trip: Trip, request: Request) {
   const [summary] = await listTrips({ ids: [trip.id] });
-  return summary
-    ? summaryDto(principal, summary, request)
-    : tripDto(
-        trip,
-        { coverPhotoId: trip.coverPhotoId, stepCount: 0, photoCount: 0, firstStepAt: null, lastStepAt: null },
-        shareFor(principal, trip, request),
-      );
+  // Only missing if the trip was deleted in the meantime.
+  if (!summary) throw new ServiceError("trip_not_found");
+  return summaryDto(principal, summary, request);
 }
 
 export async function tripDetailFor(principal: Principal, trip: Trip, request: Request) {

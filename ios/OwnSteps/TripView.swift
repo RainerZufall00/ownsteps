@@ -136,7 +136,7 @@ struct TripView: View {
         }
         .sheet(isPresented: $showingReaders) {
             if let trip {
-                ReadersView(account: account, trip: summary(of: trip)) { share in
+                ReadersView(account: account, trip: trip.withoutSteps) { share in
                     self.trip?.share = share
                 }
             }
@@ -179,7 +179,7 @@ struct TripView: View {
         }
         .sheet(isPresented: $editingTrip) {
             if let trip {
-                TripFormView(account: account, trip: summary(of: trip), calendar: calendar) { _ in
+                TripFormView(account: account, trip: trip.withoutSteps, calendar: calendar) { _ in
                     Task { await refresh() }
                 }
             }
@@ -266,15 +266,6 @@ struct TripView: View {
         } catch {
             // The observation only ends with the view.
         }
-    }
-
-    private func summary(of trip: Components.Schemas.TripDetail) -> Components.Schemas.Trip {
-        .init(
-            id: trip.id, title: trip.title, summary: trip.summary, startDate: trip.startDate,
-            endDate: trip.endDate, coverPhotoId: trip.coverPhotoId, stepCount: trip.stepCount,
-            photoCount: trip.photoCount, firstStepAt: trip.firstStepAt, lastStepAt: trip.lastStepAt,
-            updatedAt: trip.updatedAt, share: trip.share
-        )
     }
 
     /// Loads what the timeline shows, so the trip stays readable offline
@@ -455,42 +446,18 @@ struct StepCard: View {
     let day: Int?
     let calendar: TripCalendar
     var pending: [PendingUpload] = []
-    var actions: StepActions?
+    let actions: StepActions
     let openPhoto: (Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                if let day {
-                    Text("Day \(day)")
-                        .font(.caption.bold())
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(.tint.opacity(0.15), in: .capsule)
-                        .foregroundStyle(.tint)
+            StepHeader(day: day, date: step.occurredAt, calendar: calendar) {
+                if actions.isAuthor {
+                    Button("Edit", systemImage: "pencil") { actions.edit(step) }
+                    Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
+                    Button("Share …", systemImage: "square.and.arrow.up") { actions.share(step) }
                 }
-                Text(step.occurredAt.formatted(
-                    Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
-                ))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                Spacer()
-                if let actions {
-                    Menu {
-                        if actions.isAuthor {
-                            Button("Edit", systemImage: "pencil") { actions.edit(step) }
-                            Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
-                            Button("Share …", systemImage: "square.and.arrow.up") { actions.share(step) }
-                        }
-                        Button("Comment", systemImage: "text.bubble") { actions.comment(step) }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundStyle(.secondary)
-                            .frame(minWidth: 32, minHeight: 32)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text("Step options"))
-                }
+                Button("Comment", systemImage: "text.bubble") { actions.comment(step) }
             }
 
             if let place = step.placeName {
@@ -515,11 +482,48 @@ struct StepCard: View {
                 CommentList(
                     comments: step.comments,
                     calendar: calendar,
-                    delete: actions?.isAuthor == true ? actions?.deleteComment : nil
+                    delete: actions.isAuthor ? actions.deleteComment : nil
                 )
             }
         }
         .padding(.vertical, 6)
+    }
+}
+
+/// Day badge, date and the step's menu – the same for steps on the server
+/// and steps still on the device.
+struct StepHeader<MenuItems: View>: View {
+    let day: Int?
+    let date: Date
+    let calendar: TripCalendar
+    @ViewBuilder let menu: () -> MenuItems
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let day {
+                Text("Day \(day)")
+                    .font(.caption.bold())
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.tint.opacity(0.15), in: .capsule)
+                    .foregroundStyle(.tint)
+            }
+            Text(date.formatted(
+                Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
+            ))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            Spacer()
+            Menu {
+                menu()
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 32, minHeight: 32)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Step options"))
+        }
     }
 }
 

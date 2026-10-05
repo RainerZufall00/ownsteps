@@ -3,7 +3,7 @@ import "server-only";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import { Readable } from "node:stream";
-import { isVariant, variantPath, videoPath } from "./images";
+import { DEFAULT_VIDEO_MIME, isVariant, variantPath, videoPath } from "./images";
 
 function stream(file: string, start?: number, end?: number) {
   return Readable.toWeb(
@@ -53,9 +53,7 @@ export async function serveMediaVariant(input: {
     return new Response("Unknown variant", { status: 404 });
   }
 
-  const file = isVideo
-    ? videoPath(storageKey)
-    : variantPath(storageKey, variant as "thumb" | "medium" | "large");
+  const file = isVariant(variant) ? variantPath(storageKey, variant) : videoPath(storageKey);
 
   let size: number;
   try {
@@ -64,20 +62,18 @@ export async function serveMediaVariant(input: {
     return new Response("File missing", { status: 404 });
   }
 
-  // storage_key is unique per medium, the file never changes.
-  const cache = "private, max-age=31536000, immutable";
+  const headers = {
+    "Content-Type": isVideo ? videoMime || DEFAULT_VIDEO_MIME : "image/webp",
+    // storage_key is unique per medium, the file never changes.
+    "Cache-Control": "private, max-age=31536000, immutable",
+    ...(isVideo ? { "Accept-Ranges": "bytes" } : {}),
+  };
 
   if (!isVideo) {
     return new Response(stream(file), {
-      headers: {
-        "Content-Type": "image/webp",
-        "Content-Length": String(size),
-        "Cache-Control": cache,
-      },
+      headers: { ...headers, "Content-Length": String(size) },
     });
   }
-
-  const type = videoMime || "video/mp4";
 
   // Without range requests seeking in the video wouldn't work, and Safari
   // sometimes refuses to play it at all.
@@ -93,21 +89,14 @@ export async function serveMediaVariant(input: {
     return new Response(stream(file, start, end), {
       status: 206,
       headers: {
-        "Content-Type": type,
+        ...headers,
         "Content-Length": String(end - start + 1),
         "Content-Range": `bytes ${start}-${end}/${size}`,
-        "Accept-Ranges": "bytes",
-        "Cache-Control": cache,
       },
     });
   }
 
   return new Response(stream(file), {
-    headers: {
-      "Content-Type": type,
-      "Content-Length": String(size),
-      "Accept-Ranges": "bytes",
-      "Cache-Control": cache,
-    },
+    headers: { ...headers, "Content-Length": String(size) },
   });
 }

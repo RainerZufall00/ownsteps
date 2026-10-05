@@ -1160,13 +1160,15 @@
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 120
           },
           "summary": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "maxLength": 500
           },
           "startDate": {
             "type": [
@@ -1193,13 +1195,15 @@
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 120
           },
           "summary": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "maxLength": 500
           },
           "startDate": {
             "type": [

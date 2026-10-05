@@ -1,9 +1,9 @@
 import "server-only";
 
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "@/db";
+import { randomToken } from "./crypto";
 
 /** What `openssl rand -base64 32` produces is 44 characters. */
 export const MIN_SECRET_LENGTH = 32;
@@ -53,7 +53,7 @@ function loadSecret(): string {
   } catch {
     // doesn't exist yet
   }
-  const generated = crypto.randomBytes(32).toString("base64url");
+  const generated = randomToken();
   fs.writeFileSync(secretFile, generated, { mode: 0o600 });
   return generated;
 }

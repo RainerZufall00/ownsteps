@@ -109,7 +109,7 @@ architecture doc and the phase is ticked off here.
 - [ ] Check HEIC handling in the web upload path (sharp prebuilds likely cannot decode HEVC-HEIC).
 
 ### Phase 6 – Release prep
-- [ ] Web i18n (en default, de). Read the Next 16 docs in `node_modules/next/dist/docs/` first.
+- [x] Web i18n (en default, de): cookie switch plus `Accept-Language`, no locale URLs, see [E16] in ARCHITECTURE.md (2026-10-05).
 - [ ] Maps and geocoding without a key (D24).
 - [ ] `LICENSE` (AGPL-3.0) at the root, `ios/LICENSE` (MPL-2.0).
 - [ ] English README: quick start, example `docker-compose.yml`, backup, upgrade, OIDC setup.

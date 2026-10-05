@@ -34,7 +34,7 @@ yarn-error.log*
 .env*
 !.env.example
 
-# Datenbank und hochgeladene Fotos
+# Database and uploaded photos
 /data
 
 # vercel

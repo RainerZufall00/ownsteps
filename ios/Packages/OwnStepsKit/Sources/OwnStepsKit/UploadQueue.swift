@@ -244,6 +244,7 @@ public actor UploadQueue {
 
         if let statusCode, (200..<300).contains(statusCode) {
             let photoID = body.flatMap { try? JSONDecoder().decode(UploadResponse.self, from: $0) }?.photo.id
+            let uploadedAt = now().timeIntervalSince1970
             try? await database.write { [upload] db in
                 if let assetID = upload.assetID, let photoID {
                     try db.execute(
@@ -251,7 +252,7 @@ public actor UploadQueue {
                         INSERT OR REPLACE INTO uploaded_asset (account_id, asset_id, photo_id, uploaded_at)
                         VALUES (?, ?, ?, ?)
                         """,
-                        arguments: [upload.accountID.uuidString, assetID, photoID, Date().timeIntervalSince1970]
+                        arguments: [upload.accountID.uuidString, assetID, photoID, uploadedAt]
                     )
                 }
                 _ = try upload.delete(db)
@@ -261,8 +262,8 @@ public actor UploadQueue {
             return
         }
 
-        let code = body.flatMap { try? JSONDecoder().decode(ProblemCode.self, from: $0) }?.code
-        if let statusCode, (400..<500).contains(statusCode), ![401, 408, 429].contains(statusCode) {
+        let code = body.flatMap(APIError.problemCode(in:))
+        if let statusCode, (400..<500).contains(statusCode), !Self.retryableStatuses.contains(statusCode) {
             // A retry won't change "too large" or "unsupported format".
             upload.state = .failed
             upload.lastError = code ?? "http_\(statusCode)"
@@ -281,9 +282,13 @@ public actor UploadQueue {
         min(30 * pow(2, Double(max(attempts - 1, 0))), 3600)
     }
 
+    /// Client errors a later attempt can get past: signed out (until the
+    /// next sign-in), timeout, rate limit.
+    private static let retryableStatuses: Set<Int> = [401, 408, 429]
+
     private static func isTransient(_ error: APIError) -> Bool {
         switch error {
-        case .problem(_, let status): return status >= 500 || [401, 408, 429].contains(status)
+        case .problem(_, let status): return status >= 500 || retryableStatuses.contains(status)
         case .unexpected(let status): return status >= 500 || status == 0
         default: return false
         }
@@ -439,12 +444,7 @@ public actor UploadQueue {
 }
 
 private struct UploadResponse: Decodable {
-    struct Photo: Decodable { let id: Int }
-    let photo: Photo
-}
-
-private struct ProblemCode: Decodable {
-    let code: String
+    let photo: CreatedPhoto
 }
 
 extension String {

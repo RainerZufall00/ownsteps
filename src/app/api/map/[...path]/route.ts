@@ -1,11 +1,11 @@
 import { MAPTILER_KEY, PUBLIC_URL } from "@/lib/env";
 import {
   isMapAsset,
-  publicOrigin,
   rewriteMapTilerJson,
   sanitizeAttributions,
   UPSTREAM,
 } from "@/lib/maptiler-rewrite";
+import { publicOrigin } from "@/lib/origin";
 
 /**
  * Forwards map requests to MapTiler and appends the API key on the server.

@@ -1,5 +1,6 @@
 import "zod-openapi";
 import { z } from "zod";
+import { CAPTION_MAX_LENGTH, TRIP_SUMMARY_MAX_LENGTH, TRIP_TITLE_MAX_LENGTH } from "@/lib/limits";
 
 /**
  * Shapes of `/api/v1`. The response schemas document what the serializers
@@ -10,6 +11,8 @@ import { z } from "zod";
 
 const isoDateTime = z.iso.datetime({ offset: true });
 const isoDate = z.iso.date();
+const latitude = z.number().min(-90).max(90);
+const longitude = z.number().min(-180).max(180);
 
 // ── Responses ───────────────────────────────────────────────────────────
 
@@ -204,8 +207,8 @@ export const oidcExchangeSchema = z
 
 export const tripCreateSchema = z
   .object({
-    title: z.string(),
-    summary: z.string().nullish(),
+    title: z.string().max(TRIP_TITLE_MAX_LENGTH, { error: "trip_title_too_long" }),
+    summary: z.string().max(TRIP_SUMMARY_MAX_LENGTH, { error: "trip_summary_too_long" }).nullish(),
     startDate: isoDate.nullish(),
     endDate: isoDate.nullish(),
   })
@@ -213,8 +216,8 @@ export const tripCreateSchema = z
 
 export const tripPatchSchema = z
   .object({
-    title: z.string().optional(),
-    summary: z.string().nullish(),
+    title: z.string().max(TRIP_TITLE_MAX_LENGTH, { error: "trip_title_too_long" }).optional(),
+    summary: z.string().max(TRIP_SUMMARY_MAX_LENGTH, { error: "trip_summary_too_long" }).nullish(),
     startDate: isoDate.nullish(),
     endDate: isoDate.nullish(),
     /** Switch sharing on or off. The share password stays web-only. */
@@ -228,8 +231,8 @@ export const stepCreateSchema = z
     clientUuid: z.uuid().optional(),
     body: z.string().default(""),
     placeName: z.string().nullish(),
-    lat: z.number().min(-90).max(90).nullish(),
-    lon: z.number().min(-180).max(180).nullish(),
+    lat: latitude.nullish(),
+    lon: longitude.nullish(),
     occurredAt: isoDateTime.optional(),
     /** False keeps the step a draft until its first photo arrives. */
     publish: z.boolean().default(true),
@@ -240,15 +243,15 @@ export const stepPatchSchema = z
   .object({
     body: z.string().optional(),
     placeName: z.string().nullish(),
-    lat: z.number().min(-90).max(90).nullish(),
-    lon: z.number().min(-180).max(180).nullish(),
+    lat: latitude.nullish(),
+    lon: longitude.nullish(),
     /** Changes the date only; the time of day from the photos is kept. */
     occurredDate: isoDate.optional(),
   })
   .meta({ id: "StepPatch" });
 
 export const photoPatchSchema = z
-  .object({ caption: z.string().max(500).nullable() })
+  .object({ caption: z.string().max(CAPTION_MAX_LENGTH).nullable() })
   .meta({ id: "PhotoPatch" });
 
 export const commentCreateSchema = z

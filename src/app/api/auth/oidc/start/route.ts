@@ -1,13 +1,5 @@
-import { cookies } from "next/headers";
 import { localPath, redirectTo } from "@/lib/origin";
-import {
-  buildAuthorizationUrl,
-  createPkcePair,
-  OIDC_FLOW_COOKIE,
-  oidcEnabled,
-  randomState,
-  redirectUriFor,
-} from "@/lib/oidc";
+import { beginOidcFlow, oidcEnabled } from "@/lib/oidc";
 
 export async function GET(request: Request) {
   if (!oidcEnabled) {
@@ -19,27 +11,8 @@ export async function GET(request: Request) {
   // to foreign domains.
   const next = localPath(searchParams.get("next"));
 
-  const { verifier, challenge } = createPkcePair();
-  const state = randomState();
-  const nonce = randomState();
-
-  const store = await cookies();
-  store.set(OIDC_FLOW_COOKIE, JSON.stringify({ state, verifier, nonce, next }), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 600,
-  });
-
   try {
-    const url = await buildAuthorizationUrl({
-      redirectUri: redirectUriFor(request),
-      state,
-      nonce,
-      challenge,
-    });
-    return Response.redirect(url, 302);
+    return Response.redirect(await beginOidcFlow(request, { next }), 302);
   } catch (error) {
     console.error("[oidc] Start failed", error);
     return redirectTo("/login?error=oidc_unreachable");

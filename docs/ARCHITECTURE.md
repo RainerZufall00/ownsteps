@@ -7,8 +7,7 @@ important rules in [AGENTS.md](../AGENTS.md), and the agreed plan for the API,
 the iOS app and the open source release in [ROADMAP.md](ROADMAP.md).
 
 Code, comments, docs and commits are in English ([E15]). The user interface
-is still German for now; English and German translations follow before the
-release.
+speaks English (default) and German ([E16]).
 
 ---
 
@@ -64,6 +63,8 @@ src/
 │   │                     Without "server-only" and therefore usable in the
 │   │                     browser too: view-types.ts, format.ts, limits.ts,
 │   │                     errors.ts, messages.ts, schemas.ts
+│   ├── i18n/             UI languages: en.ts/de.ts dictionaries, locale
+│   │                     negotiation, getI18n() (server), useI18n() (client)
 │   └── services/         Use cases shared by Server Actions and the API
 ├── proxy.ts              Access log (in Next 16 the successor of
 │                         middleware.ts – the old file is deprecated)
@@ -105,9 +106,10 @@ can't drift apart.
 - **Services never produce user-facing text.** They throw
   `ServiceError(code)` (`src/lib/errors.ts`, which also maps each code to an
   HTTP status). The web UI translates codes via `messageFor()` in
-  `src/lib/messages.ts` – the one place the UI translation will hook into –
-  and Server Actions use `failure()` from `src/lib/action-result.ts` to turn
-  them into the `{ error }` shape the forms show.
+  `src/lib/messages.ts` (texts in the `errors` section of the dictionaries,
+  [E16]), and Server Actions use `failure()` from
+  `src/lib/action-result.ts` to turn them into the `{ error }` shape the
+  forms show – in the request's language.
 - **Services don't know how access was established.** Sign-in checks stay in
   the caller (`requireUser()`); `postComment` takes a `resolveAccess`
   function, so the API can plug in token-based access later.
@@ -138,7 +140,7 @@ erDiagram
         int id PK
         text title
         text summary
-        int cover_photo_id "optional, otherwise first photo"
+        int cover_photo_id "optional, otherwise the timeline's first photo"
         text share_token UK "24 random bytes"
         int share_enabled
         text share_password_hash "optional extra protection"
@@ -251,8 +253,9 @@ flowchart TD
   separately uploaded cover of a trip **without** share password is public
   there.
 - **A locked share page tells nothing about the trip.** Behind a password,
-  page and link preview (`generateMetadata`) say "Geschützte Reise" – no
-  title, no summary, no cover – until the visitor has unlocked it.
+  page and link preview (`generateMetadata`) say only "Protected trip"
+  (`share.lockedTitle`) – no title, no summary, no cover – until the visitor
+  has unlocked it.
 
 > **Rule:** every new path through which trip content leaves the server must
 > use `resolveTripAccess`. That applies especially to route handlers – no
@@ -927,7 +930,7 @@ trip and be abused before long. The proxy is the reason `maptiler-rewrite.ts`
 exists at all.
 
 ### [E7] A step is published with its first photo
-The editor creates a draft when it opens (`createDraftStep`) so the photos
+The editor creates a draft when it opens (`startStep`) so the photos
 have a target right away. If the step only became visible on save, material
 uploaded on the road would be lost as soon as someone left the page. That's
 why `/api/upload` sets `published = true` as soon as a photo is through.
@@ -1032,6 +1035,34 @@ German-speaking world can use and contribute. The UI becomes bilingual
 German. The database schema was English from the start, so the switch needed
 no migration.
 
+### [E16] UI languages without locale URLs
+The web UI speaks English (default) and German (D4 in the roadmap). The
+language is **not** part of the URL: a share link is sent around a family
+and every reader should get their own language from the same link. So each
+request resolves it on its own (`getLocale()` in `src/lib/i18n/server.ts`):
+the cookie of the manual switch (`ownsteps_locale`, set by
+`setLocaleAction`), otherwise `Accept-Language`, otherwise English. Pages are
+rendered per request anyway (nonce CSP), so this costs nothing.
+
+- **Texts live in `src/lib/i18n/en.ts` and `de.ts`**, nested by area
+  (`t.trips.heading`). `en.ts` is the reference; `de.ts` is typed as
+  `Dictionary`, and `tests/i18n.test.ts` checks that both have the same keys
+  and placeholders. Placeholders are `{name}` (`fill()`), counts
+  `{ one, other }` (`plural()`) – enough for the two languages.
+- **Server Components** call `getI18n()`; **client components** call
+  `useI18n()`, fed by `I18nProvider` in the root layout with only the active
+  dictionary. Server Actions and route handlers use `getLocale()` – error
+  messages from `failure()` and `/api/upload` come in the request's language.
+- **Dates** take the locale explicitly (`formatDateShort(ms, locale)`):
+  "July 1–20, 2026" vs. "1.–20. Juli 2026".
+- **Place names** from geocoding are stored with the step, so they're asked
+  for in the author's language – the web's locale, for the app its
+  `Accept-Language`.
+- **`/api/v1` stays language-neutral**: problem types are codes, the app
+  translates them with its String Catalogs.
+- **User content isn't translated** – trip titles, texts and captions are
+  shown as written.
+
 ---
 
 ## 12. Pitfalls
@@ -1049,8 +1080,9 @@ under `src/app/api/` must call `getCurrentUser()` or `resolveTripAccess()`
 itself.
 
 **Only the expected exports are allowed in `route.ts`** (`GET`, `POST`,
-`dynamic` …). An extra helper export makes the build fail; that's why
-`OIDC_FLOW_COOKIE` and `redirectUriFor` live in `src/lib/oidc.ts`.
+`dynamic` …). An extra helper export makes the build fail; that's why the
+OIDC flow (`beginOidcFlow`, `takeOidcFlow`) and `redirectUriFor` live in
+`src/lib/oidc.ts`.
 
 **Files survive the deletion of database rows.** `ON DELETE CASCADE` only
 removes rows. Every deletion path must remove the storage folders itself – see
@@ -1256,6 +1288,12 @@ Verified (production build, real HTTP requests):
   the input; trips without a range still show the span of their steps
 - New share link: the confirmation changes nothing, "cancel" goes back, after
   confirming there's a new token and the old link answers with 404
+- UI languages (2026-10-05, dev server): a German browser gets German, the
+  switch on setup, settings and the share page flips page, title and client
+  components to English and back without a reload; `<html lang>` follows;
+  a rejected share password returns the server's message in the active
+  language; date ranges, weekdays and counts change with it; the share
+  header with the switch fits at 375 px
 - Layout at four screen sizes: phone (375 × 812), tablet portrait
   (834 × 1194) and landscape (1194 × 834) show the toggle, the timeline stays
   at 768 px, the map takes the full width (343 / 802 / 1120 px); from 1280 px

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { formatDateShort, tripDay } from "@/lib/format";
+import { formatDateShort } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/client";
 import type { ViewStep } from "@/lib/view-types";
 import PhotoImg from "./PhotoImg";
+import { useDayLabel } from "./trip-day";
 
 type Props = {
   steps: ViewStep[];
@@ -27,6 +29,8 @@ export default function MapTimelineStrip({
   onFocus,
   onOpen,
 }: Props) {
+  const { locale, t } = useI18n();
+  const dayLabel = useDayLabel(firstDay);
   const strip = useRef<HTMLDivElement>(null);
   const items = useRef(new Map<number, HTMLButtonElement>());
   // Prevents the strip's own scrolling from triggering another switch.
@@ -115,16 +119,14 @@ export default function MapTimelineStrip({
 
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-semibold text-accent">
-                  {firstDay
-                    ? `Tag ${tripDay(firstDay, step.occurredAt)}`
-                    : formatDateShort(step.occurredAt)}
+                  {dayLabel(step.occurredAt) ?? formatDateShort(step.occurredAt, locale)}
                 </span>
                 <span className="block truncate text-[17px] font-semibold leading-tight">
-                  {step.placeName ?? formatDateShort(step.occurredAt)}
+                  {step.placeName ?? formatDateShort(step.occurredAt, locale)}
                 </span>
                 {active && (
                   <span className="block text-[12px] text-ink-faint">
-                    Antippen zum Lesen
+                    {t.timeline.tapToRead}
                   </span>
                 )}
               </span>

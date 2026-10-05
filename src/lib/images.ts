@@ -19,6 +19,9 @@ export function isVariant(value: string): value is VariantName {
   return value in VARIANTS;
 }
 
+/** For videos whose type the upload didn't say. */
+export const DEFAULT_VIDEO_MIME = "video/mp4";
+
 /** Keeping originals costs space but preserves the full resolution. */
 const KEEP_ORIGINALS = process.env.KEEP_ORIGINALS !== "false";
 
@@ -53,7 +56,7 @@ export async function processVideo(
     const { size } = await fs.stat(destination);
     return { ...meta, bytes: meta.bytes + size };
   } catch (error) {
-    await fs.rm(photoDir(meta.storageKey), { recursive: true, force: true });
+    await deletePhotoFiles(meta.storageKey);
     throw error;
   }
 }
@@ -183,7 +186,7 @@ export async function processUpload(buffer: Buffer): Promise<ExtractedMeta> {
     }
   } catch (error) {
     // Don't leave half-finished directories behind.
-    await fs.rm(dir, { recursive: true, force: true });
+    await deletePhotoFiles(storageKey);
     throw error;
   }
 

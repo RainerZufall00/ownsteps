@@ -11,14 +11,16 @@ import {
 } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useI18n } from "@/lib/i18n/client";
+import { fill } from "@/lib/i18n/text";
 import { useMediaBase } from "./media-context";
 
 export type MapStep = {
   id: number;
-  title: string;
+  /** The marker's accessible name, e.g. the place; empty for "Step {number}". */
+  label: string;
   lat: number;
   lon: number;
-  occurredAt: number;
   coverPhotoId: number | null;
 };
 
@@ -31,8 +33,6 @@ type Props = {
   /** In the editor: tapping the map sets the step's place. */
   onMapClick?: (lat: number, lon: number) => void;
   className?: string;
-  /** Map in the overview: no interaction, just looking. */
-  static?: boolean;
   /**
    * Whether the map should follow the content. In the timeline yes – the view
    * moves along with the steps there. In the editor only the first time:
@@ -68,16 +68,16 @@ function routeGeoJson(steps: MapStep[]): GeoJSON.FeatureCollection {
 function buildMarker(
   step: MapStep,
   index: number,
-  isActive: boolean,
   mediaBase: string,
+  /** "Step {number}" in the UI language, for markers without a label. */
+  numberedLabel: string,
   onSelect?: (id: number) => void,
 ) {
   const el = document.createElement("button");
   el.type = "button";
   el.className = "ownsteps-marker";
-  el.setAttribute("aria-label", step.title || `Station ${index + 1}`);
+  el.setAttribute("aria-label", step.label || fill(numberedLabel, { number: index + 1 }));
   el.dataset.stepId = String(step.id);
-  el.dataset.active = String(isActive);
 
   if (step.coverPhotoId) {
     const img = document.createElement("img");
@@ -110,13 +110,15 @@ export default function TripMap({
   onSelect,
   onMapClick,
   className,
-  static: isStatic = false,
   autoFit = true,
   focusPoint = null,
 }: Props) {
   const mediaBase = useMediaBase();
   const mediaBaseRef = useRef(mediaBase);
   mediaBaseRef.current = mediaBase;
+  const { t } = useI18n();
+  const markerLabelRef = useRef(t.timeline.marker);
+  markerLabelRef.current = t.timeline.marker;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<number, Marker>>(new Map());
@@ -137,20 +139,11 @@ export default function TripMap({
       center: steps.length > 0 ? [steps[0].lon, steps[0].lat] : [10, 48],
       zoom: steps.length > 0 ? 6 : 2,
       attributionControl: { compact: true },
-      interactive: !isStatic,
     });
     mapRef.current = map;
 
-    if (!isStatic) {
-      map.addControl(
-        new NavigationControl({ showCompass: false }),
-        "top-right",
-      );
-      map.addControl(
-        new GeolocateControl({ trackUserLocation: false }),
-        "top-right",
-      );
-    }
+    map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new GeolocateControl({ trackUserLocation: false }), "top-right");
 
     map.on("click", (event) => {
       onMapClickRef.current?.(event.lngLat.lat, event.lngLat.lng);
@@ -196,8 +189,8 @@ export default function TripMap({
         element: buildMarker(
           step,
           index,
-          step.id === activeStepId,
           mediaBaseRef.current,
+          markerLabelRef.current,
           (id) => onSelectRef.current?.(id),
         ),
         anchor: "bottom",
@@ -283,7 +276,8 @@ export default function TripMap({
       map.off("load", syncRoute);
       map.off("styledata", syncRoute);
     };
-  }, [steps, activeStepId]);
+    // The active marker is marked by the effect below, which runs after this one.
+  }, [steps]);
 
   // Fly to a spot on request (place search in the editor).
   useEffect(() => {
@@ -305,14 +299,14 @@ export default function TripMap({
     }
     const map = mapRef.current;
     const active = steps.find((s) => s.id === activeStepId);
-    if (map && active && !isStatic) {
+    if (map && active) {
       map.easeTo({
         center: [active.lon, active.lat],
         duration: 600,
         zoom: Math.max(map.getZoom(), 7),
       });
     }
-  }, [activeStepId, steps, isStatic]);
+  }, [activeStepId, steps]);
 
   return <div ref={containerRef} className={className} />;
 }

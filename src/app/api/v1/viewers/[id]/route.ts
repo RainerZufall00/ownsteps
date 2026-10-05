@@ -1,4 +1,4 @@
-import { handle, idParam } from "@/lib/api/http";
+import { handle, idParam, noContent } from "@/lib/api/http";
 import { requireAuthor } from "@/lib/api/principal";
 import { removeViewer } from "@/lib/services/viewers";
 
@@ -7,6 +7,6 @@ export async function DELETE(request: Request, context: RouteContext<"/api/v1/vi
   return handle(async () => {
     await requireAuthor(request);
     await removeViewer(idParam((await context.params).id, "viewer_not_found"));
-    return new Response(null, { status: 204 });
+    return noContent();
   });
 }

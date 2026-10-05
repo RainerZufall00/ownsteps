@@ -2,7 +2,10 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import FormFeedback from "@/components/FormFeedback";
 import SubmitButton from "@/components/SubmitButton";
+import { useI18n } from "@/lib/i18n/client";
+import { fill } from "@/lib/i18n/text";
 import { updateShareAction, type ActionState } from "../../../actions";
 
 const initial: ActionState = {};
@@ -22,6 +25,7 @@ export default function ShareSettings({
   const [enabled, setEnabled] = useState(shareEnabled);
   const [copied, setCopied] = useState(false);
   const checkbox = useRef<HTMLInputElement>(null);
+  const { t } = useI18n();
 
   // React's form reset after each action unchecks the box in the DOM; the
   // prop didn't change, so React won't put it back by itself.
@@ -74,9 +78,9 @@ export default function ShareSettings({
           className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
         />
         <span>
-          <span className="block font-medium">Reise über Link teilen</span>
+          <span className="block font-medium">{t.shareSettings.toggle}</span>
           <span className="block text-[14px] text-ink-soft">
-            Wer den Link hat, kann mitlesen – ohne Account, ohne Suchmaschine.
+            {t.shareSettings.toggleHint}
           </span>
         </span>
       </label>
@@ -93,7 +97,7 @@ export default function ShareSettings({
                 onClick={share}
                 className="btn btn-primary flex-1 px-4 py-2.5 text-sm"
               >
-                {copied ? "Kopiert!" : "Link teilen"}
+                {copied ? t.shareSettings.copied : t.shareSettings.shareLink}
               </button>
               <a
                 href={shareUrl}
@@ -101,15 +105,15 @@ export default function ShareSettings({
                 rel="noreferrer"
                 className="btn btn-secondary px-4 py-2.5 text-sm"
               >
-                Ansehen
+                {t.shareSettings.view}
               </a>
             </div>
           </div>
 
           <div>
             <label className="label" htmlFor="sharePassword">
-              Zusätzliches Passwort{" "}
-              <span className="text-ink-faint">(optional)</span>
+              {t.shareSettings.passwordLabel}{" "}
+              <span className="text-ink-faint">{t.common.optional}</span>
             </label>
             <input
               id="sharePassword"
@@ -117,11 +121,10 @@ export default function ShareSettings({
               type="text"
               autoComplete="off"
               className="field"
-              placeholder={hasPassword ? "Neues Passwort setzen" : "Kein Passwort"}
+              placeholder={hasPassword ? t.shareSettings.passwordNew : t.shareSettings.passwordNone}
             />
             <p className="mt-1.5 text-sm text-ink-faint">
-              Mindestens 8 Zeichen. Ein neues Passwort meldet alle ab, die der
-              Reise in der App folgen.
+              {fill(t.shareSettings.passwordHint)}
             </p>
             {hasPassword && (
               <label className="mt-2 flex items-center gap-2 text-sm text-ink-soft">
@@ -130,20 +133,17 @@ export default function ShareSettings({
                   name="removePassword"
                   className="h-4 w-4 accent-[var(--accent)]"
                 />
-                Passwortschutz aufheben
+                {t.shareSettings.removePassword}
               </label>
             )}
           </div>
         </>
       )}
 
-      {state.error && (
-        <p className="text-sm font-medium text-accent">{state.error}</p>
-      )}
-      {state.ok && <p className="text-sm font-medium text-sea">Gespeichert.</p>}
+      <FormFeedback error={state.error} success={state.ok && t.common.saved} />
 
-      <SubmitButton className="btn btn-secondary" pendingLabel="Speichern …">
-        Einstellungen speichern
+      <SubmitButton className="btn btn-secondary" pendingLabel={t.common.saving}>
+        {t.shareSettings.submit}
       </SubmitButton>
     </form>
   );

@@ -1,4 +1,4 @@
-import { handle, problem } from "@/lib/api/http";
+import { handle, noContent, problem } from "@/lib/api/http";
 import { requirePrincipal } from "@/lib/api/principal";
 import { removeViewer } from "@/lib/services/viewers";
 
@@ -8,6 +8,6 @@ export async function DELETE(request: Request) {
     const principal = await requirePrincipal(request);
     if (principal.kind !== "viewer") return problem("invalid_request");
     await removeViewer(principal.device.id);
-    return new Response(null, { status: 204 });
+    return noContent();
   });
 }

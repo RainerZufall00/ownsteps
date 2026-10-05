@@ -21,6 +21,12 @@ public struct TripCalendar: Sendable {
         return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
     }
 
+    /// The inverse: the calendar day `date` falls on there, as "2026-07-01".
+    public func calendarDay(of date: Date) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
     /// Day 1 is the trip's start; a step on the start day is day 1.
     public func tripDay(of date: Date, start: Date) -> Int {
         let from = calendar.startOfDay(for: start)

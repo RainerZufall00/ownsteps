@@ -62,9 +62,7 @@ public struct ShareInbox: Sendable {
               let (url, _) = submissions().first(where: { $0.1.uploads.contains { $0.clientUUID == uploadID } })
         else { return }
         try? Self.coordinate(url, options: .forMerging) { url in
-            guard let data = try? Data(contentsOf: url),
-                  var submission = try? JSONDecoder().decode(ShareSubmission.self, from: data)
-            else { return }
+            guard var submission = Self.read(url) else { return }
             submission.uploads.removeAll { upload in
                 guard upload.clientUUID == uploadID else { return false }
                 files.removeFiles(of: upload)
@@ -85,8 +83,7 @@ public struct ShareInbox: Sendable {
     func takeOver(now: Date, adopt: (ShareSubmission) throws -> Void) {
         for (url, _) in submissions() {
             try? Self.coordinate(url, options: .forDeleting) { url in
-                guard let data = try? Data(contentsOf: url),
-                      let submission = try? JSONDecoder().decode(ShareSubmission.self, from: data),
+                guard let submission = Self.read(url),
                       submission.finished || now.timeIntervalSince(submission.updatedAt) > Self.abandonedAfter
                 else { return }
                 do {
@@ -105,13 +102,14 @@ public struct ShareInbox: Sendable {
         )) ?? []
         return files
             .filter { $0.pathExtension == "json" }
-            .compactMap { url in
-                guard let data = try? Data(contentsOf: url),
-                      let submission = try? JSONDecoder().decode(ShareSubmission.self, from: data)
-                else { return nil }
-                return (url, submission)
-            }
+            .compactMap { url in Self.read(url).map { (url, $0) } }
             .sorted { $0.1.step.createdAt < $1.1.step.createdAt }
+    }
+
+    /// A submission file, or nil if it's gone or half-written.
+    private static func read(_ url: URL) -> ShareSubmission? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(ShareSubmission.self, from: data)
     }
 
     private static func coordinate(

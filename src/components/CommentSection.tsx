@@ -1,9 +1,12 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { addCommentAction, type CommentState } from "@/app/comment-actions";
-import { deleteCommentAction } from "@/app/comment-actions";
+import { addCommentAction, deleteCommentAction, type CommentState } from "@/app/comment-actions";
 import { formatDateShort } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/client";
+import { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH } from "@/lib/limits";
+import FormFeedback from "./FormFeedback";
+import { CloseIcon, CommentIcon } from "./icons";
 import type { ViewComment } from "@/lib/view-types";
 
 const initial: CommentState = {};
@@ -31,6 +34,7 @@ export default function CommentSection({
   const [list, setList] = useState<ViewComment[]>(comments);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const { locale, t } = useI18n();
 
   useEffect(() => {
     setName(window.localStorage.getItem(NAME_KEY) ?? "");
@@ -64,7 +68,7 @@ export default function CommentSection({
                 <p className="text-[13px] font-semibold">
                   {comment.authorName}
                   <span className="ml-2 font-normal text-ink-faint">
-                    {formatDateShort(comment.createdAt)}
+                    {formatDateShort(comment.createdAt, locale)}
                   </span>
                 </p>
                 <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink/90">
@@ -82,17 +86,10 @@ export default function CommentSection({
                   <input type="hidden" name="tripId" value={tripId} />
                   <button
                     type="submit"
-                    aria-label="Kommentar löschen"
+                    aria-label={t.comments.delete}
                     className="text-ink-faint transition hover:text-accent"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                      <path
-                        d="m6 6 12 12M18 6 6 18"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <CloseIcon />
                   </button>
                 </form>
               )}
@@ -111,37 +108,35 @@ export default function CommentSection({
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
-            maxLength={60}
+            maxLength={NAME_MAX_LENGTH}
             className="field py-2 text-[15px]"
-            placeholder="Dein Name"
-            aria-label="Dein Name"
+            placeholder={t.comments.namePlaceholder}
+            aria-label={t.comments.namePlaceholder}
           />
           <textarea
             name="body"
             required
             rows={3}
-            maxLength={1500}
+            maxLength={COMMENT_MAX_LENGTH}
             className="field resize-none py-2 text-[15px]"
-            placeholder="Was möchtest du sagen?"
-            aria-label="Kommentar"
+            placeholder={t.comments.bodyPlaceholder}
+            aria-label={t.comments.bodyLabel}
           />
-          {state.error && (
-            <p className="text-sm font-medium text-accent">{state.error}</p>
-          )}
+          <FormFeedback error={state.error} />
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="btn btn-ghost flex-1 py-2 text-sm"
             >
-              Abbrechen
+              {t.common.cancel}
             </button>
             <button
               type="submit"
               disabled={pending}
               className="btn btn-primary flex-1 py-2 text-sm disabled:opacity-50"
             >
-              {pending ? "Wird gesendet …" : "Absenden"}
+              {pending ? t.comments.sending : t.comments.send}
             </button>
           </div>
         </form>
@@ -151,16 +146,8 @@ export default function CommentSection({
           onClick={() => setOpen(true)}
           className="flex items-center gap-1.5 text-sm font-semibold text-ink-soft transition hover:text-accent"
         >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-            <path
-              d="M21 12a8 8 0 0 1-8 8H5l-1 2-1-4a8 8 0 0 1 8-12h2a8 8 0 0 1 8 6Z"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinejoin="round"
-              fill="none"
-            />
-          </svg>
-          {list.length > 0 ? "Auch etwas sagen" : "Kommentar schreiben"}
+          <CommentIcon />
+          {list.length > 0 ? t.comments.writeMore : t.comments.write}
         </button>
       )}
     </section>

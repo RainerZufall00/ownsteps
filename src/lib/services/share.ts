@@ -1,9 +1,9 @@
 import "server-only";
 
-import bcrypt from "bcryptjs";
 import type { Trip } from "@/db/schema";
+import { verifyPassword } from "@/lib/auth";
 import { ServiceError } from "@/lib/errors";
-import { createRateLimit } from "@/lib/rate-limit";
+import { checkWithBrakes, createRateLimit } from "@/lib/rate-limit";
 import { getTripByShareToken, grantUnlock } from "@/lib/share";
 
 /** Every password attempt from one address – web unlock and app redeem alike. */
@@ -20,17 +20,19 @@ const failuresPerTrip = createRateLimit("share-password-trip", { windowMs: 15 * 
  * pass straight through.
  */
 export async function checkSharePassword(trip: Trip, password: string, clientKey: string) {
-  if (!trip.sharePasswordHash) return;
-  const tripKey = String(trip.id);
-  if (!attemptsPerClient.allow(clientKey) || failuresPerTrip.blocked(tripKey)) {
-    throw new ServiceError("too_many_attempts");
-  }
-  if (!(await bcrypt.compare(password, trip.sharePasswordHash))) {
+  const { sharePasswordHash } = trip;
+  if (!sharePasswordHash) return;
+  const valid = await checkWithBrakes({
+    attempts: attemptsPerClient,
+    failures: failuresPerTrip,
+    clientKey,
+    subjectKey: String(trip.id),
+    verify: () => verifyPassword(password, sharePasswordHash),
     // The app first tries without a password to learn whether one is
     // needed; that can't hit anything and shouldn't eat the trip's budget.
-    if (password !== "") failuresPerTrip.record(tripKey);
-    throw new ServiceError("share_password_wrong");
-  }
+    countFailure: password !== "",
+  });
+  if (!valid) throw new ServiceError("share_password_wrong");
 }
 
 /** Checks the share password and remembers the unlock in a signed cookie. */

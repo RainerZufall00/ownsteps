@@ -1,5 +1,7 @@
 import "server-only";
 
+import { ServiceError } from "./errors";
+
 /**
  * In-memory sliding windows. State resets on restart, which is fine for an
  * instance serving a group of friends.
@@ -76,6 +78,30 @@ export function createRateLimit(
   };
   registry.set(name, limit);
   return limit;
+}
+
+/**
+ * A password check behind two brakes: every attempt counts against the
+ * sender (`attempts`), every wrong one against what's being guessed – an
+ * account, a trip (`failures`) – whichever address it comes from. Throws
+ * `too_many_attempts` once either is used up; returns whether the password
+ * was right.
+ */
+export async function checkWithBrakes(input: {
+  attempts: RateLimit;
+  failures: RateLimit;
+  clientKey: string;
+  subjectKey: string;
+  verify: () => Promise<boolean>;
+  /** False for attempts that can't hit anything and mustn't use up the budget. */
+  countFailure?: boolean;
+}) {
+  if (!input.attempts.allow(input.clientKey) || input.failures.blocked(input.subjectKey)) {
+    throw new ServiceError("too_many_attempts");
+  }
+  const valid = await input.verify();
+  if (!valid && input.countFailure !== false) input.failures.record(input.subjectKey);
+  return valid;
 }
 
 /**

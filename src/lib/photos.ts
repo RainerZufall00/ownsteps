@@ -2,17 +2,45 @@ import "server-only";
 
 import { and, eq, isNull, notExists } from "drizzle-orm";
 import { db } from "@/db";
-import { photos, trips } from "@/db/schema";
+import { photos, trips, type Photo } from "@/db/schema";
 import { recordChange } from "./changes";
-import { deletePhotoFiles } from "./images";
+import { deletePhotoFiles, type ExtractedMeta } from "./images";
 
 export async function getPhoto(photoId: number) {
-  const rows = await db
-    .select()
-    .from(photos)
-    .where(eq(photos.id, photoId))
-    .limit(1);
-  return rows[0] ?? null;
+  return (await db.select().from(photos).where(eq(photos.id, photoId)).get()) ?? null;
+}
+
+/**
+ * Stores the row for files `processUpload`/`processVideo` already put on
+ * disk. If the insert fails, the files go too – without a row nothing would
+ * ever find or delete them.
+ */
+export async function createPhoto(
+  meta: ExtractedMeta,
+  values: Omit<
+    typeof photos.$inferInsert,
+    "storageKey" | "width" | "height" | "bytes" | "placeholder"
+  >,
+): Promise<Photo> {
+  let photo: Photo;
+  try {
+    [photo] = await db
+      .insert(photos)
+      .values({
+        storageKey: meta.storageKey,
+        width: meta.width,
+        height: meta.height,
+        bytes: meta.bytes,
+        placeholder: meta.placeholder,
+        ...values,
+      })
+      .returning();
+  } catch (error) {
+    await deletePhotoFiles(meta.storageKey);
+    throw error;
+  }
+  await recordChange(photo.tripId, "photo", photo.id, "upsert");
+  return photo;
 }
 
 /** Returns the deleted photo, or null if there was none. */
@@ -41,12 +69,7 @@ export async function setPhotoCaption(photoId: number, caption: string | null) {
 }
 
 export async function getPhotoByClientUuid(clientUuid: string) {
-  const rows = await db
-    .select()
-    .from(photos)
-    .where(eq(photos.clientUuid, clientUuid))
-    .limit(1);
-  return rows[0] ?? null;
+  return (await db.select().from(photos).where(eq(photos.clientUuid, clientUuid)).get()) ?? null;
 }
 
 /** Removes the files of several photos, e.g. when a step is deleted. */

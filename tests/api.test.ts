@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { createUser } from "@/lib/auth";
 import { MAX_IMAGE_BYTES } from "@/lib/limits";
 import { TMP_DIR } from "@/lib/multipart";
-import { createAuthCode, pkceChallenge } from "@/lib/tokens";
+import { pkceChallenge } from "@/lib/crypto";
+import { createAuthCode } from "@/lib/tokens";
 import { makeJpeg } from "./helpers/exif";
 
 /**

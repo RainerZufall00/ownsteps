@@ -4,16 +4,17 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { failure } from "@/lib/action-result";
 import { getCurrentUser } from "@/lib/auth";
+import { ServiceError } from "@/lib/errors";
+import { formId, formString, formText } from "@/lib/form-data";
 import { clientAddress } from "@/lib/rate-limit";
 import { postComment, removeComment } from "@/lib/services/comments";
 import { resolveTripAccess } from "@/lib/share";
-import type { ViewComment } from "@/lib/view-types";
+import { toViewComment, type ViewComment } from "@/lib/view-types";
 
 export type CommentState = {
   error?: string;
   comment?: ViewComment;
 };
-
 
 export async function addCommentAction(
   _prev: CommentState,
@@ -24,28 +25,18 @@ export async function addCommentAction(
       tripId: Number(formData.get("tripId")),
       stepId: Number(formData.get("stepId")),
       raw: {
-        authorName: String(formData.get("authorName") ?? ""),
-        body: String(formData.get("body") ?? ""),
+        authorName: formString(formData, "authorName"),
+        body: formString(formData, "body"),
       },
       clientKey: clientAddress(await headers()),
       // Guests prove access with the link's token, like their media URLs.
-      resolveAccess: (trip) => {
-        const token = formData.get("shareToken");
-        return resolveTripAccess(trip, typeof token === "string" ? token : null);
-      },
+      resolveAccess: (trip) => resolveTripAccess(trip, formText(formData, "shareToken")),
     });
 
     revalidatePath(`/trips/${trip.id}`);
     revalidatePath(`/s/${trip.shareToken}`);
 
-    return {
-      comment: {
-        id: comment.id,
-        authorName: comment.authorName,
-        body: comment.body,
-        createdAt: comment.createdAt,
-      },
-    };
+    return { comment: toViewComment(comment) };
   } catch (error) {
     return failure(error);
   }
@@ -56,10 +47,15 @@ export async function deleteCommentAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
 
-  const commentId = Number(formData.get("commentId"));
-  const tripId = Number(formData.get("tripId"));
-  if (!Number.isInteger(commentId)) return;
+  const commentId = formId(formData, "commentId");
+  const tripId = formId(formData, "tripId");
+  if (commentId === null) return;
 
-  await removeComment(commentId);
-  if (Number.isInteger(tripId)) revalidatePath(`/trips/${tripId}`);
+  try {
+    await removeComment(commentId);
+  } catch (error) {
+    // Already gone – nothing to do.
+    if (!(error instanceof ServiceError)) throw error;
+  }
+  if (tripId !== null) revalidatePath(`/trips/${tripId}`);
 }

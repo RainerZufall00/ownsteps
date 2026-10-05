@@ -214,7 +214,7 @@ struct StepComposerView: View {
         let media = assets.compactMap { preparedAssets[$0.localIdentifier]?.media }
             + selection.compactMap { prepared[$0]?.media }
         do {
-            guard media.count == selection.count + assets.count else { throw MediaImporter.Problem.unreadable }
+            guard media.count == selection.count + assets.count else { throw MediaPreparation.Problem.unreadableImage }
             switch mode {
             case .new(let tripID):
                 enqueueNew(tripID: tripID, media: media)

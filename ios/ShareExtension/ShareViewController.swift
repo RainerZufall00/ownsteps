@@ -27,6 +27,9 @@ final class ShareViewController: UIViewController {
 struct TripChoice: Hashable {
     let accountID: UUID
     let tripID: Int
+
+    /// How the choice is remembered for next time.
+    var key: String { "\(accountID.uuidString)/\(tripID)" }
 }
 
 /// What the extension knows and does. It reads the accounts, tokens and the
@@ -74,7 +77,7 @@ final class ShareModel {
         // The trip used last time, else the most recent one.
         let last = container?.defaults?.string(forKey: Self.lastTripKey)
         let all = accounts.flatMap { account in targets.trips(for: account.id).map { TripChoice(accountID: account.id, tripID: $0.id) } }
-        choice = all.first { "\($0.accountID.uuidString)/\($0.tripID)" == last } ?? all.first
+        choice = all.first { $0.key == last } ?? all.first
     }
 
     var account: Account? {
@@ -94,10 +97,10 @@ final class ShareModel {
         for (index, provider) in providers.enumerated() {
             do {
                 items[index].prepared = try await Self.prepare(provider, timeZone: timeZone, originalVideos: original)
-            } catch MediaPreparation.Problem.videoTooLarge {
-                error = String(localized: "A video is larger than 400 MB, even compressed.")
+            } catch let problem as MediaPreparation.Problem {
+                error = problem.localizedDescription
             } catch {
-                self.error = String(localized: "A photo or video couldn't be read.")
+                self.error = MediaPreparation.Problem.unreadableImage.localizedDescription
             }
         }
         items.removeAll { $0.prepared == nil }
@@ -121,7 +124,7 @@ final class ShareModel {
         let submitter = ShareSubmitter(
             files: files,
             inbox: inbox,
-            client: ServerClient(baseURL: account.serverURL, token: try? tokens.token(for: account.id)),
+            client: account.client(tokens: tokens),
             transport: uploader,
             sessionID: sessionID
         )
@@ -133,7 +136,7 @@ final class ShareModel {
                 occurredAt: date,
                 media: items.compactMap(\.prepared?.media)
             )
-            container.defaults?.set("\(choice.accountID.uuidString)/\(choice.tripID)", forKey: Self.lastTripKey)
+            container.defaults?.set(choice.key, forKey: Self.lastTripKey)
             phase = outcome == .sending ? .sent : .savedForLater
         } catch {
             self.error = String(localized: "The step couldn't be saved.")
@@ -170,13 +173,7 @@ final class ShareModel {
         try await withCheckedThrowingContinuation { continuation in
             _ = provider.loadFileRepresentation(for: type, openInPlace: false) { url, _, error in
                 guard let url else { return continuation.resume(throwing: error ?? CancellationError()) }
-                let copy = MediaPreparation.temporaryFile(url.pathExtension.isEmpty ? "mov" : url.pathExtension)
-                do {
-                    try FileManager.default.copyItem(at: url, to: copy)
-                    continuation.resume(returning: copy)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
+                continuation.resume(with: Result { try MediaPreparation.temporaryCopy(ofVideoAt: url) })
             }
         }
     }

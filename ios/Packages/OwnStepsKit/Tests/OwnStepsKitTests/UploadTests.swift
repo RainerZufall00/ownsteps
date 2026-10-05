@@ -1,5 +1,6 @@
 import CoreLocation
 import Foundation
+import GRDB
 import ImageIO
 import Testing
 import UniformTypeIdentifiers
@@ -142,6 +143,25 @@ let stepJSON = """
  "lat":null,"lon":null,"occurredAt":"2027-07-03T18:30:00.000Z","updatedAt":"2027-07-03T18:30:00.000Z",
  "photos":[],"comments":[]}
 """
+
+@Suite struct QueueRecordTests {
+    /// The queries filter by `account_id = uuidString` and compare dates as
+    /// seconds – the records must be stored that way.
+    @Test func storesUUIDsAsTextAndDatesAsSeconds() throws {
+        let database = try AppDatabase.inMemory()
+        let account = UUID()
+        let step = PendingStep.new(
+            accountID: account, tripID: 1, body: "Fjords", placeName: nil, lat: nil, lon: nil,
+            occurredAt: Date(timeIntervalSince1970: 1_800_000_000), now: Date(timeIntervalSince1970: 1_800_000_100)
+        )
+        try database.queue.write { db in try step.insert(db) }
+        let row = try database.queue.read { db in
+            try Row.fetchOne(db, sql: "SELECT account_id, occurred_at FROM pending_step")
+        }
+        #expect(row?["account_id"] as String? == account.uuidString)
+        #expect(row?["occurred_at"] as Double? == 1_800_000_000)
+    }
+}
 
 @Suite(.serialized) struct UploadQueueTests {
     let account = UUID()

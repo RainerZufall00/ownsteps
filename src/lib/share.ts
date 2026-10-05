@@ -1,16 +1,34 @@
 import "server-only";
 
-import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { db } from "@/db";
 import { trips, type Trip } from "@/db/schema";
 import { getCurrentUser } from "./auth";
-import { appSecret } from "./env";
+import { cookieOptions } from "./cookies";
+import { hmac, randomToken, safeEqual } from "./crypto";
+import { appSecret, PUBLIC_URL } from "./env";
+import { originFromHeaders } from "./origin";
+
+const UNLOCK_TTL_S = 60 * 60 * 24 * 30;
 
 export function newShareToken() {
   // 24 random bytes – unguessable, even if the link circulates publicly.
-  return crypto.randomBytes(24).toString("base64url");
+  return randomToken(24);
+}
+
+/** The public address of a trip's share link. */
+export function shareUrl(origin: string, shareToken: string) {
+  return `${origin}/s/${shareToken}`;
+}
+
+/**
+ * This instance's public address while rendering a page: `PUBLIC_URL`, then
+ * the proxy's headers (see `originFromHeaders`). Route handlers have the
+ * request and use `publicOrigin` instead.
+ */
+export async function pageOrigin() {
+  return originFromHeaders(await headers(), PUBLIC_URL, "http://localhost:2555");
 }
 
 function unlockCookieName(tripId: number) {
@@ -19,10 +37,7 @@ function unlockCookieName(tripId: number) {
 
 /** Signature an unlocked browser uses to identify itself again. */
 function unlockSignature(tripId: number, passwordHash: string) {
-  return crypto
-    .createHmac("sha256", appSecret())
-    .update(`${tripId}:${passwordHash}`)
-    .digest("base64url");
+  return hmac(appSecret(), `${tripId}:${passwordHash}`);
 }
 
 export async function grantUnlock(trip: Trip) {
@@ -31,21 +46,8 @@ export async function grantUnlock(trip: Trip) {
   store.set(
     unlockCookieName(trip.id),
     unlockSignature(trip.id, trip.sharePasswordHash),
-    {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    },
+    cookieOptions(UNLOCK_TTL_S),
   );
-}
-
-/** Constant-time comparison of two secrets. */
-function sameToken(given: string, expected: string) {
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 export async function hasUnlock(trip: Trip) {
@@ -53,16 +55,11 @@ export async function hasUnlock(trip: Trip) {
   const store = await cookies();
   const value = store.get(unlockCookieName(trip.id))?.value;
   if (!value) return false;
-  return sameToken(value, unlockSignature(trip.id, trip.sharePasswordHash));
+  return safeEqual(value, unlockSignature(trip.id, trip.sharePasswordHash));
 }
 
 export async function getTripByShareToken(token: string) {
-  const rows = await db
-    .select()
-    .from(trips)
-    .where(eq(trips.shareToken, token))
-    .limit(1);
-  const trip = rows[0];
+  const trip = await db.select().from(trips).where(eq(trips.shareToken, token)).get();
   if (!trip || !trip.shareEnabled) return null;
   return trip;
 }
@@ -86,6 +83,6 @@ export async function resolveTripAccess(
 ): Promise<TripAccess> {
   if (await getCurrentUser()) return { kind: "owner" };
   if (!trip.shareEnabled) return { kind: "denied" };
-  if (!shareToken || !sameToken(shareToken, trip.shareToken)) return { kind: "denied" };
+  if (!shareToken || !safeEqual(shareToken, trip.shareToken)) return { kind: "denied" };
   return (await hasUnlock(trip)) ? { kind: "guest" } : { kind: "locked" };
 }

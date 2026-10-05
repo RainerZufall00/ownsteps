@@ -10,7 +10,7 @@ import {
   removeAllViewerDevices,
   removeViewerDevice,
 } from "@/lib/tokens";
-import { NAME_MAX_LENGTH } from "@/lib/limits";
+import { authorNameInput, parseInput } from "@/lib/schemas";
 import { checkSharePassword } from "./share";
 import { requireTrip } from "./trips";
 
@@ -35,9 +35,8 @@ export async function redeemViewer(
 ) {
   if (!redeemsPerClient.allow(clientKey)) throw new ServiceError("too_many_attempts");
 
-  const name = input.name.trim();
-  if (name.length < 2) throw new ServiceError("comment_name_missing");
-  if (name.length > NAME_MAX_LENGTH) throw new ServiceError("comment_name_too_long");
+  // The name readers comment under – the same rules as a guest's.
+  const name = parseInput(authorNameInput, input.name);
 
   const trip = await getTripByShareToken(shareTokenFrom(input.shareLink));
   if (!trip) throw new ServiceError("share_link_invalid");
