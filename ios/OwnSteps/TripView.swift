@@ -1,23 +1,31 @@
+import MapKit
 import OwnStepsKit
 import Photos
 import SwiftUI
 
-/// One trip: timeline or map, like the web's phone layout. Shows the cached
-/// copy first and refreshes behind it.
+/// One trip: the route on a map that fills the screen, the timeline on top
+/// of it – as a sheet on the iPhone, as an inspector column on the iPad.
+/// Shows the cached copy first and refreshes behind it.
 struct TripView: View {
     let account: Account
     let tripID: Int
     /// Scrolled to on arrival, e.g. from a notification.
     var focusStepID: Int? = nil
 
-    enum Mode: Hashable { case timeline, map }
+    /// Low enough to see the map, high enough for title and numbers.
+    static let peek = PresentationDetent.height(200)
 
     @Environment(AppModel.self) private var model
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var trip: Components.Schemas.TripDetail?
     @State private var staleSince: Date?
     @State private var error: String?
-    @State private var mode: Mode = .timeline
-    @State private var scrollTarget: Int?
+    @State private var showingTimeline = true
+    @State private var detent = TripView.peek
+    /// The timeline entry at the top – the map follows it.
+    @State private var focusedItem: String?
+    @State private var mapSelection: Int?
+    @State private var camera: MapCameraPosition = .automatic
     @State private var queue = UploadSnapshot()
     @State private var composer: StepComposerView.Mode?
     /// Preselected for the composer, from the photo suggestions.
@@ -40,149 +48,249 @@ struct TripView: View {
 
     private var calendar: TripCalendar { model.calendar(for: account) }
 
+    /// On the iPhone the timeline is a sheet over the map.
+    private var isCompact: Bool { sizeClass != .regular }
+
     var body: some View {
         Group {
-            if let trip {
-                switch mode {
-                case .timeline:
-                    TimelineView(
-                        account: account,
-                        trip: trip,
-                        calendar: calendar,
-                        staleSince: staleSince,
-                        queue: queue,
-                        scrollTarget: $scrollTarget,
-                        actions: .init(
-                            isAuthor: isAuthor,
-                            edit: { editing = $0 },
-                            addPhotos: { composer = .addTo(tripID: tripID, stepID: $0.id) },
-                            share: { share(.step($0.id)) },
-                            comment: { commentingOn = $0 },
-                            deleteComment: { comment in Task { await deleteComment(comment) } }
-                        ),
-                        suggestions: suggestionsBanner
-                    )
-                case .map:
-                    TripMapView(account: account, trip: trip, calendar: calendar) { stepID in
-                        scrollTarget = stepID
-                        mode = .timeline
+            if isCompact {
+                // A sheet can't present a second sheet from the view below
+                // it, so on the iPhone everything is presented from the
+                // timeline sheet.
+                mapLayer
+                    .toolbar { toolbar }
+                    .sheet(isPresented: $showingTimeline) {
+                        presentations(timeline, active: true)
+                            .presentationDetents([Self.peek, .medium, .large], selection: $detent)
+                            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                            .interactiveDismissDisabled()
                     }
-                }
-            } else if let error {
-                ContentUnavailableView("Trip unavailable", systemImage: "exclamationmark.triangle", description: Text(error))
             } else {
-                ProgressView()
-            }
-        }
-        .navigationTitle(trip?.title ?? "")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("View", selection: $mode) {
-                    Text("Timeline").tag(Mode.timeline)
-                    Text("Map").tag(Mode.map)
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
-            }
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Menu {
-                    if isAuthor {
-                        Button("Edit trip", systemImage: "pencil") { editingTrip = true }
-                        Button("Share trip …", systemImage: "square.and.arrow.up") { share(.trip) }
-                        Button("Readers", systemImage: "person.2") { showingReaders = true }
-                        Button("Photo suggestions", systemImage: "photo.stack") { Task { await reviewSuggestions() } }
-                    }
-                    Toggle(isOn: Binding(get: { !muted }, set: { setMuted(!$0) })) {
-                        Label(isAuthor ? "Notify about comments" : "Notify about new steps", systemImage: "bell")
-                    }
-                    if !isAuthor {
-                        Button("Stop following", systemImage: "person.badge.minus", role: .destructive) {
-                            confirmingUnfollow = true
+                // The toolbar goes outside the inspector, or its items
+                // vanish while the inspector is open.
+                presentations(
+                    mapLayer
+                        .inspector(isPresented: $showingTimeline) {
+                            timeline.inspectorColumnWidth(min: 340, ideal: 420, max: 520)
                         }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                }
-                .accessibilityLabel(Text("More"))
-                if isAuthor {
-                    Button {
-                        composer = .new(tripID: tripID)
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel(Text("New step"))
-                }
+                        .toolbar { toolbar },
+                    active: true
+                )
             }
         }
-        .refreshable { await refresh() }
+        .navigationTitle(isCompact ? "" : trip?.title ?? "")
+        .navigationBarTitleDisplayMode(.inline)
+        // The sheet can't be closed on the iPhone; the inspector can.
+        .onChange(of: isCompact) { _, compact in if compact { showingTimeline = true } }
+        .onChange(of: focusedItem) { _, id in followTimeline(to: id) }
+        // The first copy of the trip – cached or fresh – frames the route.
+        .onChange(of: trip == nil, initial: true) { _, missing in
+            if !missing, let trip, focusedItem == nil { camera = TripMapView.overview(of: trip) }
+        }
+        .onChange(of: mapSelection) { _, id in followMap(to: id) }
         .task {
             muted = Notifications.isMuted(account: account, tripID: tripID)
             if trip == nil, let cached = try? model.cache.trip(tripID, for: account.id) {
                 trip = cached.value
             }
-            scrollTarget = focusStepID
+            if let focusStepID {
+                focusedItem = TimelineItem.id(serverStep: focusStepID)
+                detent = .medium
+            }
             await refresh()
         }
         .task(id: tripID) { await watchQueue() }
-        .sheet(item: Binding(
-            get: { composer.map(ComposerRequest.init) },
-            set: { composer = $0?.mode; if $0 == nil { composerAssets = [] } }
-        )) { request in
-            StepComposerView(account: account, mode: request.mode, assets: composerAssets)
-        }
-        .sheet(item: $commentingOn) { step in
-            CommentComposer(account: account, step: step) { Task { await refresh() } }
-        }
-        .sheet(isPresented: $showingReaders) {
-            if let trip {
-                ReadersView(account: account, trip: trip.withoutSteps) { share in
-                    self.trip?.share = share
+    }
+
+    // MARK: Map and timeline
+
+    private var mapLayer: some View {
+        GeometryReader { geometry in
+            Group {
+                if let trip {
+                    TripMapView(account: account, trip: trip, selection: $mapSelection, position: $camera)
+                } else {
+                    Map(interactionModes: []).mapStyle(.hybrid)
                 }
             }
+            // Frames the route in what the sheet leaves free.
+            .safeAreaPadding(.bottom, mapInset(height: geometry.size.height))
         }
-        .confirmationDialog("Stop following this trip?", isPresented: $confirmingUnfollow, titleVisibility: .visible) {
-            Button("Stop following", role: .destructive) {
-                Task { await model.unfollow(account) }
-            }
+    }
+
+    private func mapInset(height: CGFloat) -> CGFloat {
+        guard isCompact, showingTimeline else { return 0 }
+        return detent == Self.peek ? 205 : height * 0.52
+    }
+
+    @ViewBuilder private var timeline: some View {
+        if let trip {
+            TimelineView(
+                account: account,
+                trip: trip,
+                calendar: calendar,
+                staleSince: staleSince,
+                queue: queue,
+                focusedItem: $focusedItem,
+                actions: .init(
+                    isAuthor: isAuthor,
+                    edit: { editing = $0 },
+                    addPhotos: { composer = .addTo(tripID: tripID, stepID: $0.id) },
+                    share: { share(.step($0.id)) },
+                    comment: { commentingOn = $0 },
+                    deleteComment: { comment in Task { await deleteComment(comment) } },
+                    showOnMap: { showOnMap($0) }
+                ),
+                suggestions: suggestionsBanner
+            )
+            .refreshable { await refresh() }
+        } else if let error {
+            ContentUnavailableView("Trip unavailable", systemImage: "exclamationmark.triangle", description: Text(error))
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .sheet(isPresented: $showingSuggestions) {
-            PhotoSuggestionsView(assets: suggestions, calendar: calendar) { chosen in
-                composerAssets = chosen
-                // After the suggestions sheet is gone.
-                Task { @MainActor in composer = .new(tripID: tripID) }
-            } ignore: { hidden in
-                try? model.uploads.ignoreAssets(hidden.map(\.localIdentifier), accountID: account.id)
-                Task { await updateSuggestions() }
-            }
+    }
+
+    /// The timeline scrolled to another step: the map shows where it was.
+    private func followTimeline(to id: String?) {
+        guard let trip else { return }
+        let step = trip.steps.first { TimelineItem.id(serverStep: $0.id) == id }
+        if mapSelection != step?.id { mapSelection = step?.id }
+        withAnimation(.smooth(duration: 0.9)) {
+            camera = step.flatMap(TripMapView.camera(for:)) ?? TripMapView.overview(of: trip)
         }
-        .confirmationDialog(
-            "Sharing is off for this trip",
-            isPresented: Binding(get: { enableSharingFor != nil }, set: { if !$0 { enableSharingFor = nil } }),
-            titleVisibility: .visible,
-            presenting: enableSharingFor
-        ) { target in
-            Button("Turn on sharing and share") { Task { await enableSharing(then: target) } }
-        } message: { _ in
-            Text("Anyone with the link can then read the trip.")
-        }
-        .alert("No access to your photos", isPresented: $photoAccessDenied) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("To suggest photos from this trip, OwnSteps needs to read your photo library.")
-        }
-        .sheet(item: $editing) { step in
-            EditStepView(account: account, step: step) { Task { await refresh() } }
-        }
-        .sheet(isPresented: $editingTrip) {
-            if let trip {
-                TripFormView(account: account, trip: trip.withoutSteps, calendar: calendar) { _ in
-                    Task { await refresh() }
+    }
+
+    /// A marker was tapped: the timeline scrolls to its step.
+    private func followMap(to stepID: Int?) {
+        guard let stepID else { return }
+        let id = TimelineItem.id(serverStep: stepID)
+        // Already there when the timeline itself caused the selection.
+        guard focusedItem != id else { return }
+        withAnimation { focusedItem = id }
+        if isCompact && detent == Self.peek { detent = .medium }
+    }
+
+    private func showOnMap(_ step: Components.Schemas.Step) {
+        focusedItem = TimelineItem.id(serverStep: step.id)
+        mapSelection = step.id
+        if isCompact { detent = Self.peek }
+    }
+
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                if isAuthor {
+                    Button("Edit trip", systemImage: "pencil") { editingTrip = true }
+                    Button("Share trip …", systemImage: "square.and.arrow.up") { share(.trip) }
+                    Button("Readers", systemImage: "person.2") { showingReaders = true }
+                    Button("Photo suggestions", systemImage: "photo.stack") { Task { await reviewSuggestions() } }
                 }
+                Toggle(isOn: Binding(get: { !muted }, set: { setMuted(!$0) })) {
+                    Label(isAuthor ? "Notify about comments" : "Notify about new steps", systemImage: "bell")
+                }
+                if !isAuthor {
+                    Button("Stop following", systemImage: "person.badge.minus", role: .destructive) {
+                        confirmingUnfollow = true
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis")
             }
+            .accessibilityLabel(Text("More"))
+        }
+        if !isCompact {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    withAnimation { showingTimeline.toggle() }
+                } label: {
+                    Image(systemName: "sidebar.trailing")
+                }
+                .accessibilityLabel(Text("Timeline"))
+            }
+        }
+        if isAuthor {
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    composer = .new(tripID: tripID)
+                } label: {
+                    Image(systemName: "plus")
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.glassProminent)
+                .accessibilityLabel(Text("New step"))
+            }
+        }
+    }
+
+    // MARK: Sheets and dialogs
+
+    @ViewBuilder private func presentations(_ content: some View, active: Bool) -> some View {
+        if active {
+            content
+                .sheet(item: Binding(
+                    get: { composer.map(ComposerRequest.init) },
+                    set: { composer = $0?.mode; if $0 == nil { composerAssets = [] } }
+                )) { request in
+                    StepComposerView(account: account, mode: request.mode, assets: composerAssets)
+                }
+                .sheet(item: $commentingOn) { step in
+                    CommentComposer(account: account, step: step) { Task { await refresh() } }
+                }
+                .sheet(isPresented: $showingReaders) {
+                    if let trip {
+                        ReadersView(account: account, trip: trip.withoutSteps) { share in
+                            self.trip?.share = share
+                        }
+                    }
+                }
+                .confirmationDialog("Stop following this trip?", isPresented: $confirmingUnfollow, titleVisibility: .visible) {
+                    Button("Stop following", role: .destructive) {
+                        Task { await model.unfollow(account) }
+                    }
+                }
+                .sheet(isPresented: $showingSuggestions) {
+                    PhotoSuggestionsView(assets: suggestions, calendar: calendar) { chosen in
+                        composerAssets = chosen
+                        // After the suggestions sheet is gone.
+                        Task { @MainActor in composer = .new(tripID: tripID) }
+                    } ignore: { hidden in
+                        try? model.uploads.ignoreAssets(hidden.map(\.localIdentifier), accountID: account.id)
+                        Task { await updateSuggestions() }
+                    }
+                }
+                .confirmationDialog(
+                    "Sharing is off for this trip",
+                    isPresented: Binding(get: { enableSharingFor != nil }, set: { if !$0 { enableSharingFor = nil } }),
+                    titleVisibility: .visible,
+                    presenting: enableSharingFor
+                ) { target in
+                    Button("Turn on sharing and share") { Task { await enableSharing(then: target) } }
+                } message: { _ in
+                    Text("Anyone with the link can then read the trip.")
+                }
+                .alert("No access to your photos", isPresented: $photoAccessDenied) {
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("To suggest photos from this trip, OwnSteps needs to read your photo library.")
+                }
+                .sheet(item: $editing) { step in
+                    EditStepView(account: account, step: step) { Task { await refresh() } }
+                }
+                .sheet(isPresented: $editingTrip) {
+                    if let trip {
+                        TripFormView(account: account, trip: trip.withoutSteps, calendar: calendar) { _ in
+                            Task { await refresh() }
+                        }
+                    }
+                }
+        } else {
+            content
         }
     }
 
@@ -324,67 +432,76 @@ struct TimelineView: View {
     let calendar: TripCalendar
     let staleSince: Date?
     let queue: UploadSnapshot
-    @Binding var scrollTarget: Int?
+    @Binding var focusedItem: String?
     let actions: StepActions
     var suggestions: SuggestionsBanner?
 
     /// One fullscreen viewer for the whole timeline. With one per row,
     /// List's cell reuse presented another step's photos.
     @State private var viewer: ViewerRequest?
+    @Namespace private var photoTransition
 
     var body: some View {
         let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.steps.first?.occurredAt)
-        ScrollViewReader { proxy in
-            List {
-                Section {
-                    TripHeader(trip: trip, calendar: calendar)
-                } footer: {
-                    if let staleSince { OfflineNote(fetchedAt: staleSince) }
-                }
+        let items = items(start: start)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                TripHeader(trip: trip, calendar: calendar, staleSince: staleSince)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 22)
+                    .padding(.bottom, 20)
+                    .id(TimelineItem.headerID)
 
                 if let suggestions {
-                    Section {
-                        SuggestionsCard(count: suggestions.count, review: suggestions.review, dismiss: suggestions.dismiss)
-                    }
+                    SuggestionsCard(count: suggestions.count, review: suggestions.review, dismiss: suggestions.dismiss)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
                 }
 
-                if trip.steps.isEmpty && queue.localSteps.isEmpty {
+                if items.isEmpty {
                     ContentUnavailableView(
                         "No steps yet",
                         systemImage: "mappin.slash",
                         description: Text("Steps appear here once the trip gets going.")
                     )
-                    .listRowBackground(Color.clear)
+                    .padding(.vertical, 24)
                 }
 
-                ForEach(items(start: start)) { item in
-                    Section {
-                        switch item.kind {
-                        case .server(let step):
-                            StepCard(
-                                account: account,
-                                step: step,
-                                day: item.day,
-                                calendar: calendar,
-                                pending: queue.uploadsByStepID[step.id] ?? [],
-                                actions: actions
-                            ) { index in
-                                viewer = ViewerRequest(stepID: step.id, index: index)
+                ForEach(items) { item in
+                    VStack(alignment: .leading, spacing: 0) {
+                        Divider()
+                        Group {
+                            switch item.kind {
+                            case .server(let step):
+                                StepCard(
+                                    account: account,
+                                    step: step,
+                                    day: item.day,
+                                    calendar: calendar,
+                                    pending: queue.uploadsByStepID[step.id] ?? [],
+                                    actions: actions,
+                                    photoTransition: photoTransition
+                                ) { index in
+                                    viewer = ViewerRequest(stepID: step.id, index: index)
+                                }
+                            case .local(let local):
+                                LocalStepCard(account: account, local: local, day: item.day, calendar: calendar)
                             }
-                        case .local(let local):
-                            LocalStepCard(account: account, local: local, day: item.day, calendar: calendar)
                         }
+                        .padding(.vertical, 20)
                     }
-                    .id(item.scrollID)
+                    .padding(.horizontal, 20)
+                    .id(item.id)
                 }
             }
-            .listSectionSpacing(.compact)
-            .onAppear { scroll(proxy) }
-            .onChange(of: scrollTarget) { scroll(proxy) }
-            .fullScreenCover(item: $viewer) { request in
-                if let step = trip.steps.first(where: { $0.id == request.stepID }) {
-                    PhotoViewer(account: account, photos: step.photos, startIndex: request.index)
-                }
+            .scrollTargetLayout()
+            .padding(.bottom, 24)
+        }
+        .scrollPosition(id: $focusedItem, anchor: .top)
+        .fullScreenCover(item: $viewer) { request in
+            if let step = trip.steps.first(where: { $0.id == request.stepID }) {
+                PhotoViewer(account: account, photos: step.photos, startIndex: request.index)
+                    .navigationTransition(.zoom(sourceID: request.id, in: photoTransition))
             }
         }
     }
@@ -404,39 +521,65 @@ struct TimelineView: View {
             }
             .sorted { $0.date > $1.date }
     }
-
-    private func scroll(_ proxy: ScrollViewProxy) {
-        guard let target = scrollTarget else { return }
-        withAnimation { proxy.scrollTo(target, anchor: .top) }
-        scrollTarget = nil
-    }
 }
 
+/// Title, dates and the trip in numbers – what the sheet shows when it's low.
 struct TripHeader: View {
     let trip: Components.Schemas.TripDetail
     let calendar: TripCalendar
+    let staleSince: Date?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(trip.title).font(.title2.bold())
-            HStack(spacing: 6) {
-                if let range = TripDates.range(
-                    start: calendar.date(fromCalendarDay: trip.startDate) ?? trip.firstStepAt,
-                    end: calendar.date(fromCalendarDay: trip.endDate) ?? trip.lastStepAt,
-                    calendar: calendar
-                ) {
+        let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.firstStepAt)
+        let end = calendar.date(fromCalendarDay: trip.endDate) ?? trip.lastStepAt
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(trip.title)
+                    .font(.title.bold())
+                if let range = TripDates.range(start: start, end: end, calendar: calendar) {
                     Text(range)
-                    Text("·")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                Text("\(trip.stepCount) steps")
             }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+
+            HStack(alignment: .top, spacing: 0) {
+                if let start, let end {
+                    TripStat(label: "Days", value: max(calendar.tripDay(of: end, start: start), 1))
+                }
+                TripStat(label: "Steps", value: trip.stepCount)
+                TripStat(label: "Photos", value: trip.photoCount)
+            }
+
             if let summary = trip.summary, !summary.isEmpty {
-                Text(summary).font(.callout)
+                Text(summary)
+                    .font(.callout)
+            }
+            if let staleSince {
+                OfflineNote(fetchedAt: staleSince)
+                    .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct TripStat: View {
+    let label: LocalizedStringKey
+    let value: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundStyle(.secondary)
+            Text(value, format: .number)
+                .font(.title2.bold())
+                .fontDesign(.rounded)
+                .contentTransition(.numericText())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -447,11 +590,18 @@ struct StepCard: View {
     let calendar: TripCalendar
     var pending: [PendingUpload] = []
     let actions: StepActions
+    let photoTransition: Namespace.ID
     let openPhoto: (Int) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            StepHeader(day: day, date: step.occurredAt, calendar: calendar) {
+        VStack(alignment: .leading, spacing: 14) {
+            StepHeader(
+                day: day,
+                date: step.occurredAt,
+                calendar: calendar,
+                place: step.placeName,
+                showOnMap: step.lat != nil && step.lon != nil ? { actions.showOnMap(step) } : nil
+            ) {
                 if actions.isAuthor {
                     Button("Edit", systemImage: "pencil") { actions.edit(step) }
                     Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
@@ -460,14 +610,8 @@ struct StepCard: View {
                 Button("Comment", systemImage: "text.bubble") { actions.comment(step) }
             }
 
-            if let place = step.placeName {
-                Label(place, systemImage: "mappin")
-                    .font(.headline)
-                    .labelStyle(.titleAndIcon)
-            }
-
             if !step.photos.isEmpty {
-                PhotoGrid(account: account, photos: step.photos, open: openPhoto)
+                PhotoGrid(account: account, stepID: step.id, photos: step.photos, transition: photoTransition, open: openPhoto)
             }
 
             if !pending.isEmpty {
@@ -475,7 +619,9 @@ struct StepCard: View {
             }
 
             if !step.body.isEmpty {
-                Text(step.body).font(.body)
+                Text(step.body)
+                    .font(.body)
+                    .lineSpacing(2)
             }
 
             if !step.comments.isEmpty {
@@ -485,41 +631,74 @@ struct StepCard: View {
                     delete: actions.isAuthor ? actions.deleteComment : nil
                 )
             }
+
+            HStack(spacing: 22) {
+                Button { actions.comment(step) } label: {
+                    Label("Comment", systemImage: "bubble.left")
+                }
+                if actions.isAuthor {
+                    Button { actions.share(step) } label: {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+            .buttonStyle(.borderless)
         }
-        .padding(.vertical, 6)
     }
 }
 
-/// Day badge, date and the step's menu – the same for steps on the server
+/// Day, date, place and the step's menu – the same for steps on the server
 /// and steps still on the device.
 struct StepHeader<MenuItems: View>: View {
     let day: Int?
     let date: Date
     let calendar: TripCalendar
+    var place: String?
+    /// Set when the step has a position.
+    var showOnMap: (() -> Void)?
     @ViewBuilder let menu: () -> MenuItems
 
     var body: some View {
-        HStack(spacing: 8) {
-            if let day {
-                Text("Day \(day)")
-                    .font(.caption.bold())
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(.tint.opacity(0.15), in: .capsule)
-                    .foregroundStyle(.tint)
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    if let day {
+                        Text("Day \(day)")
+                            .foregroundStyle(.tint)
+                        Text("·")
+                    }
+                    Text(date.formatted(
+                        Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
+                    ))
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+                if let place {
+                    if let showOnMap {
+                        Button(action: showOnMap) {
+                            Text(place)
+                                .multilineTextAlignment(.leading)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(Text("Show on map"))
+                    } else {
+                        Text(place)
+                    }
+                }
             }
-            Text(date.formatted(
-                Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
-            ))
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            Spacer()
+            .font(.title3.bold())
+            Spacer(minLength: 0)
             Menu {
                 menu()
             } label: {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "ellipsis")
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .frame(minWidth: 32, minHeight: 32)
+                    .frame(width: 36, height: 36)
+                    .contentShape(.rect)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("Step options"))
@@ -535,6 +714,7 @@ struct StepActions {
     let share: (Components.Schemas.Step) -> Void
     let comment: (Components.Schemas.Step) -> Void
     let deleteComment: (Components.Schemas.Comment) -> Void
+    let showOnMap: (Components.Schemas.Step) -> Void
 }
 
 struct SuggestionsBanner {
@@ -558,70 +738,95 @@ struct TimelineItem: Identifiable {
     let date: Date
     var day: Int?
 
+    /// Doubles as the scroll position, which the map follows.
     var id: String {
         switch kind {
-        case .server(let step): "server-\(step.id)"
+        case .server(let step): Self.id(serverStep: step.id)
         case .local(let local): "local-\(local.id)"
         }
     }
 
-    /// Server steps scroll by their ID (map → timeline).
-    var scrollID: AnyHashable {
-        switch kind {
-        case .server(let step): AnyHashable(step.id)
-        case .local(let local): AnyHashable(local.id)
-        }
-    }
+    static func id(serverStep: Int) -> String { "server-\(serverStep)" }
+    static let headerID = "header"
 }
 
 struct ViewerRequest: Identifiable {
     let stepID: Int
     let index: Int
-    var id: String { "\(stepID)-\(index)" }
+    var id: String { PhotoGrid.transitionID(stepID: stepID, index: index) }
 }
 
-/// One photo full width, several as a grid; more than four end in "+n".
+/// One photo full width; two side by side; three as one large and two
+/// small; more as a large one over a row of three, the last with "+n".
 struct PhotoGrid: View {
     let account: Account
+    let stepID: Int
     let photos: [Components.Schemas.Photo]
+    let transition: Namespace.ID
     let open: (Int) -> Void
 
+    private let gap: CGFloat = 3
+
+    static func transitionID(stepID: Int, index: Int) -> String { "\(stepID)-\(index)" }
+
     var body: some View {
-        let visible = Array(photos.prefix(4))
-        let hidden = photos.count - visible.count
-        if photos.count == 1 {
-            tile(photos[0], index: 0, variant: .medium)
-                .aspectRatio(CGFloat(photos[0].width) / CGFloat(max(photos[0].height, 1)), contentMode: .fit)
-                .frame(maxHeight: 420)
-                .clipShape(.rect(cornerRadius: 14))
-        } else {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4)], spacing: 4) {
-                ForEach(Array(visible.enumerated()), id: \.element.id) { index, photo in
-                    tile(photo, index: index, variant: .thumb)
-                        .aspectRatio(1, contentMode: .fit)
-                        .overlay {
-                            if hidden > 0 && index == visible.count - 1 {
-                                ZStack {
-                                    Color.black.opacity(0.45)
-                                    Text("+\(hidden)").font(.title2.bold()).foregroundStyle(.white)
+        Group {
+            switch photos.count {
+            case 1:
+                let photo = photos[0]
+                // Portraits are cropped to 4:5, so one photo can't fill the screen.
+                let ratio = max(CGFloat(photo.width) / CGFloat(max(photo.height, 1)), 0.8)
+                tile(0, variant: .medium)
+                    .aspectRatio(ratio, contentMode: .fit)
+            case 2:
+                HStack(spacing: gap) {
+                    tile(0)
+                    tile(1)
+                }
+                .aspectRatio(3 / 2, contentMode: .fit)
+            case 3:
+                HStack(spacing: gap) {
+                    tile(0, variant: .medium)
+                    VStack(spacing: gap) {
+                        tile(1)
+                        tile(2)
+                    }
+                }
+                .aspectRatio(4 / 3, contentMode: .fit)
+            default:
+                Color.clear
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay {
+                        GeometryReader { geometry in
+                            VStack(spacing: gap) {
+                                tile(0, variant: .medium)
+                                    .frame(height: geometry.size.height * 0.62)
+                                HStack(spacing: gap) {
+                                    tile(1)
+                                    tile(2)
+                                    tile(3, more: photos.count - 4)
                                 }
-                                // Lets the tap through to the tile's button.
-                                .allowsHitTesting(false)
                             }
                         }
-                }
+                    }
             }
-            .clipShape(.rect(cornerRadius: 14))
         }
+        .clipShape(.rect(cornerRadius: 18))
     }
 
-    private func tile(_ photo: Components.Schemas.Photo, index: Int, variant: MediaVariant) -> some View {
-        Button { open(index) } label: {
+    private func tile(_ index: Int, variant: MediaVariant = .thumb, more: Int = 0) -> some View {
+        let photo = photos[index]
+        return Button { open(index) } label: {
             Color.clear
                 .overlay { RemoteImage(account: account, photo: photo, variant: variant) }
                 .clipped()
                 .overlay {
-                    if photo.mediaType == .video {
+                    if more > 0 {
+                        ZStack {
+                            Color.black.opacity(0.45)
+                            Text("+\(more)").font(.title2.bold()).foregroundStyle(.white)
+                        }
+                    } else if photo.mediaType == .video {
                         Image(systemName: "play.circle.fill")
                             .font(.largeTitle)
                             .foregroundStyle(.white, .black.opacity(0.4))
@@ -630,6 +835,7 @@ struct PhotoGrid: View {
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .matchedTransitionSource(id: Self.transitionID(stepID: stepID, index: index), in: transition)
         .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(index + 1)")))
     }
 }
@@ -643,17 +849,22 @@ struct CommentList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(comments, id: \.id) { comment in
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(comment.authorName).font(.footnote.bold())
+                        Text(comment.authorName).font(.subheadline.bold())
                         Text(comment.createdAt.formatted(
                             Date.FormatStyle(date: .abbreviated, time: .omitted, timeZone: calendar.calendar.timeZone)
                         ))
-                        .font(.footnote)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                     }
-                    Text(comment.body).font(.callout)
+                    Text(comment.body).font(.subheadline)
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.fill.tertiary, in: .rect(cornerRadius: 16))
+                .contentShape(.contextMenuPreview, .rect(cornerRadius: 16))
                 .contextMenu {
                     if let delete {
                         Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
@@ -661,8 +872,6 @@ struct CommentList: View {
                 }
             }
         }
-        .padding(.top, 6)
-        .overlay(alignment: .top) { Divider().offset(y: -4) }
     }
 }
 

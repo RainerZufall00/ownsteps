@@ -398,6 +398,27 @@ marked `required`, and nullable fields with a format are written as
 `type: [x, "null"]` instead of `anyOf` – otherwise the generator silently
 drops them (`simplifyNullables()` in `src/lib/api/openapi.ts`).
 
+**Layout**: on the iPhone the trips are large cover cards (the trip's
+`cover` from the API – the cover photo, else the first one – so the list
+needs no second request; older servers leave it out and get a colored
+placeholder). Opening a card zooms into the trip, where the route fills the
+screen and the timeline lies over it as a sheet in three heights. With room
+for it (iPad, regular width) the trips are a sidebar and the timeline an
+inspector column next to the map. Map and timeline follow each other: a
+tapped marker scrolls the timeline to its step, scrolling the timeline flies
+the map to the step at the top. Photos open with a zoom transition and close
+by swiping down. Controls that float over content are Liquid Glass; the
+content itself (cards, comments) is not.
+
+Three SwiftUI traps from building it: the inspector does *not* turn into a
+sheet on the iPhone as documented, so the iPhone uses a real sheet – and
+since a view can't present a second sheet while one is up, every other sheet
+of the trip is presented from inside the timeline sheet. The toolbar has to
+be attached *outside* `.inspector`, or its items vanish while the inspector
+is open. And state read only inside a lazy container's closures doesn't
+make `body` update: the trip list stayed on its spinner after a first load
+into an empty cache, so `body` reads the lists and hands them down.
+
 **Reading** (phase 4b): the trip list and each trip are shown from the GRDB
 cache (`TripCache`, responses stored as JSON per account and trip) and
 refreshed behind it; offline, a note says how old the copy is. Photos go

@@ -87,10 +87,10 @@ struct TripFormView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { dismiss() }
+                    Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(trip == nil ? "Create" : "Save", action: save)
+                    Button(role: .confirm, action: save)
                         .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || busy)
                 }
             }

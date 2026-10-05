@@ -76,10 +76,10 @@ struct EditStepView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { dismiss() }
+                    Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: save).disabled(busy)
+                    Button(role: .confirm, action: save).disabled(busy)
                 }
             }
             .disabled(busy)

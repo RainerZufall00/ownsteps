@@ -3,15 +3,14 @@ import OwnStepsKit
 import SwiftUI
 
 /// The route on Apple's map ([D18]: MapKit, no key, no cost for the host).
-/// The line connects the steps in the order they happened.
+/// The line connects the steps in the order they happened. It fills the trip
+/// screen; the timeline lies on top of it, and both follow each other: a
+/// tapped marker scrolls the timeline, a scrolled timeline moves the map.
 struct TripMapView: View {
     let account: Account
     let trip: Components.Schemas.TripDetail
-    let calendar: TripCalendar
-    let openInTimeline: (Int) -> Void
-
-    @State private var selection: Int?
-    @State private var position: MapCameraPosition = .automatic
+    @Binding var selection: Int?
+    @Binding var position: MapCameraPosition
 
     private var located: [Components.Schemas.Step] {
         trip.steps.filter { $0.lat != nil && $0.lon != nil }
@@ -43,27 +42,48 @@ struct TripMapView: View {
         .mapControls {
             MapUserLocationButton()
             MapCompass()
+            MapScaleView()
         }
-        .overlay {
+        .overlay(alignment: .bottom) {
             if steps.isEmpty {
-                ContentUnavailableView(
-                    "No places yet",
-                    systemImage: "map",
-                    description: Text("Photos with GPS data put the markers on the map.")
-                )
-                .background(.regularMaterial)
+                Label("Photos with GPS data put the markers on the map.", systemImage: "map")
+                    .font(.footnote.weight(.medium))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .glassEffect(.regular, in: .capsule)
+                    .padding()
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if let step = steps.first(where: { $0.id == selection }) {
-                SelectedStepCard(step: step, trip: trip, calendar: calendar) {
-                    openInTimeline(step.id)
-                }
-                .padding()
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+        .sensoryFeedback(.selection, trigger: selection) { _, new in new != nil }
+    }
+
+    /// The whole route – but never closer than a region, or a trip with one
+    /// step would show rooftops.
+    static func overview(of trip: Components.Schemas.TripDetail) -> MapCameraPosition {
+        let points = trip.steps.compactMap { step -> CLLocationCoordinate2D? in
+            guard let lat = step.lat, let lon = step.lon else { return nil }
+            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
         }
-        .animation(.snappy, value: selection)
+        guard let first = points.first else { return .automatic }
+        var (minLat, maxLat, minLon, maxLon) = (first.latitude, first.latitude, first.longitude, first.longitude)
+        for point in points {
+            minLat = min(minLat, point.latitude)
+            maxLat = max(maxLat, point.latitude)
+            minLon = min(minLon, point.longitude)
+            maxLon = max(maxLon, point.longitude)
+        }
+        let center = CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLon + maxLon) / 2)
+        let span = MKCoordinateSpan(
+            latitudeDelta: max((maxLat - minLat) * 1.3, 0.5),
+            longitudeDelta: max((maxLon - minLon) * 1.3, 0.5)
+        )
+        return .region(MKCoordinateRegion(center: center, span: span))
+    }
+
+    /// Close enough to see the place, far enough to see where it lies.
+    static func camera(for step: Components.Schemas.Step) -> MapCameraPosition? {
+        guard let lat = step.lat, let lon = step.lon else { return nil }
+        return .camera(MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), distance: 60_000))
     }
 }
 
@@ -86,43 +106,9 @@ struct StepMarker: View {
         }
         .frame(width: 44, height: 44)
         .clipShape(.circle)
-        .overlay(Circle().stroke(.white, lineWidth: 3))
+        .overlay(Circle().stroke(selected ? Color.accentColor : .white, lineWidth: 3))
         .shadow(radius: 4)
-        .scaleEffect(selected ? 1.3 : 1)
+        .scaleEffect(selected ? 1.35 : 1, anchor: .bottom)
         .animation(.snappy, value: selected)
-    }
-}
-
-struct SelectedStepCard: View {
-    let step: Components.Schemas.Step
-    let trip: Components.Schemas.TripDetail
-    let calendar: TripCalendar
-    let open: () -> Void
-
-    var body: some View {
-        Button(action: open) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.steps.first?.occurredAt) {
-                        Text("Day \(calendar.tripDay(of: step.occurredAt, start: start))")
-                            .font(.caption.bold())
-                            .foregroundStyle(.tint)
-                    }
-                    Text(step.placeName ?? step.occurredAt.formatted(
-                        Date.FormatStyle(date: .abbreviated, time: .omitted, timeZone: calendar.calendar.timeZone)
-                    ))
-                    .font(.headline)
-                    Text("Tap to read")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(.secondary)
-            }
-            .padding()
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .glassEffect(in: .rect(cornerRadius: 20))
     }
 }

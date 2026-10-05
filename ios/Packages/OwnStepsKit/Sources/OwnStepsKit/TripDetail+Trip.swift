@@ -9,7 +9,7 @@ extension Components.Schemas.TripDetail {
             id: id, title: title, summary: summary, startDate: startDate,
             endDate: endDate, coverPhotoId: coverPhotoId, stepCount: stepCount,
             photoCount: photoCount, firstStepAt: firstStepAt, lastStepAt: lastStepAt,
-            updatedAt: updatedAt, share: share
+            updatedAt: updatedAt, share: share, cover: cover
         )
     }
 }

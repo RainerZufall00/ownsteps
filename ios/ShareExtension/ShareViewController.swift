@@ -191,7 +191,7 @@ struct ShareView: View {
                 .toolbar {
                     if model.phase != .savedForLater {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Cancel", role: .cancel) {
+                            Button(role: .cancel) {
                                 model.discard()
                                 close()
                             }
@@ -199,11 +199,11 @@ struct ShareView: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         if model.phase == .savedForLater {
-                            Button("Done", action: close)
+                            Button(role: .close, action: close)
                         } else if model.phase == .sending || model.phase == .sent {
                             ProgressView()
                         } else if model.choice != nil {
-                            Button("Save") { Task { await model.send() } }.disabled(!model.canSend)
+                            Button(role: .confirm) { Task { await model.send() } }.disabled(!model.canSend)
                         }
                     }
                 }

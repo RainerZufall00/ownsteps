@@ -1,32 +1,12 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "Cancel": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abbrechen"
-          }
-        }
-      }
-    },
     "Date": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Datum"
-          }
-        }
-      }
-    },
-    "Done": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fertig"
           }
         }
       }
@@ -97,16 +77,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fotos werden vorbereitet …"
-          }
-        }
-      }
-    },
-    "Save": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichern"
           }
         }
       }

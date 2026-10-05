@@ -14,13 +14,9 @@ struct LocalStepCard: View {
     private var step: PendingStep { local.step }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            StepHeader(day: day, date: step.occurredAt, calendar: calendar) {
+        VStack(alignment: .leading, spacing: 14) {
+            StepHeader(day: day, date: step.occurredAt, calendar: calendar, place: step.placeName) {
                 Button("Discard step", systemImage: "trash", role: .destructive) { confirmDiscard = true }
-            }
-
-            if let place = step.placeName {
-                Label(place, systemImage: "mappin").font(.headline)
             }
 
             if !local.uploads.isEmpty {
@@ -43,7 +39,6 @@ struct LocalStepCard: View {
                 PendingUploadsView(uploads: local.uploads, showThumbnails: false)
             }
         }
-        .padding(.vertical, 6)
         .opacity(0.92)
         .confirmationDialog("Discard this step? It hasn't reached the server.", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Discard step", role: .destructive) {

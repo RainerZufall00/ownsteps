@@ -172,7 +172,7 @@ struct PhotoSuggestionsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { close() }
+                    Button(role: .cancel) { close() }
                 }
                 ToolbarItemGroup(placement: .bottomBar) {
                     Button("Hide", systemImage: "eye.slash") {

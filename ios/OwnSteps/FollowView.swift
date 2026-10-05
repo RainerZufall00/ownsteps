@@ -55,13 +55,13 @@ struct FollowView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { dismiss() }
+                    Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if following {
                         ProgressView()
                     } else {
-                        Button("Follow", action: follow)
+                        Button(role: .confirm, action: follow)
                             .disabled(parsed == nil || name.trimmingCharacters(in: .whitespaces).count < 2)
                     }
                 }

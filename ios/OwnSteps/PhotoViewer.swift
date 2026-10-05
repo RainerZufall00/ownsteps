@@ -33,35 +33,41 @@ struct PhotoViewer: View {
         .overlay(alignment: .top) {
             HStack {
                 // Videos bring their own controls in this corner.
-                if photos[safe: index]?.mediaType != .video {
+                if photos.count > 1 && photos[safe: index]?.mediaType != .video {
                     Text("\(index + 1) / \(photos.count)")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.8))
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                        .contentTransition(.numericText())
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .glassEffect(.regular, in: .capsule)
                 }
                 Spacer()
                 Button {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.headline)
-                        .padding(10)
+                        .font(.body.weight(.semibold))
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
                 .accessibilityLabel(Text("Close"))
             }
             .padding(.horizontal)
+            .animation(.snappy, value: index)
         }
         .overlay(alignment: .bottom) {
             if let caption = photos[safe: index]?.caption, !caption.isEmpty {
                 Text(caption)
                     .font(.callout)
-                    .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .glassEffect(.regular, in: .rect(cornerRadius: 22))
                     .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(.black.opacity(0.4))
             }
         }
+        .environment(\.colorScheme, .dark)
         .onAppear { index = startIndex }
         .statusBarHidden()
     }

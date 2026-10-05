@@ -35,13 +35,13 @@ struct CommentComposer: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { dismiss() }
+                    Button(role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if sending {
                         ProgressView()
                     } else {
-                        Button("Send", action: send)
+                        Button(role: .confirm, action: send)
                             .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }
@@ -125,7 +125,7 @@ struct ReadersView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(role: .close) { dismiss() }
                 }
                 ToolbarItem(placement: .bottomBar) {
                     if let readers, !readers.isEmpty {

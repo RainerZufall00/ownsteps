@@ -131,13 +131,13 @@ struct StepComposerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) {
+                    Button(role: .cancel) {
                         allPrepared.forEach { $0.discard() }
                         dismiss()
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: save).disabled(!canSave)
+                    Button(role: .confirm, action: save).disabled(!canSave)
                 }
             }
             .onChange(of: selection) { prepareSelection() }

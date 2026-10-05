@@ -79,6 +79,7 @@ export function tripDto(
   trip: Trip,
   stats: TripStats,
   share: { url: string } | null,
+  cover: Photo | null,
 ): TripDto {
   return {
     id: trip.id,
@@ -101,6 +102,7 @@ export function tripDto(
           },
         }
       : {}),
+    ...(cover ? { cover: photoDto(cover) } : {}),
   };
 }
 
@@ -108,9 +110,10 @@ export function tripDetailDto(
   trip: Trip,
   steps: StepWithPhotos[],
   share: { url: string } | null,
+  cover: Photo | null,
 ): TripDetailDto {
   return {
-    ...tripDto(trip, summarizeSteps(trip, steps), share),
+    ...tripDto(trip, summarizeSteps(trip, steps), share, cover),
     steps: steps.map(stepDto),
   };
 }

@@ -4,7 +4,8 @@ import { PUBLIC_URL } from "@/lib/env";
 import { ServiceError } from "@/lib/errors";
 import { publicOrigin } from "@/lib/origin";
 import { shareUrl } from "@/lib/share";
-import { getSteps, listTrips, type TripSummary } from "@/lib/trips";
+import { getPhoto } from "@/lib/photos";
+import { getSteps, listTrips, summarizeSteps, type TripSummary } from "@/lib/trips";
 import type { Trip } from "@/db/schema";
 import type { Principal } from "./principal";
 import { tripDetailDto, tripDto } from "./serialize";
@@ -26,6 +27,7 @@ export function summaryDto(principal: Principal, summary: TripSummary, request: 
       lastStepAt: summary.lastStepAt,
     },
     shareFor(principal, summary, request),
+    summary.coverPhoto,
   );
 }
 
@@ -37,5 +39,11 @@ export async function tripSummaryDto(principal: Principal, trip: Trip, request: 
 }
 
 export async function tripDetailFor(principal: Principal, trip: Trip, request: Request) {
-  return tripDetailDto(trip, await getSteps(trip.id), shareFor(principal, trip, request));
+  const steps = await getSteps(trip.id);
+  const coverId = summarizeSteps(trip, steps).coverPhotoId;
+  // A cover uploaded in the trip settings belongs to no step.
+  const cover =
+    steps.flatMap((step) => step.photos).find((photo) => photo.id === coverId) ??
+    (coverId ? await getPhoto(coverId) : null);
+  return tripDetailDto(trip, steps, shareFor(principal, trip, request), cover);
 }

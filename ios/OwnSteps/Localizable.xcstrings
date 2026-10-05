@@ -230,6 +230,16 @@
         }
       }
     },
+    "Choose a trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle eine Reise"
+          }
+        }
+      }
+    },
     "Choose cover image": {
       "localizations": {
         "de": {
@@ -270,16 +280,6 @@
         }
       }
     },
-    "Create": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anlegen"
-          }
-        }
-      }
-    },
     "Date": {
       "localizations": {
         "de": {
@@ -296,6 +296,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tag %lld"
+          }
+        }
+      }
+    },
+    "Days": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tage"
           }
         }
       }
@@ -360,16 +370,6 @@
         }
       }
     },
-    "Done": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fertig"
-          }
-        }
-      }
-    },
     "Edit": {
       "localizations": {
         "de": {
@@ -426,16 +426,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enddatum"
-          }
-        }
-      }
-    },
-    "Follow": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Folgen"
           }
         }
       }
@@ -536,6 +526,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Einladen"
+          }
+        }
+      }
+    },
+    "Its route and steps appear here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hier erscheinen ihre Route und ihre Stationen."
           }
         }
       }
@@ -706,6 +706,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Noch keine Stationen"
+          }
+        }
+      }
+    },
+    "No trips yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Reisen"
           }
         }
       }
@@ -1063,16 +1073,6 @@
         }
       }
     },
-    "Save": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichern"
-          }
-        }
-      }
-    },
     "Scanned or opened, the link shows the trip – in the app, if it's installed.": {
       "localizations": {
         "de": {
@@ -1089,16 +1089,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Alle auswählen"
-          }
-        }
-      }
-    },
-    "Send": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Senden"
           }
         }
       }
@@ -1139,6 +1129,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Einstellungen"
+          }
+        }
+      }
+    },
+    "Share": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Teilen"
           }
         }
       }
@@ -1189,6 +1189,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kurzbeschreibung (optional)"
+          }
+        }
+      }
+    },
+    "Show on map": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf der Karte zeigen"
           }
         }
       }
@@ -1283,6 +1293,16 @@
         }
       }
     },
+    "Start a trip, then add steps with photos as you go.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leg eine Reise an und füge unterwegs Stationen mit Fotos hinzu."
+          }
+        }
+      }
+    },
     "Start date": {
       "localizations": {
         "de": {
@@ -1299,6 +1319,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Optionen für den Beitrag"
+          }
+        }
+      }
+    },
+    "Steps": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stationen"
           }
         }
       }
@@ -2015,9 +2045,6 @@
           }
         }
       }
-    },
-    "trips.example.com": {
-      "shouldTranslate": false
     },
     "·": {
       "shouldTranslate": false

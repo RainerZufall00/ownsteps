@@ -92,6 +92,11 @@ export const tripSchema = z
     lastStepAt: isoDateTime.nullable(),
     updatedAt: isoDateTime,
     share: shareSchema.optional(),
+    /**
+     * The photo behind `coverPhotoId`, so a list can show it without loading
+     * the trip. Left out when there is none – and by older servers.
+     */
+    cover: photoSchema.optional(),
   })
   .meta({ id: "Trip" });
 
