@@ -154,10 +154,9 @@ Besides photos, **videos** can be uploaded too (up to 400 MB). The poster
 frame is created in the browser; the file itself is stored unchanged, nothing
 is transcoded.
 
-The 400 MB are a memory limit, not a format limit: the server reads the file
-in one piece and briefly needs about twice as much RAM for it. On a small VPS
-that is the real limit. The editor rejects larger files right when they're
-picked instead of uploading them first. If a reverse proxy sits in front, it
+Uploads are streamed to disk, so even a 400 MB video doesn't need much RAM
+on the server. The editor rejects larger files right when they're picked
+instead of uploading them first. If a reverse proxy sits in front, it
 must let large uploads through – for nginx e.g. `client_max_body_size 400m;`;
 if an upload aborts without an entry in the container log, it's almost always
 the proxy.

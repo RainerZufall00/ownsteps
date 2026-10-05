@@ -298,7 +298,11 @@ rendered per request, hence `dynamic = "force-dynamic"` in the root layout.
 Scripts need the nonce ('strict-dynamic' lets them load chunks); styles
 stay `'unsafe-inline'` because React renders `style` attributes, which
 nonces don't cover. MapLibre needs `blob:` for its worker and sprites; map
-data comes through `/api/map` on our own origin. **An inline `<script>`
+data comes through `/api/map` on our own origin. The one exception is the
+OpenStreetMap fallback without a MapTiler key: its tile server
+(`OSM_TILE_ORIGIN`, `src/lib/map-sources.ts`) is allowed in `img-src` and
+`connect-src` only then – before, the policy blocked it and the fallback map
+stayed empty. **An inline `<script>`
 without the nonce, or a third-party origin, is blocked** – extend the policy
 in `proxy.ts` deliberately. Not yet checked with a real map: the test setup
 has no MapTiler key.
@@ -613,13 +617,18 @@ three-minute video then costs three minutes of waiting.
 image, 400 MB per video.** The editor checks first – otherwise a hundred
 megabytes travel over the network only for the server to reject them.
 
-The 400 MB are a **memory limit, not a format limit**. `/api/upload` reads the
-file in one piece: once while parsing the form (`request.formData()`), once as
-a `Buffer`. For a 400 MB video the server therefore briefly holds about a
-gigabyte in memory. On a small VPS that is the real ceiling, not the number
-in the constant. Anyone wanting to raise it must first get rid of the
-buffering – i.e. stream the request body to disk instead of using
-`formData()`.
+**Uploads are streamed to disk, not buffered.** Every upload route parses
+its body with `parseMultipart` (`src/lib/multipart.ts`, on top of
+`busboy`): each file goes straight into `DATA_DIR/tmp/` and stops being
+written the moment it crosses its limit. A video is then moved into its
+storage folder with a rename (same disk) and never passes through memory;
+images are read whole because sharp needs them, at most 25 MB. Before,
+`request.formData()` held the whole body plus a `Buffer` copy – a 400 MB
+video briefly needed about a gigabyte. Measured on the dev server with a
+300 MB video: about +1.4 GB peak before, about +0.24 GB after (most of it
+compiling the route); with the route already compiled, about +70 MB. The
+temporary files go in a `finally`; whatever a restart cut off is cleared at
+startup (`clearTmp`). The 400 MB are now about disk space and upload time.
 
 In front of that sit two limits OwnSteps doesn't know about and that show up
 differently: the **reverse proxy** (nginx `client_max_body_size`, with

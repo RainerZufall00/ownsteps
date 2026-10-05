@@ -105,7 +105,10 @@ describe("processUpload", () => {
 describe("processVideo", () => {
   it("stores the video next to the poster frame's variants", async () => {
     const video = Buffer.from("fake mp4 payload");
-    const meta = await processVideo(video, await makeJpeg(1280, 720));
+    const meta = await processVideo(
+      (destination) => fs.promises.writeFile(destination, video),
+      await makeJpeg(1280, 720),
+    );
 
     expect(fs.readFileSync(videoPath(meta.storageKey)).equals(video)).toBe(true);
     expect(fs.existsSync(variantPath(meta.storageKey, "medium"))).toBe(true);
@@ -113,10 +116,20 @@ describe("processVideo", () => {
     expect(meta.bytes).toBeGreaterThan(video.byteLength);
   });
 
+  it("leaves nothing behind when the video can't be saved", async () => {
+    const before = fs.readdirSync(UPLOAD_DIR).length;
+    await expect(
+      processVideo(async () => {
+        throw new Error("disk full");
+      }, await makeJpeg(1280, 720)),
+    ).rejects.toThrow("disk full");
+    expect(fs.readdirSync(UPLOAD_DIR).length).toBe(before);
+  });
+
   it("leaves nothing behind when the poster frame is broken", async () => {
     const before = fs.readdirSync(UPLOAD_DIR).length;
     await expect(
-      processVideo(Buffer.from("video"), Buffer.from("broken poster")),
+      processVideo(async () => {}, Buffer.from("broken poster")),
     ).rejects.toThrow();
     expect(fs.readdirSync(UPLOAD_DIR).length).toBe(before);
   });

@@ -1,5 +1,6 @@
 import "server-only";
 
+import fs from "node:fs/promises";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { photos, steps, type Photo } from "@/db/schema";
@@ -8,6 +9,7 @@ import { reverseGeocode } from "@/lib/geocode";
 import { deletePhotoFiles, processUpload, processVideo } from "@/lib/images";
 import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
 import { recordChange } from "@/lib/changes";
+import type { UploadedFile } from "@/lib/multipart";
 import {
   deletePhoto,
   getPhoto,
@@ -29,6 +31,12 @@ export type IncomingMedia = {
   type: string;
   size: number;
   read: () => Promise<Buffer>;
+  /**
+   * Puts the bytes at `destination` without reading them into memory – for
+   * an upload in `tmp/` a rename. Videos go this way; without it they are
+   * read and written.
+   */
+  saveTo?: (destination: string) => Promise<void>;
   /** Videos only: the poster frame, created by the client. */
   poster?: { read: () => Promise<Buffer> } | null;
   durationMs?: number | null;
@@ -102,10 +110,12 @@ export async function addMediaToStep(
 
     const video = isVideo(file);
     try {
-      const data = await file.read();
       const meta = video
-        ? await processVideo(data, await file.poster!.read())
-        : await processUpload(data);
+        ? await processVideo(
+            file.saveTo ?? (async (destination) => fs.writeFile(destination, await file.read())),
+            await file.poster!.read(),
+          )
+        : await processUpload(await file.read());
 
       // Make traceable what was read from the file – without this, "no GPS
       // found" leaves you guessing.
@@ -274,19 +284,27 @@ export async function removePhoto(photoId: number) {
   return deletePhoto(photoId);
 }
 
-/** Turns a `File` from a multipart form into an `IncomingMedia`. */
-export function fromFormFile(
-  file: File,
-  extra: { poster?: File | null; durationMs?: number | null } = {},
+/**
+ * Turns a streamed upload (`parseMultipart`) into an `IncomingMedia`. Only
+ * images are read into memory – sharp needs them whole and they're capped
+ * at 25 MB; a video is moved into place.
+ */
+export function fromUpload(
+  file: UploadedFile,
+  extra: { poster?: UploadedFile | null; durationMs?: number | null } = {},
 ): IncomingMedia {
   return {
     name: file.name,
     type: file.type,
     size: file.size,
-    read: async () => Buffer.from(await file.arrayBuffer()),
-    poster: extra.poster
-      ? { read: async () => Buffer.from(await extra.poster!.arrayBuffer()) }
-      : null,
+    read: () => fs.readFile(file.path),
+    saveTo: (destination) => fs.rename(file.path, destination),
+    poster: extra.poster ? { read: () => fs.readFile(extra.poster!.path) } : null,
     durationMs: extra.durationMs ?? null,
   };
+}
+
+/** The limit `parseMultipart` enforces while a file is still arriving. */
+export function uploadLimitFor(type: string) {
+  return ACCEPTED_VIDEO.test(type) ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
 }

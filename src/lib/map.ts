@@ -1,5 +1,6 @@
 import type { StyleSpecification } from "maplibre-gl";
-import { MAP_STYLE, MAPTILER_KEY } from "./env";
+import { MAP_STYLE } from "./env";
+import { OSM_TILE_ORIGIN, usesOsmFallback } from "./map-sources";
 
 /**
  * Fallback map so the app shows something useful even without a MapTiler key.
@@ -10,7 +11,7 @@ const OSM_FALLBACK: StyleSpecification = {
   sources: {
     osm: {
       type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tiles: [`${OSM_TILE_ORIGIN}/{z}/{x}/{y}.png`],
       tileSize: 256,
       maxzoom: 19,
       attribution:
@@ -24,6 +25,6 @@ export type MapStyleConfig = string | StyleSpecification;
 
 /** Resolved on the server and handed to the map component. */
 export function getMapStyle(): MapStyleConfig {
-  if (!MAPTILER_KEY) return OSM_FALLBACK;
+  if (usesOsmFallback()) return OSM_FALLBACK;
   return `/api/map/maps/${MAP_STYLE}/style.json`;
 }

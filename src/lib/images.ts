@@ -38,19 +38,24 @@ export function videoPath(storageKey: string) {
  * Stores a video. The poster frame arrives as a finished image from the
  * browser and goes through the same processing as a photo – that keeps the
  * image free of ffmpeg, and grid and fullscreen view treat both media alike.
+ *
+ * The video itself never passes through memory: `saveVideo` puts it at the
+ * given path (for an upload, a rename out of `tmp/`).
  */
 export async function processVideo(
-  video: Buffer,
+  saveVideo: (destination: string) => Promise<void>,
   poster: Buffer,
 ): Promise<ExtractedMeta> {
   const meta = await processUpload(poster);
+  const destination = videoPath(meta.storageKey);
   try {
-    await fs.writeFile(videoPath(meta.storageKey), video);
+    await saveVideo(destination);
+    const { size } = await fs.stat(destination);
+    return { ...meta, bytes: meta.bytes + size };
   } catch (error) {
     await fs.rm(photoDir(meta.storageKey), { recursive: true, force: true });
     throw error;
   }
-  return { ...meta, bytes: meta.bytes + video.byteLength };
 }
 
 export type ExtractedMeta = {

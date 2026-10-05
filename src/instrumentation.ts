@@ -11,11 +11,14 @@ export async function register() {
   const { seedAdminFromEnv } = await import("./lib/auth");
   const { cleanupStaleDrafts } = await import("./lib/trips");
   const { cleanupOrphanedCovers } = await import("./lib/photos");
+  const { clearTmp } = await import("./lib/multipart");
 
   try {
     await seedAdminFromEnv();
     await cleanupStaleDrafts();
     await cleanupOrphanedCovers();
+    // Uploads cut off by a restart; no request runs yet.
+    await clearTmp();
   } catch (error) {
     console.error("[start] Initialization failed", error);
   }

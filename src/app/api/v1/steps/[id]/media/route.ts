@@ -1,7 +1,8 @@
 import { handle, idParam, json, problem } from "@/lib/api/http";
 import { requireAuthor } from "@/lib/api/principal";
 import { photoDto, stepDto } from "@/lib/api/serialize";
-import { addMediaToStep, fromFormFile } from "@/lib/services/media";
+import { parseMultipart } from "@/lib/multipart";
+import { addMediaToStep, fromUpload, uploadLimitFor } from "@/lib/services/media";
 import { getStep } from "@/lib/trips";
 
 /**
@@ -18,27 +19,29 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/step
     await requireAuthor(request);
     const stepId = idParam((await context.params).id, "step_not_found");
 
-    const form = await request.formData().catch(() => null);
-    const file = form?.get("file");
-    if (!form || !(file instanceof File)) return problem("no_file");
-    const poster = form.get("poster");
-    const clientUuid = form.get("clientUuid");
+    const form = await parseMultipart(request, uploadLimitFor);
+    try {
+      const file = form.file("file");
+      if (!file) return problem("no_file");
 
-    const result = await addMediaToStep(stepId, [
-      {
-        ...fromFormFile(file, {
-          poster: poster instanceof File ? poster : null,
-          durationMs: Number(form.get("durationMs")),
-        }),
-        clientUuid: typeof clientUuid === "string" && clientUuid ? clientUuid : null,
-      },
-    ]);
+      const result = await addMediaToStep(stepId, [
+        {
+          ...fromUpload(file, {
+            poster: form.file("poster"),
+            durationMs: Number(form.fields.get("durationMs")),
+          }),
+          clientUuid: form.fields.get("clientUuid") || null,
+        },
+      ]);
 
-    const failure = result.failed[0];
-    if (failure) return problem(failure.code);
-    return json(
-      { photo: photoDto(result.photos[0]), step: stepDto((await getStep(stepId))!) },
-      201,
-    );
+      const failure = result.failed[0];
+      if (failure) return problem(failure.code);
+      return json(
+        { photo: photoDto(result.photos[0]), step: stepDto((await getStep(stepId))!) },
+        201,
+      );
+    } finally {
+      await form.dispose();
+    }
   });
 }

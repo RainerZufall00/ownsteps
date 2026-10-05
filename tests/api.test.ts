@@ -3,6 +3,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createUser } from "@/lib/auth";
+import { MAX_IMAGE_BYTES } from "@/lib/limits";
+import { TMP_DIR } from "@/lib/multipart";
 import { createAuthCode, pkceChallenge } from "@/lib/tokens";
 import { makeJpeg } from "./helpers/exif";
 
@@ -266,6 +268,50 @@ describe("authors", () => {
       form: new FormData(),
     });
     expect(noFile.json.code).toBe("no_file");
+  });
+
+  it("moves an uploaded video into place and refuses oversized files", async () => {
+    const token = await signIn();
+    const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Norway" } });
+    const step = await call("POST", "/api/v1/trips/{id}/steps", {
+      token,
+      params: { id: trip.json.id },
+      body: { publish: false },
+    });
+    const video = Buffer.from("fake mp4 payload");
+
+    const form = new FormData();
+    form.set("file", new File([new Uint8Array(video)], "fjord.mp4", { type: "video/mp4" }));
+    form.set("poster", new File([new Uint8Array(await makeJpeg(640, 360))], "poster.jpg", { type: "image/jpeg" }));
+    form.set("durationMs", "4200");
+    const uploaded = await call("POST", "/api/v1/steps/{id}/media", {
+      token,
+      params: { id: step.json.id },
+      form,
+    });
+    expect(uploaded.status).toBe(201);
+    expect(uploaded.json.photo).toMatchObject({ mediaType: "video", durationMs: 4200 });
+
+    const served = await call("GET", "/api/v1/photos/{id}/{variant}", {
+      token,
+      params: { id: uploaded.json.photo.id, variant: "video" },
+    });
+    expect(served.status).toBe(200);
+    expect(served.headers.get("content-length")).toBe(String(video.length));
+
+    // One byte over the image limit: rejected, and nothing stays in tmp/.
+    const tooBig = new FormData();
+    tooBig.set(
+      "file",
+      new File([new Uint8Array(MAX_IMAGE_BYTES + 1)], "huge.jpg", { type: "image/jpeg" }),
+    );
+    const rejected = await call("POST", "/api/v1/steps/{id}/media", {
+      token,
+      params: { id: step.json.id },
+      form: tooBig,
+    });
+    expect(rejected.json.code).toBe("image_too_large");
+    expect(fs.readdirSync(TMP_DIR)).toEqual([]);
   });
 
   it("signs a device out", async () => {
