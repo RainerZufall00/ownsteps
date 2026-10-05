@@ -137,23 +137,35 @@ export async function processUpload(buffer: Buffer): Promise<ExtractedMeta> {
     }
   }
 
-  const source = sharp(buffer, { failOn: "none" }).rotate();
-  const metadata = await source.metadata();
+  // Only the header – the stored size is the full one, after rotation.
+  const metadata = await sharp(buffer, { failOn: "none" }).metadata();
   if (!metadata.width || !metadata.height) {
     throw new Error("File could not be read as an image.");
   }
-  // After .rotate() portrait images swap width and height.
   const swap = (metadata.orientation ?? 1) >= 5;
   const width = swap ? metadata.height : metadata.width;
   const height = swap ? metadata.width : metadata.height;
+
+  // Decode once: rotated and scaled to the largest variant, as raw pixels.
+  // Every variant and the placeholder are made from that – decoding the
+  // original for each of them was the expensive part, above all for HEIC
+  // and big PNGs, which have no shrink-on-load.
+  const base = await sharp(buffer, { failOn: "none" })
+    .rotate()
+    .resize({ width: VARIANTS.large.width, withoutEnlargement: true, fit: "inside" })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const fromBase = () =>
+    sharp(base.data, {
+      raw: { width: base.info.width, height: base.info.height, channels: base.info.channels },
+    });
 
   await fs.mkdir(dir, { recursive: true });
 
   let bytes = 0;
   try {
     for (const [name, config] of Object.entries(VARIANTS)) {
-      const output = await sharp(buffer, { failOn: "none" })
-        .rotate()
+      const output = await fromBase()
         .resize({
           width: config.width,
           withoutEnlargement: true,
@@ -177,8 +189,7 @@ export async function processUpload(buffer: Buffer): Promise<ExtractedMeta> {
 
   let placeholder: string | null = null;
   try {
-    const tiny = await sharp(buffer, { failOn: "none" })
-      .rotate()
+    const tiny = await fromBase()
       .resize({ width: 20, fit: "inside" })
       .jpeg({ quality: 45 })
       .toBuffer();
