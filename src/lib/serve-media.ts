@@ -12,6 +12,30 @@ function stream(file: string, start?: number, end?: number) {
 }
 
 /**
+ * A single byte range (RFC 9110 §14.1.2) resolved against the file size:
+ * `bytes=500-` to the end, `bytes=-500` the last 500 bytes, and an end past
+ * the file is cut to it. Anything else – no header, several ranges, garbage –
+ * gets the whole file (null).
+ */
+export function parseRange(
+  header: string | null,
+  size: number,
+): { start: number; end: number } | "unsatisfiable" | null {
+  const match = header ? /^bytes=(\d*)-(\d*)$/.exec(header.trim()) : null;
+  if (!match || (!match[1] && !match[2])) return null;
+
+  if (!match[1]) {
+    const suffix = Number(match[2]);
+    if (suffix === 0 || size === 0) return "unsatisfiable";
+    return { start: Math.max(0, size - suffix), end: size - 1 };
+  }
+  const start = Number(match[1]);
+  const end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+  if (start >= size || start > end) return "unsatisfiable";
+  return { start, end };
+}
+
+/**
  * Serves an image variant or a video from disk – with range support so
  * seeking in videos works. The access check happens beforehand in the
  * respective route; this is only about serving, so that `/api/photos`
@@ -57,29 +81,25 @@ export async function serveMediaVariant(input: {
 
   // Without range requests seeking in the video wouldn't work, and Safari
   // sometimes refuses to play it at all.
-  const range = request.headers.get("range");
+  const range = parseRange(request.headers.get("range"), size);
+  if (range === "unsatisfiable") {
+    return new Response("Range outside the file", {
+      status: 416,
+      headers: { "Content-Range": `bytes */${size}` },
+    });
+  }
   if (range) {
-    const match = /bytes=(\d*)-(\d*)/.exec(range);
-    if (match) {
-      const start = match[1] ? Number(match[1]) : 0;
-      const end = match[2] ? Number(match[2]) : size - 1;
-      if (start >= size || end >= size || start > end) {
-        return new Response("Range outside the file", {
-          status: 416,
-          headers: { "Content-Range": `bytes */${size}` },
-        });
-      }
-      return new Response(stream(file, start, end), {
-        status: 206,
-        headers: {
-          "Content-Type": type,
-          "Content-Length": String(end - start + 1),
-          "Content-Range": `bytes ${start}-${end}/${size}`,
-          "Accept-Ranges": "bytes",
-          "Cache-Control": cache,
-        },
-      });
-    }
+    const { start, end } = range;
+    return new Response(stream(file, start, end), {
+      status: 206,
+      headers: {
+        "Content-Type": type,
+        "Content-Length": String(end - start + 1),
+        "Content-Range": `bytes ${start}-${end}/${size}`,
+        "Accept-Ranges": "bytes",
+        "Cache-Control": cache,
+      },
+    });
   }
 
   return new Response(stream(file), {

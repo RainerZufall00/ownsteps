@@ -8,38 +8,6 @@ import { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH } from "./limits";
 
 export { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH };
 
-/**
- * Simple brake against accidental double clicks and blunt spamming.
- * Deliberately in memory: for an instance serving two families a table would
- * be overkill, and after a restart it may just as well start from zero.
- */
-const recentEntries = new Map<string, number[]>();
-const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 5;
-
-export function mayComment(key: string) {
-  const now = Date.now();
-  const recent = (recentEntries.get(key) ?? []).filter(
-    (time) => now - time < WINDOW_MS,
-  );
-  if (recent.length >= MAX_PER_WINDOW) {
-    recentEntries.set(key, recent);
-    return false;
-  }
-  recent.push(now);
-  recentEntries.set(key, recent);
-
-  // Memory must not grow without bound.
-  if (recentEntries.size > 500) {
-    for (const [entryKey, times] of recentEntries) {
-      if (times.every((time) => now - time >= WINDOW_MS)) {
-        recentEntries.delete(entryKey);
-      }
-    }
-  }
-  return true;
-}
-
 export async function addComment(input: {
   stepId: number;
   tripId: number;

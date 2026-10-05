@@ -4,13 +4,16 @@ import type { Trip } from "@/db/schema";
 import {
   addComment,
   deleteComment,
-  mayComment,
   stepBelongsToTrip,
 } from "@/lib/comments";
 import { ServiceError } from "@/lib/errors";
+import { createRateLimit } from "@/lib/rate-limit";
 import { commentInput, parseInput } from "@/lib/schemas";
 import type { TripAccess } from "@/lib/share";
 import { requireTrip } from "./trips";
+
+/** Against accidental double clicks and blunt spamming, per sender. */
+const commentsPerSender = createRateLimit("comment-sender", { windowMs: 60_000, max: 5 });
 
 /**
  * Whoever may see the trip may comment on it – no account needed. How access
@@ -38,7 +41,7 @@ export async function postComment(input: {
   if (!(await stepBelongsToTrip(input.stepId, trip.id))) {
     throw new ServiceError("step_not_found");
   }
-  if (!mayComment(input.clientKey)) {
+  if (!commentsPerSender.allow(input.clientKey)) {
     throw new ServiceError("comment_rate_limited");
   }
 

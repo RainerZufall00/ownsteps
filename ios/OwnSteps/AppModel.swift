@@ -159,7 +159,7 @@ final class AppModel {
     func signIn(on server: PendingServer, email: String, password: String) async throws {
         let signedIn = try await ServerClient(baseURL: server.url)
             .signIn(email: email, password: password, deviceName: deviceName)
-        try add(signedIn, on: server)
+        try await add(signedIn, on: server)
     }
 
     /// OIDC through the server ([D14]): the system browser sheet runs the
@@ -178,15 +178,21 @@ final class AppModel {
             additionalHeaderFields: [:]
         )
         let code = try OIDCCallback.code(from: callback, expectedState: state)
-        try add(try await client.exchange(code: code, pkce: pkce), on: server)
+        try await add(try await client.exchange(code: code, pkce: pkce), on: server)
     }
 
-    private func add(_ signedIn: ServerClient.SignedIn, on server: PendingServer) throws {
-        // Signing in again to the same server replaces the old account.
-        for old in accounts where old.kind == .author && old.serverURL == server.url {
+    private func add(_ signedIn: ServerClient.SignedIn, on server: PendingServer) async throws {
+        // Signing in again to the same server replaces the old account but
+        // keeps its ID: queued steps, the offline copy and the photo
+        // suggestions are filed under it and would otherwise be stranded.
+        let previous = accounts.filter { $0.kind == .author && $0.serverURL == server.url }
+        for old in previous {
+            // Best effort – otherwise the old device token stays valid.
+            try? await client(for: old).signOut()
             try? tokens.removeToken(for: old.id)
         }
         let account = Account(
+            id: previous.first?.id ?? UUID(),
             serverURL: server.url,
             serverName: server.info.name,
             kind: .author,

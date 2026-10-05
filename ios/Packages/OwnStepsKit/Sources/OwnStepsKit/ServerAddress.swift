@@ -49,8 +49,11 @@ public enum ServerAddress {
     static func isLocal(_ host: String) -> Bool {
         let host = host.lowercased()
         if host == "localhost" || host.hasSuffix(".local") || host == "::1" { return true }
-        let parts = host.split(separator: ".").compactMap { Int($0) }
-        guard parts.count == 4 else { return false }
+        // Every part must be a number: "10.0.0.1.example.com" is a public
+        // name, not a private address.
+        let labels = host.split(separator: ".", omittingEmptySubsequences: false)
+        let parts = labels.compactMap { Int($0) }
+        guard labels.count == 4, parts.count == 4 else { return false }
         switch (parts[0], parts[1]) {
         case (10, _), (127, _), (192, 168), (169, 254): return true
         case (172, 16...31): return true

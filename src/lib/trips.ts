@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   comments,
@@ -40,9 +40,16 @@ export async function cleanupStaleDrafts() {
   await Promise.all(stale.map((s) => deleteStep(s.id)));
 }
 
-export async function listTrips(): Promise<TripSummary[]> {
-  const rows = await db.select().from(trips).orderBy(desc(trips.updatedAt));
+/** All trips, newest first – or only those with the given IDs. */
+export async function listTrips(options: { ids?: number[] } = {}): Promise<TripSummary[]> {
+  if (options.ids?.length === 0) return [];
+  const rows = await db
+    .select()
+    .from(trips)
+    .where(options.ids ? inArray(trips.id, options.ids) : undefined)
+    .orderBy(desc(trips.updatedAt));
   if (rows.length === 0) return [];
+  const tripIds = rows.map((t) => t.id);
 
   const stats = await db
     .select({
@@ -52,50 +59,45 @@ export async function listTrips(): Promise<TripSummary[]> {
       lastStepAt: sql<number | null>`max(${steps.occurredAt})`,
     })
     .from(steps)
-    .where(eq(steps.published, true))
+    .where(and(eq(steps.published, true), inArray(steps.tripId, tripIds)))
     .groupBy(steps.tripId);
 
   const photoStats = await db
-    .select({ tripId: photos.tripId, photoCount: sql<number>`count(*)` })
+    .select({
+      tripId: photos.tripId,
+      // The cover isn't attached to any step and doesn't count as a trip photo.
+      photoCount: sql<number>`count(${photos.stepId})`,
+      // Without an explicit cover, the trip's first photo serves as the lead image.
+      firstPhotoId: sql<number>`min(${photos.id})`,
+    })
     .from(photos)
-    // The cover isn't attached to any step and doesn't count as a trip photo.
-    .where(isNotNull(photos.stepId))
+    .where(inArray(photos.tripId, tripIds))
     .groupBy(photos.tripId);
 
-  // Without an explicit cover, the trip's first photo serves as the lead image.
-  const allPhotos = await db
-    .select()
-    .from(photos)
-    .where(
-      inArray(
-        photos.tripId,
-        rows.map((t) => t.id),
-      ),
-    )
-    .orderBy(asc(photos.id));
+  // Only the photos that end up as covers – not every photo of every trip.
+  const coverIds = new Set<number>();
+  for (const trip of rows) if (trip.coverPhotoId) coverIds.add(trip.coverPhotoId);
+  for (const stat of photoStats) coverIds.add(stat.firstPhotoId);
+  const coverRows =
+    coverIds.size > 0
+      ? await db.select().from(photos).where(inArray(photos.id, [...coverIds]))
+      : [];
 
   const statsByTrip = new Map(stats.map((s) => [s.tripId, s]));
-  const photoCountByTrip = new Map(
-    photoStats.map((s) => [s.tripId, s.photoCount]),
-  );
-  const photoById = new Map(allPhotos.map((p) => [p.id, p]));
-  const firstPhotoByTrip = new Map<number, Photo>();
-  for (const photo of allPhotos) {
-    if (!firstPhotoByTrip.has(photo.tripId)) {
-      firstPhotoByTrip.set(photo.tripId, photo);
-    }
-  }
+  const photoStatsByTrip = new Map(photoStats.map((s) => [s.tripId, s]));
+  const photoById = new Map(coverRows.map((p) => [p.id, p]));
 
   return rows.map((trip) => {
     const stat = statsByTrip.get(trip.id);
+    const photoStat = photoStatsByTrip.get(trip.id);
     const cover =
       (trip.coverPhotoId ? photoById.get(trip.coverPhotoId) : undefined) ??
-      firstPhotoByTrip.get(trip.id) ??
+      (photoStat ? photoById.get(photoStat.firstPhotoId) : undefined) ??
       null;
     return {
       ...trip,
       stepCount: stat?.stepCount ?? 0,
-      photoCount: photoCountByTrip.get(trip.id) ?? 0,
+      photoCount: photoStat?.photoCount ?? 0,
       firstStepAt: stat?.firstStepAt ?? null,
       lastStepAt: stat?.lastStepAt ?? null,
       coverPhoto: cover,

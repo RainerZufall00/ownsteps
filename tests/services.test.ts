@@ -1,15 +1,18 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Trip } from "@/db/schema";
-import { db } from "@/db";
-import { sessions } from "@/db/schema";
+import { db, UPLOAD_DIR } from "@/db";
+import { sessions, users } from "@/db/schema";
 import { createSession, createUser, getCurrentUser } from "@/lib/auth";
 import { ServiceError } from "@/lib/errors";
 import { messageFor } from "@/lib/messages";
 import type { TripAccess } from "@/lib/share";
-import { getStep, getTrip } from "@/lib/trips";
+import { cleanupOrphanedCovers, getPhoto } from "@/lib/photos";
+import { getStep, getTrip, listTrips, updateTrip } from "@/lib/trips";
 import { authenticate, changePassword, createFirstAccount } from "@/lib/services/accounts";
 import { postComment } from "@/lib/services/comments";
-import { addMediaToStep, type IncomingMedia } from "@/lib/services/media";
+import { addMediaToStep, type IncomingMedia, uploadCover } from "@/lib/services/media";
 import { saveStep, startStep } from "@/lib/services/steps";
 import {
   createTripFor,
@@ -189,6 +192,73 @@ describe("media", () => {
     ]);
     expect(result.photos).toHaveLength(1);
   });
+
+  it("answers a parallel retry with the first photo and leaves no files behind", async () => {
+    const user = await author();
+    const trip = await createTripFor(user.id, { title: "Norway" });
+    const step = await startStep(trip.id, user.id);
+    const data = await makeJpeg(200, 100);
+    const upload = () =>
+      addMediaToStep(step.id, [{ ...jpegFile("a.jpg", data), clientUuid: "same-uuid" }]);
+
+    const before = new Set(fs.readdirSync(UPLOAD_DIR));
+    const [first, second] = await Promise.all([upload(), upload()]);
+    const added = fs.readdirSync(UPLOAD_DIR).filter((entry) => !before.has(entry));
+
+    expect(first.failed).toEqual([]);
+    expect(second.failed).toEqual([]);
+    expect(second.photos[0].id).toBe(first.photos[0].id);
+    expect(added).toEqual([first.photos[0].storageKey]);
+  });
+});
+
+describe("covers", () => {
+  async function tripWithStepPhoto() {
+    const user = await author();
+    const trip = await createTripFor(user.id, { title: "Norway" });
+    const step = await startStep(trip.id, user.id);
+    const { photos } = await addMediaToStep(step.id, [jpegFile("a.jpg", await makeJpeg(200, 100))]);
+    return { trip, stepPhoto: photos[0] };
+  }
+
+  const cover = async () => jpegFile("cover.jpg", await makeJpeg(300, 200));
+
+  it("removes a replaced uploaded cover, files included", async () => {
+    const { trip } = await tripWithStepPhoto();
+    const first = await uploadCover(trip.id, await cover());
+    const second = await uploadCover(trip.id, await cover());
+
+    expect(await getPhoto(first.id)).toBeNull();
+    expect(fs.existsSync(path.join(UPLOAD_DIR, first.storageKey))).toBe(false);
+    expect((await getTrip(trip.id))!.coverPhotoId).toBe(second.id);
+  });
+
+  it("removes the uploaded cover when a step photo becomes the cover", async () => {
+    const { trip, stepPhoto } = await tripWithStepPhoto();
+    const uploaded = await uploadCover(trip.id, await cover());
+    await setCoverPhoto(trip.id, stepPhoto.id);
+    expect(await getPhoto(uploaded.id)).toBeNull();
+  });
+
+  it("keeps a step photo that stops being the cover", async () => {
+    const { trip, stepPhoto } = await tripWithStepPhoto();
+    await setCoverPhoto(trip.id, stepPhoto.id);
+    await uploadCover(trip.id, await cover());
+    expect(await getPhoto(stepPhoto.id)).not.toBeNull();
+  });
+
+  it("cleans up covers orphaned before replacing removed them", async () => {
+    const { trip } = await tripWithStepPhoto();
+    const orphan = await uploadCover(trip.id, await cover());
+    // How older versions left it: the trip points elsewhere, the row stays.
+    await updateTrip(trip.id, { coverPhotoId: null });
+    const current = await uploadCover(trip.id, await cover());
+
+    await cleanupOrphanedCovers();
+
+    expect(await getPhoto(orphan.id)).toBeNull();
+    expect(await getPhoto(current.id)).not.toBeNull();
+  });
 });
 
 describe("comments", () => {
@@ -306,6 +376,17 @@ describe("accounts", () => {
     );
   });
 
+  it("lets only one of two simultaneous setup forms through", async () => {
+    const results = await Promise.allSettled([
+      createFirstAccount({ email: "first@example.com", password: "long enough pw" }),
+      createFirstAccount({ email: "second@example.com", password: "long enough pw" }),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find((r) => r.status === "rejected");
+    expect((rejected as PromiseRejectedResult).reason).toMatchObject({ code: "account_exists" });
+    expect(await db.select().from(users)).toHaveLength(1);
+  });
+
   it("gives no hint which part of the credentials was wrong", async () => {
     await author();
     await expectCode(authenticate({ email: "a@example.com", password: "nope" }, "client"), "credentials_invalid");
@@ -366,5 +447,38 @@ describe("accounts", () => {
 
     expect(await db.select().from(sessions)).toHaveLength(1);
     expect((await getCurrentUser())?.id).toBe(user.id);
+  });
+});
+
+describe("trip list", () => {
+  it("counts published steps and step photos, and falls back to the first photo as cover", async () => {
+    const user = await author();
+    const norway = await createTripFor(user.id, { title: "Norway" });
+    const empty = await createTripFor(user.id, { title: "Empty" });
+    const step = await startStep(norway.id, user.id);
+    await startStep(norway.id, user.id); // a draft – doesn't count
+    const { photos } = await addMediaToStep(step.id, [
+      jpegFile("a.jpg", await makeJpeg(200, 100)),
+      jpegFile("b.jpg", await makeJpeg(200, 100)),
+    ]);
+
+    const [summary] = await listTrips({ ids: [norway.id] });
+    expect(summary).toMatchObject({ stepCount: 1, photoCount: 2 });
+    expect(summary.coverPhoto?.id).toBe(photos[0].id);
+
+    // The uploaded cover wins, but isn't a trip photo.
+    const cover = await uploadCover(norway.id, jpegFile("c.jpg", await makeJpeg(300, 200)));
+    const [withCover] = await listTrips({ ids: [norway.id] });
+    expect(withCover).toMatchObject({ photoCount: 2 });
+    expect(withCover.coverPhoto?.id).toBe(cover.id);
+
+    const all = await listTrips();
+    expect(all.map((t) => t.id).sort()).toEqual([norway.id, empty.id].sort());
+    expect(all.find((t) => t.id === empty.id)).toMatchObject({
+      stepCount: 0,
+      photoCount: 0,
+      coverPhoto: null,
+    });
+    expect(await listTrips({ ids: [] })).toEqual([]);
   });
 });

@@ -7,6 +7,7 @@ import { appJoinLink } from "@/lib/app-link";
 import { APP_STORE_ID, PUBLIC_URL, SITE_NAME } from "@/lib/env";
 import { formatTripRange, pluralize } from "@/lib/format";
 import { getMapStyle } from "@/lib/map";
+import { originFromHeaders } from "@/lib/origin";
 import { getTripByShareToken, resolveTripAccess } from "@/lib/share";
 import { getSteps } from "@/lib/trips";
 import { toViewStep } from "@/lib/view-types";
@@ -14,12 +15,9 @@ import UnlockForm from "./UnlockForm";
 
 export const dynamic = "force-dynamic";
 
+/** Same rules as everywhere else: PUBLIC_URL, then the proxy's headers. */
 async function baseUrl() {
-  if (PUBLIC_URL) return PUBLIC_URL;
-  const store = await headers();
-  const proto = store.get("x-forwarded-proto") ?? "http";
-  const host = store.get("host") ?? "localhost:2555";
-  return `${proto}://${host}`;
+  return originFromHeaders(await headers(), PUBLIC_URL, "http://localhost:2555");
 }
 
 export async function generateMetadata({

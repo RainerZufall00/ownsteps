@@ -33,6 +33,8 @@ import Testing
         #expect(ServerAddress.isLocal("10.0.0.1"))
         #expect(!ServerAddress.isLocal("172.32.0.1"))
         #expect(!ServerAddress.isLocal("8.8.8.8"))
+        #expect(!ServerAddress.isLocal("10.0.0.1.example.com"))
+        #expect(!ServerAddress.isLocal("192.168.1.example.com"))
     }
 }
 

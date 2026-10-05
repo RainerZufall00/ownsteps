@@ -533,9 +533,10 @@ account needed. `addCommentAction` checks the same function
 `resolveTripAccess` for that; the comment form on the share page sends the
 link's token along. Only signed-in users may delete.
 
-Against accidental double clicks and blunt spamming, `src/lib/comments.ts`
-has a brake: at most five comments per minute and client address. It
-deliberately lives in memory – for an instance serving two families a table
+Against accidental double clicks and blunt spamming, `postComment`
+(`src/lib/services/comments.ts`) has a brake: at most five comments per
+minute and sender (client address on the web, token in the app). It is a
+`createRateLimit` like every other brake and deliberately lives in memory – for an instance serving two families a table
 would be overkill, and after a restart it may just as well start from zero.
 
 ---
@@ -905,7 +906,10 @@ The editor creates a draft when it opens (`createDraftStep`) so the photos
 have a target right away. If the step only became visible on save, material
 uploaded on the road would be lost as soon as someone left the page. That's
 why `/api/upload` sets `published = true` as soon as a photo is through.
-Drafts without photos are cleaned up by `cleanupStaleDrafts` after seven days.
+Drafts without photos are cleaned up by `cleanupStaleDrafts` after seven days
+(at startup and then once a day, `src/instrumentation.ts`). Startup also
+removes separately uploaded covers no trip points at any more
+(`cleanupOrphanedCovers`); replacing a cover removes the old one right away.
 
 ### [E8] Place primarily from EXIF, with three fallbacks
 Explicit wish: nothing should have to be entered by hand on the road. In

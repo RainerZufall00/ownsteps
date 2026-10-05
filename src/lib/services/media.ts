@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { photos, steps, type Photo } from "@/db/schema";
 import { ServiceError, type ErrorCode } from "@/lib/errors";
 import { reverseGeocode } from "@/lib/geocode";
-import { processUpload, processVideo } from "@/lib/images";
+import { deletePhotoFiles, processUpload, processVideo } from "@/lib/images";
 import { MAX_IMAGE_BYTES, MAX_VIDEO_BYTES } from "@/lib/limits";
 import { recordChange } from "@/lib/changes";
 import {
@@ -14,9 +14,8 @@ import {
   getPhotoByClientUuid,
   setPhotoCaption,
 } from "@/lib/photos";
-import { updateTrip } from "@/lib/trips";
 import { requireStep } from "./steps";
-import { requireTrip } from "./trips";
+import { requireTrip, switchCover } from "./trips";
 
 const ACCEPTED_IMAGE = /^image\/(jpeg|png|webp|avif|heic|heif|tiff)$/i;
 const ACCEPTED_VIDEO = /^video\//i;
@@ -118,30 +117,45 @@ export async function addMediaToStep(
       );
 
       const duration = file.durationMs ?? NaN;
-      const [photo] = await db
-        .insert(photos)
-        .values({
-          tripId: step.tripId,
-          stepId: step.id,
-          storageKey: meta.storageKey,
-          originalName: file.name,
-          width: meta.width,
-          height: meta.height,
-          bytes: meta.bytes,
-          takenAt: meta.takenAt,
-          lat: meta.lat,
-          lon: meta.lon,
-          placeholder: meta.placeholder,
-          sortOrder: nextOrder++,
-          mediaType: video ? "video" : "photo",
-          videoMime: video ? file.type || "video/mp4" : null,
-          durationMs:
-            video && Number.isFinite(duration) && duration > 0
-              ? Math.round(duration)
-              : null,
-          clientUuid: file.clientUuid ?? null,
-        })
-        .returning();
+      let photo: Photo;
+      try {
+        [photo] = await db
+          .insert(photos)
+          .values({
+            tripId: step.tripId,
+            stepId: step.id,
+            storageKey: meta.storageKey,
+            originalName: file.name,
+            width: meta.width,
+            height: meta.height,
+            bytes: meta.bytes,
+            takenAt: meta.takenAt,
+            lat: meta.lat,
+            lon: meta.lon,
+            placeholder: meta.placeholder,
+            sortOrder: nextOrder++,
+            mediaType: video ? "video" : "photo",
+            videoMime: video ? file.type || "video/mp4" : null,
+            durationMs:
+              video && Number.isFinite(duration) && duration > 0
+                ? Math.round(duration)
+                : null,
+            clientUuid: file.clientUuid ?? null,
+          })
+          .returning();
+      } catch (error) {
+        // The files are on disk already – without a row nothing would ever
+        // find or delete them.
+        await deletePhotoFiles(meta.storageKey);
+        // A parallel retry with the same UUID got in first: its photo is
+        // the answer to this request too.
+        const winner = file.clientUuid ? await getPhotoByClientUuid(file.clientUuid) : null;
+        if (winner?.stepId === step.id) {
+          created.push(winner);
+          continue;
+        }
+        throw error;
+      }
       await recordChange(photo.tripId, "photo", photo.id, "upsert");
       created.push(photo);
     } catch (error) {
@@ -201,7 +215,7 @@ export async function addMediaToStep(
  * empty), which is what makes it the one public image of a shared trip.
  */
 export async function uploadCover(tripId: number, file: IncomingMedia) {
-  await requireTrip(tripId);
+  const trip = await requireTrip(tripId);
   if (file.size > MAX_IMAGE_BYTES) throw new ServiceError("image_too_large");
   if (file.type && !ACCEPTED_IMAGE.test(file.type)) {
     throw new ServiceError("unsupported_format");
@@ -215,24 +229,30 @@ export async function uploadCover(tripId: number, file: IncomingMedia) {
     throw new ServiceError("media_unprocessable");
   }
 
-  const [photo] = await db
-    .insert(photos)
-    .values({
-      tripId,
-      stepId: null,
-      storageKey: meta.storageKey,
-      originalName: file.name,
-      width: meta.width,
-      height: meta.height,
-      bytes: meta.bytes,
-      placeholder: meta.placeholder,
-      mediaType: "photo",
-      sortOrder: -1,
-    })
-    .returning();
+  let photo: Photo;
+  try {
+    [photo] = await db
+      .insert(photos)
+      .values({
+        tripId,
+        stepId: null,
+        storageKey: meta.storageKey,
+        originalName: file.name,
+        width: meta.width,
+        height: meta.height,
+        bytes: meta.bytes,
+        placeholder: meta.placeholder,
+        mediaType: "photo",
+        sortOrder: -1,
+      })
+      .returning();
+  } catch (error) {
+    await deletePhotoFiles(meta.storageKey);
+    throw error;
+  }
   await recordChange(tripId, "photo", photo.id, "upsert");
 
-  await updateTrip(tripId, { coverPhotoId: photo.id });
+  await switchCover(trip, photo.id);
   return photo;
 }
 

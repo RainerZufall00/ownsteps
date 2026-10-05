@@ -2,7 +2,8 @@ import "server-only";
 
 import bcrypt from "bcryptjs";
 import { ServiceError } from "@/lib/errors";
-import { getPhoto } from "@/lib/photos";
+import type { Trip } from "@/db/schema";
+import { deletePhoto, getPhoto } from "@/lib/photos";
 import { parseInput, shareInput, tripInput } from "@/lib/schemas";
 import { newShareToken } from "@/lib/share";
 import { removeAllViewerDevices } from "@/lib/tokens";
@@ -45,10 +46,22 @@ export async function deleteTripConfirmed(tripId: number, confirmTitle: string) 
 
 /** Only photos of the same trip can become its cover. */
 export async function setCoverPhoto(tripId: number, photoId: number) {
-  await requireTrip(tripId);
+  const trip = await requireTrip(tripId);
   const photo = Number.isInteger(photoId) ? await getPhoto(photoId) : null;
   if (!photo || photo.tripId !== tripId) throw new ServiceError("photo_not_found");
-  await updateTrip(tripId, { coverPhotoId: photoId });
+  await switchCover(trip, photoId);
+}
+
+/**
+ * Points the trip at a new cover. A separately uploaded old cover belongs to
+ * no step and nothing else refers to it – it goes, files included, instead
+ * of piling up unseen in `uploads/`.
+ */
+export async function switchCover(trip: Trip, photoId: number) {
+  await updateTrip(trip.id, { coverPhotoId: photoId });
+  if (!trip.coverPhotoId || trip.coverPhotoId === photoId) return;
+  const old = await getPhoto(trip.coverPhotoId);
+  if (old?.stepId === null) await deletePhoto(old.id);
 }
 
 export async function updateSharing(tripId: number, raw: unknown) {

@@ -28,7 +28,7 @@ export function summaryDto(principal: Principal, summary: TripSummary, request: 
 }
 
 export async function tripSummaryDto(principal: Principal, trip: Trip, request: Request) {
-  const summary = (await listTrips()).find((t) => t.id === trip.id);
+  const [summary] = await listTrips({ ids: [trip.id] });
   return summary
     ? summaryDto(principal, summary, request)
     : tripDto(

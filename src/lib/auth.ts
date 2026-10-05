@@ -115,30 +115,31 @@ export async function countUsers() {
   return rows.length;
 }
 
-export async function createUser(input: {
-  email: string;
-  name: string;
-  password: string;
-}) {
+/**
+ * `onlyIfFirst` is for the initial setup: the account is only created while
+ * no other exists. Check and insert run in one synchronous transaction after
+ * the (slow) hashing, so two forms sent at once can't both get in.
+ */
+export async function createUser(
+  input: { email: string; name: string; password: string },
+  options: { onlyIfFirst?: boolean } = {},
+) {
   const email = input.email.trim().toLowerCase();
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
-  if (existing.length > 0) {
-    throw new ServiceError("email_taken");
-  }
+  const passwordHash = await hashPassword(input.password);
 
-  const [created] = await db
-    .insert(users)
-    .values({
-      email,
-      name: input.name.trim() || email,
-      passwordHash: await hashPassword(input.password),
-    })
-    .returning();
-  return created;
+  return db.transaction((tx) => {
+    if (options.onlyIfFirst && tx.select({ id: users.id }).from(users).limit(1).get()) {
+      throw new ServiceError("account_exists");
+    }
+    if (tx.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1).get()) {
+      throw new ServiceError("email_taken");
+    }
+    return tx
+      .insert(users)
+      .values({ email, name: input.name.trim() || email, passwordHash })
+      .returning()
+      .get();
+  });
 }
 
 export async function findUserByOidcSubject(subject: string) {

@@ -22,19 +22,19 @@ import {
 } from "@/lib/schemas";
 
 /** Every signed-in account may add further accounts ([E2]). */
-export async function addAccount(raw: unknown) {
+export async function addAccount(raw: unknown, options: { onlyIfFirst?: boolean } = {}) {
   const input = parseInput(newAccountInput, raw);
-  return createUser({
-    email: input.email,
-    name: input.name || input.email,
-    password: input.password,
-  });
+  return createUser(
+    { email: input.email, name: input.name || input.email, password: input.password },
+    options,
+  );
 }
 
 /** Initial setup is only open as long as not a single account exists. */
 export async function createFirstAccount(raw: unknown) {
+  // Early answer without hashing; createUser checks again atomically.
   if ((await countUsers()) > 0) throw new ServiceError("account_exists");
-  return addAccount(raw);
+  return addAccount(raw, { onlyIfFirst: true });
 }
 
 /** Every attempt from one address – web form and app alike. */

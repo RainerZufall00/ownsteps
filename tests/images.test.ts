@@ -11,6 +11,7 @@ import {
   variantPath,
   videoPath,
 } from "@/lib/images";
+import { parseRange } from "@/lib/serve-media";
 import { makeJpeg } from "./helpers/exif";
 
 describe("processUpload", () => {
@@ -126,5 +127,30 @@ describe("deletePhotoFiles", () => {
     const meta = await processUpload(await makeJpeg(400, 300));
     await deletePhotoFiles(meta.storageKey);
     expect(fs.existsSync(photoDir(meta.storageKey))).toBe(false);
+  });
+});
+
+describe("parseRange", () => {
+  it("resolves single ranges against the file size", () => {
+    expect(parseRange("bytes=0-1", 1000)).toEqual({ start: 0, end: 1 });
+    expect(parseRange("bytes=500-", 1000)).toEqual({ start: 500, end: 999 });
+    // The last 100 bytes, not the first 101.
+    expect(parseRange("bytes=-100", 1000)).toEqual({ start: 900, end: 999 });
+    expect(parseRange("bytes=-5000", 1000)).toEqual({ start: 0, end: 999 });
+    // An end past the file is cut, not refused.
+    expect(parseRange("bytes=900-5000", 1000)).toEqual({ start: 900, end: 999 });
+  });
+
+  it("refuses ranges that start outside the file", () => {
+    expect(parseRange("bytes=1000-", 1000)).toBe("unsatisfiable");
+    expect(parseRange("bytes=-0", 1000)).toBe("unsatisfiable");
+    expect(parseRange("bytes=5-2", 1000)).toBe("unsatisfiable");
+  });
+
+  it("serves the whole file for anything it doesn't understand", () => {
+    expect(parseRange(null, 1000)).toBeNull();
+    expect(parseRange("bytes=-", 1000)).toBeNull();
+    expect(parseRange("bytes=0-1,5-6", 1000)).toBeNull();
+    expect(parseRange("items=0-1", 1000)).toBeNull();
   });
 });

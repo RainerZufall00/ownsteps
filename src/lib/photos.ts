@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, notExists } from "drizzle-orm";
 import { db } from "@/db";
 import { photos, trips } from "@/db/schema";
 import { recordChange } from "./changes";
@@ -52,4 +52,23 @@ export async function getPhotoByClientUuid(clientUuid: string) {
 /** Removes the files of several photos, e.g. when a step is deleted. */
 export async function deletePhotoFilesFor(photoRows: { storageKey: string }[]) {
   await Promise.all(photoRows.map((p) => deletePhotoFiles(p.storageKey)));
+}
+
+/**
+ * Separately uploaded covers that no trip points at any more – replaced
+ * before replacing removed the old one. Runs at startup.
+ */
+export async function cleanupOrphanedCovers() {
+  const orphans = await db
+    .select({ id: photos.id })
+    .from(photos)
+    .where(
+      and(
+        isNull(photos.stepId),
+        notExists(
+          db.select({ id: trips.id }).from(trips).where(eq(trips.coverPhotoId, photos.id)),
+        ),
+      ),
+    );
+  for (const orphan of orphans) await deletePhoto(orphan.id);
 }

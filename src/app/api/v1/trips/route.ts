@@ -12,11 +12,10 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   return handle(async () => {
     const principal = await requirePrincipal(request);
-    const trips = (await listTrips()).filter(
-      (trip) =>
-        principal.kind === "author" ||
-        (trip.id === principal.device.tripId && trip.shareEnabled),
-    );
+    const trips =
+      principal.kind === "author"
+        ? await listTrips()
+        : (await listTrips({ ids: [principal.device.tripId] })).filter((trip) => trip.shareEnabled);
     return json({
       items: trips.map((trip) => summaryDto(principal, trip, request)),
       nextCursor: null,
