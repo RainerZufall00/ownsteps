@@ -33,31 +33,45 @@ describe("resolveTripAccess", () => {
   it("grants owner access to a signed-in user, even for unshared trips", async () => {
     const { user, trip } = await setup({ shared: false });
     await createSession(user.id);
-    expect(await resolveTripAccess(trip)).toEqual({ kind: "owner" });
+    expect(await resolveTripAccess(trip, trip.shareToken)).toEqual({ kind: "owner" });
   });
 
   it("denies anonymous visitors when sharing is off", async () => {
     const { trip } = await setup({ shared: false });
-    expect(await resolveTripAccess(trip)).toEqual({ kind: "denied" });
+    expect(await resolveTripAccess(trip, trip.shareToken)).toEqual({ kind: "denied" });
   });
 
   it("lets anonymous visitors read a shared trip without password", async () => {
     const { trip } = await setup({ shared: true });
-    expect(await resolveTripAccess(trip)).toEqual({ kind: "guest" });
+    expect(await resolveTripAccess(trip, trip.shareToken)).toEqual({ kind: "guest" });
+  });
+
+  it("denies anonymous visitors without the link's token", async () => {
+    const { trip } = await setup({ shared: true });
+    expect(await resolveTripAccess(trip, null)).toEqual({ kind: "denied" });
+    expect(await resolveTripAccess(trip, "wrong-token")).toEqual({ kind: "denied" });
+  });
+
+  it("denies the old token after the link was rotated", async () => {
+    const { trip } = await setup({ shared: true });
+    await updateTrip(trip.id, { shareToken: "fresh-token-value" });
+    const rotated = (await getTrip(trip.id))!;
+    expect(await resolveTripAccess(rotated, trip.shareToken)).toEqual({ kind: "denied" });
+    expect(await resolveTripAccess(rotated, "fresh-token-value")).toEqual({ kind: "guest" });
   });
 
   it("locks a password-protected trip until it is unlocked", async () => {
     const { trip } = await setup({ shared: true, password: "fjord" });
-    expect(await resolveTripAccess(trip)).toEqual({ kind: "locked" });
+    expect(await resolveTripAccess(trip, trip.shareToken)).toEqual({ kind: "locked" });
 
     await grantUnlock(trip);
-    expect(await resolveTripAccess(trip)).toEqual({ kind: "guest" });
+    expect(await resolveTripAccess(trip, trip.shareToken)).toEqual({ kind: "guest" });
   });
 
   it("rejects a forged unlock cookie", async () => {
     const { trip } = await setup({ shared: true, password: "fjord" });
     jar.set(`ownsteps_unlock_${trip.id}`, "forged-signature");
-    expect(await resolveTripAccess(trip)).toEqual({ kind: "locked" });
+    expect(await resolveTripAccess(trip, trip.shareToken)).toEqual({ kind: "locked" });
   });
 
   it("does not accept one trip's unlock cookie for another trip", async () => {
@@ -70,7 +84,7 @@ describe("resolveTripAccess", () => {
     await grantUnlock(trip);
     // Copy the valid cookie of the first trip onto the second one's name.
     jar.set(`ownsteps_unlock_${other.id}`, jar.get(`ownsteps_unlock_${trip.id}`)!);
-    expect(await resolveTripAccess((await getTrip(other.id))!)).toEqual({
+    expect(await resolveTripAccess((await getTrip(other.id))!, other.shareToken)).toEqual({
       kind: "locked",
     });
   });
@@ -81,14 +95,14 @@ describe("resolveTripAccess", () => {
     await updateTrip(trip.id, { sharePasswordHash: await bcrypt.hash("glacier", 4) });
     const changed = (await getTrip(trip.id))!;
     expect(await hasUnlock(changed)).toBe(false);
-    expect(await resolveTripAccess(changed)).toEqual({ kind: "locked" });
+    expect(await resolveTripAccess(changed, trip.shareToken)).toEqual({ kind: "locked" });
   });
 
   it("denies even unlocked visitors once sharing is switched off", async () => {
     const { trip } = await setup({ shared: true, password: "fjord" });
     await grantUnlock(trip);
     await updateTrip(trip.id, { shareEnabled: false });
-    expect(await resolveTripAccess((await getTrip(trip.id))!)).toEqual({
+    expect(await resolveTripAccess((await getTrip(trip.id))!, trip.shareToken)).toEqual({
       kind: "denied",
     });
   });
@@ -97,13 +111,13 @@ describe("resolveTripAccess", () => {
     const { user, trip } = await setup({ shared: false });
     await createSession(user.id);
     await db.update(sessions).set({ expiresAt: Date.now() - 1000 });
-    expect(await resolveTripAccess(trip)).toEqual({ kind: "denied" });
+    expect(await resolveTripAccess(trip, trip.shareToken)).toEqual({ kind: "denied" });
   });
 
   it("treats an unknown session token as anonymous", async () => {
     const { trip } = await setup({ shared: true, password: "fjord" });
     jar.set("ownsteps_session", "not-a-real-session");
-    expect(await resolveTripAccess(trip)).toEqual({ kind: "locked" });
+    expect(await resolveTripAccess(trip, trip.shareToken)).toEqual({ kind: "locked" });
   });
 });
 

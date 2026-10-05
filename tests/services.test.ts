@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Trip } from "@/db/schema";
-import { createUser } from "@/lib/auth";
+import { db } from "@/db";
+import { sessions } from "@/db/schema";
+import { createSession, createUser, getCurrentUser } from "@/lib/auth";
 import { ServiceError } from "@/lib/errors";
 import { messageFor } from "@/lib/messages";
 import type { TripAccess } from "@/lib/share";
@@ -317,13 +319,52 @@ describe("accounts", () => {
   it("requires the current password to change it", async () => {
     const user = await author();
     await expectCode(
-      changePassword(user, { currentPassword: "wrong", newPassword: "another long pw" }),
+      changePassword(user, { currentPassword: "wrong", newPassword: "another long pw" }, "client"),
       "current_password_wrong",
     );
-    await changePassword(user, {
-      currentPassword: "long enough pw",
-      newPassword: "another long pw",
-    });
+    await changePassword(
+      user,
+      { currentPassword: "long enough pw", newPassword: "another long pw" },
+      "client",
+    );
     await authenticate({ email: "a@example.com", password: "another long pw" }, "client");
+  });
+
+  it("brakes guessing the current password like a login", async () => {
+    const user = await author();
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await expectCode(
+        changePassword(
+          user,
+          { currentPassword: "wrong", newPassword: "another long pw" },
+          `client-${attempt}`,
+        ),
+        "current_password_wrong",
+      );
+    }
+    // Even the right password from a fresh address waits now – and so does the login.
+    await expectCode(
+      changePassword(user, { currentPassword: "long enough pw", newPassword: "another long pw" }, "fresh"),
+      "too_many_attempts",
+    );
+    await expectCode(
+      authenticate({ email: "a@example.com", password: "long enough pw" }, "fresh"),
+      "too_many_attempts",
+    );
+  });
+
+  it("ends every other web session when the password changes", async () => {
+    const user = await author();
+    await createSession(user.id); // another browser
+    await createSession(user.id); // this one – its cookie is in the jar now
+
+    await changePassword(
+      user,
+      { currentPassword: "long enough pw", newPassword: "another long pw" },
+      "client",
+    );
+
+    expect(await db.select().from(sessions)).toHaveLength(1);
+    expect((await getCurrentUser())?.id).toBe(user.id);
   });
 });

@@ -17,11 +17,13 @@ const NAME_KEY = "ownsteps_kommentar_name";
 export default function CommentSection({
   tripId,
   stepId,
+  shareToken,
   comments,
   canDelete,
 }: {
   tripId: number;
   stepId: number;
+  shareToken?: string;
   comments: ViewComment[];
   canDelete: boolean;
 }) {
@@ -103,6 +105,7 @@ export default function CommentSection({
         <form action={action} className="space-y-2">
           <input type="hidden" name="tripId" value={tripId} />
           <input type="hidden" name="stepId" value={stepId} />
+          {shareToken && <input type="hidden" name="shareToken" value={shareToken} />}
           <input
             name="authorName"
             value={name}

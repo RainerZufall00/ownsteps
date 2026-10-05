@@ -38,6 +38,24 @@ export function publicOrigin(request: Request, configured: string) {
 }
 
 /**
+ * A return target from the query string, reduced to a path on our own site.
+ * Checking for a leading "/" isn't enough: browsers read `/\evil.com` as
+ * `//evil.com`, and a login would end on a foreign page. Resolving against a
+ * placeholder origin catches every such trick in one place.
+ */
+export function localPath(requested: string | null, fallback = "/") {
+  if (!requested?.startsWith("/")) return fallback;
+  const base = "http://ownsteps.invalid";
+  try {
+    const url = new URL(requested, base);
+    if (url.origin !== base) return fallback;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * Redirect within our own site. The `Location` header deliberately stays
  * relative: the browser resolves it against the address it called itself –
  * the public one. That way the return after login no longer depends on any

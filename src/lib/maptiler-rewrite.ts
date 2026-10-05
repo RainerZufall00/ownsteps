@@ -4,6 +4,25 @@ export { publicOrigin } from "./origin";
 const UPSTREAM = "https://api.maptiler.com";
 const MAPTILER_URL_RE = /https:\/\/api\.maptiler\.com\/([^"'\s\\]*)/g;
 
+/**
+ * What a MapTiler style loads: the style itself and its sprites (`maps/`),
+ * tile sets (`tiles/`), glyphs (`fonts/`) and images (`resources/`). The
+ * proxy is public because share links need the map, so everything else –
+ * geocoding, static maps, the data API – must not ride on our key.
+ */
+const MAP_ASSET_RE = /^(maps|tiles|fonts|resources)\//;
+
+export function isMapAsset(path: string) {
+  let decoded: string;
+  try {
+    // Upstream decodes too: `st%61tic` must count as `static`.
+    decoded = decodeURIComponent(path);
+  } catch {
+    return false;
+  }
+  return MAP_ASSET_RE.test(decoded) && !decoded.toLowerCase().split("/").includes("static");
+}
+
 /** Removes the API key from a forwarded URL query. */
 function stripKey(query: string) {
   return query

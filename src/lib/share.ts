@@ -41,15 +41,19 @@ export async function grantUnlock(trip: Trip) {
   );
 }
 
+/** Constant-time comparison of two secrets. */
+function sameToken(given: string, expected: string) {
+  const a = Buffer.from(given);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export async function hasUnlock(trip: Trip) {
   if (!trip.sharePasswordHash) return true;
   const store = await cookies();
   const value = store.get(unlockCookieName(trip.id))?.value;
   if (!value) return false;
-  const expected = unlockSignature(trip.id, trip.sharePasswordHash);
-  const a = Buffer.from(value);
-  const b = Buffer.from(expected);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return sameToken(value, unlockSignature(trip.id, trip.sharePasswordHash));
 }
 
 export async function getTripByShareToken(token: string) {
@@ -71,10 +75,17 @@ export type TripAccess =
 
 /**
  * Decides whether the current request may see a trip – either as a signed-in
- * user or through an enabled share link.
+ * user or through an enabled share link. Guests must present the link's
+ * token: that a trip is shared at all is not enough, otherwise anyone could
+ * reach every shared trip via its sequential ID, and a rotated link wouldn't
+ * shut anybody out.
  */
-export async function resolveTripAccess(trip: Trip): Promise<TripAccess> {
+export async function resolveTripAccess(
+  trip: Trip,
+  shareToken: string | null,
+): Promise<TripAccess> {
   if (await getCurrentUser()) return { kind: "owner" };
   if (!trip.shareEnabled) return { kind: "denied" };
+  if (!shareToken || !sameToken(shareToken, trip.shareToken)) return { kind: "denied" };
   return (await hasUnlock(trip)) ? { kind: "guest" } : { kind: "locked" };
 }

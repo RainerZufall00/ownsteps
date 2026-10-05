@@ -57,6 +57,10 @@ if (isRoot) {
     chownRecursive(DATA_DIR, RUN_UID, RUN_GID);
   }
 
+  // Drop root's supplementary groups first (among them GID 0) – setgid and
+  // setuid alone leave them in place, and the server would keep group-root
+  // access to every file that allows it.
+  process.setgroups([RUN_GID]);
   process.setgid(RUN_GID);
   process.setuid(RUN_UID);
 

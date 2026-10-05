@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { failure } from "@/lib/action-result";
 import { destroySession, requireUser } from "@/lib/auth";
+import { clientAddress } from "@/lib/rate-limit";
 import { addAccount, changePassword } from "@/lib/services/accounts";
 import { revokeApiToken } from "@/lib/tokens";
 import type { ActionState } from "../actions";
@@ -46,10 +48,14 @@ export async function changePasswordAction(
 ): Promise<ActionState> {
   const user = await requireUser();
   try {
-    await changePassword(user, {
-      currentPassword: String(formData.get("currentPassword") ?? ""),
-      newPassword: String(formData.get("newPassword") ?? ""),
-    });
+    await changePassword(
+      user,
+      {
+        currentPassword: String(formData.get("currentPassword") ?? ""),
+        newPassword: String(formData.get("newPassword") ?? ""),
+      },
+      clientAddress(await headers()),
+    );
   } catch (error) {
     return failure(error);
   }

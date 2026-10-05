@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { redirectTo } from "@/lib/origin";
+import { localPath, redirectTo } from "@/lib/origin";
 import {
   buildAuthorizationUrl,
   createPkcePair,
@@ -17,11 +17,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   // Only allow same-site targets so the login can't be abused as a redirect
   // to foreign domains.
-  const requestedNext = searchParams.get("next") ?? "/";
-  const next =
-    requestedNext.startsWith("/") && !requestedNext.startsWith("//")
-      ? requestedNext
-      : "/";
+  const next = localPath(searchParams.get("next"));
 
   const { verifier, challenge } = createPkcePair();
   const state = randomState();

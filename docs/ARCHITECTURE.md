@@ -222,7 +222,9 @@ flowchart TD
     B -- yes --> OWNER["owner — read and edit"]
     B -- no --> C{"share_enabled?"}
     C -- no --> DENIED["denied — 404"]
-    C -- yes --> D{"Password set?"}
+    C -- yes --> T{"Link's token presented?"}
+    T -- no --> DENIED
+    T -- yes --> D{"Password set?"}
     D -- no --> GUEST["guest — read only"]
     D -- yes --> E{"Unlock cookie valid?"}
     E -- yes --> GUEST
@@ -235,6 +237,11 @@ flowchart TD
   `APP_SECRET`, trip ID and the password hash. If the password changes, all
   unlocks automatically become invalid – without cleaning up any state
   anywhere. Compared with `timingSafeEqual`.
+- **Guests must present the link's token.** `resolveTripAccess(trip,
+  shareToken)` never grants guest access merely because a trip is shared –
+  otherwise anyone could reach every shared trip via its sequential ID (that
+  hole existed for comments), and rotating the link wouldn't shut anybody
+  out.
 - **Trips that aren't shared answer with 404, not 403.** A 403 would confirm
   that the token exists.
 - **Share-link guests get their media through `/api/share-media/[token]/…`**,
@@ -254,10 +261,14 @@ that use it – so the web form and the app share one budget:
 
 | What | Per client address | Per target, any address |
 | --- | --- | --- |
-| Account password (web login, `POST /api/v1/auth/token`) | 10 attempts/min | 10 failures per account per 15 min |
+| Account password (web login, `POST /api/v1/auth/token`, password change) | 10 attempts/min | 10 failures per account per 15 min |
 | Share password (web unlock, `POST /api/v1/viewers/redeem`) | 10 attempts/min | 20 failures per trip per 15 min |
 | Redeeming a share link | 10/min | – |
 | Comments | 5/min | – |
+
+A successful password change also ends every other web session of the
+account (`revokeOtherSessions`); app device tokens stay and are revoked
+individually in the settings.
 
 The per-target limits are the ones that matter: an attacker rotating
 addresses still only gets a handful of guesses per account or trip. A
@@ -519,7 +530,8 @@ both sides; a test on each side checks the RFC 7636 example.
 
 Whoever may see the trip may also comment – name and text are enough, no
 account needed. `addCommentAction` checks the same function
-`resolveTripAccess` for that. Only signed-in users may delete.
+`resolveTripAccess` for that; the comment form on the share page sends the
+link's token along. Only signed-in users may delete.
 
 Against accidental double clicks and blunt spamming, `src/lib/comments.ts`
 has a brake: at most five comments per minute and client address. It
@@ -623,7 +635,10 @@ either the proxy URL `/api/map/maps/<style>/style.json` (if a `MAPTILER_KEY`
 is set) or an embedded OpenStreetMap raster style as a fallback.
 
 The proxy (`/api/map/[...path]`) forwards requests to `api.maptiler.com` and
-only appends the key there. JSON responses go through `rewriteMapTilerJson`
+only appends the key there. It is public – share links need the map – so it
+only forwards what a style loads (`maps/`, `tiles/`, `fonts/`, `resources/`,
+no static maps; `isMapAsset`). Geocoding and the other MapTiler APIs must
+not run on our key for anonymous callers. JSON responses go through `rewriteMapTilerJson`
 (`src/lib/maptiler-rewrite.ts`), which
 
 1. points every `https://api.maptiler.com/…` at our own proxy and

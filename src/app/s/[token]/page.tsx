@@ -63,7 +63,7 @@ export default async function SharedTripPage({
   const trip = await getTripByShareToken(token);
   if (!trip) notFound();
 
-  const access = await resolveTripAccess(trip);
+  const access = await resolveTripAccess(trip, token);
   if (access.kind === "denied") notFound();
 
   if (access.kind === "locked") {
@@ -143,6 +143,7 @@ export default async function SharedTripPage({
       steps={steps.map(toViewStep)}
       mapStyle={getMapStyle()}
       mediaBase={`/api/share-media/${token}`}
+      shareToken={token}
       header={header}
     />
   );

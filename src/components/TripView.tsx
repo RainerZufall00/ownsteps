@@ -23,6 +23,8 @@ type Props = {
    * URLs and the photos can't be reached without it.
    */
   mediaBase?: string;
+  /** Share link token; guests need it to comment. */
+  shareToken?: string;
   /** Header contributed by the respective page (title, actions). */
   header: ReactNode;
 };
@@ -33,6 +35,7 @@ export default function TripView({
   mapStyle,
   editable = false,
   mediaBase = "/api/photos",
+  shareToken,
   header,
 }: Props) {
   const [mobileView, setMobileView] = useState<"timeline" | "map">("timeline");
@@ -294,6 +297,7 @@ export default function TripView({
                       <CommentSection
                         tripId={trip.id}
                         stepId={step.id}
+                        shareToken={shareToken}
                         comments={step.comments}
                         canDelete={editable}
                       />

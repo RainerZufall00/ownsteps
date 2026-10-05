@@ -28,7 +28,11 @@ export async function addCommentAction(
         body: String(formData.get("body") ?? ""),
       },
       clientKey: clientAddress(await headers()),
-      resolveAccess: resolveTripAccess,
+      // Guests prove access with the link's token, like their media URLs.
+      resolveAccess: (trip) => {
+        const token = formData.get("shareToken");
+        return resolveTripAccess(trip, typeof token === "string" ? token : null);
+      },
     });
 
     revalidatePath(`/trips/${trip.id}`);

@@ -8,6 +8,7 @@ import {
   createUser,
   findUserByEmail,
   hashPassword,
+  revokeOtherSessions,
   verifyPassword,
 } from "@/lib/auth";
 import { PASSWORD_LOGIN } from "@/lib/env";
@@ -36,21 +37,6 @@ export async function createFirstAccount(raw: unknown) {
   return addAccount(raw);
 }
 
-export async function changePassword(user: User, raw: unknown) {
-  const input = parseInput(passwordChangeInput, raw);
-  // Accounts without a password (OIDC only) may set one without knowing the old one.
-  if (
-    user.passwordHash &&
-    !(await verifyPassword(input.currentPassword, user.passwordHash))
-  ) {
-    throw new ServiceError("current_password_wrong");
-  }
-  await db
-    .update(users)
-    .set({ passwordHash: await hashPassword(input.newPassword) })
-    .where(eq(users.id, user.id));
-}
-
 /** Every attempt from one address – web form and app alike. */
 const loginsPerClient = createRateLimit("login-client", { windowMs: 60_000, max: 10 });
 /**
@@ -58,6 +44,30 @@ const loginsPerClient = createRateLimit("login-client", { windowMs: 60_000, max:
  * attacker rotating addresses still only gets a handful per quarter hour.
  */
 const failuresPerAccount = createRateLimit("login-account", { windowMs: 15 * 60_000, max: 10 });
+
+/**
+ * Checking the current password is a password check like a login – it
+ * draws on the same brakes, so a stolen session can't be used to guess it.
+ * Afterwards every other web session of the account ends.
+ */
+export async function changePassword(user: User, raw: unknown, clientKey: string) {
+  const input = parseInput(passwordChangeInput, raw);
+  // Accounts without a password (OIDC only) may set one without knowing the old one.
+  if (user.passwordHash) {
+    if (!loginsPerClient.allow(clientKey) || failuresPerAccount.blocked(user.email)) {
+      throw new ServiceError("too_many_attempts");
+    }
+    if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
+      failuresPerAccount.record(user.email);
+      throw new ServiceError("current_password_wrong");
+    }
+  }
+  await db
+    .update(users)
+    .set({ passwordHash: await hashPassword(input.newPassword) })
+    .where(eq(users.id, user.id));
+  await revokeOtherSessions(user.id);
+}
 
 /**
  * Deliberately no hint as to which part was wrong. `clientKey` identifies

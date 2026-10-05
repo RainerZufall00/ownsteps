@@ -2,7 +2,7 @@ import "server-only";
 
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
-import { eq, lt } from "drizzle-orm";
+import { and, eq, lt, ne } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { db } from "@/db";
@@ -60,6 +60,22 @@ export async function destroySession() {
     await db.delete(sessions).where(eq(sessions.id, hashToken(token)));
   }
   store.delete(SESSION_COOKIE);
+}
+
+/**
+ * Ends every web session of the account except the one making this request –
+ * after a password change, whoever knew the old one must be out.
+ */
+export async function revokeOtherSessions(userId: number) {
+  const store = await cookies();
+  const token = store.get(SESSION_COOKIE)?.value;
+  await db
+    .delete(sessions)
+    .where(
+      token
+        ? and(eq(sessions.userId, userId), ne(sessions.id, hashToken(token)))
+        : eq(sessions.userId, userId),
+    );
 }
 
 /** Resolve only once per request. */

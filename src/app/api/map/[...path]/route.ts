@@ -1,5 +1,6 @@
 import { MAPTILER_KEY, PUBLIC_URL } from "@/lib/env";
 import {
+  isMapAsset,
   publicOrigin,
   rewriteMapTilerJson,
   UPSTREAM,
@@ -25,7 +26,8 @@ export async function GET(request: Request) {
   // (e.g. spaces in font names).
   const rawPath = incoming.pathname.slice("/api/map/".length);
   const target = new URL(`${UPSTREAM}/${rawPath}`);
-  if (target.origin !== UPSTREAM) {
+  // Checked on the resolved path, so `maps/../geocoding/…` can't slip through.
+  if (target.origin !== UPSTREAM || !isMapAsset(target.pathname.slice(1))) {
     return new Response("Invalid target", { status: 400 });
   }
   incoming.searchParams.forEach((value, key) => {

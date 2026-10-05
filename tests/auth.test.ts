@@ -11,6 +11,7 @@ import {
   upsertOidcUser,
   verifyPassword,
 } from "@/lib/auth";
+import { localPath } from "@/lib/origin";
 import { jar } from "./helpers/cookie-jar";
 
 const PASSWORD = "correct horse battery";
@@ -129,5 +130,24 @@ describe("accounts", () => {
     });
     expect(created.passwordHash).toBeNull();
     expect(created.name).toBe("traveler");
+  });
+});
+
+describe("return targets", () => {
+  it("keeps paths on our own site", () => {
+    expect(localPath("/trips/3?tab=map#step-4")).toBe("/trips/3?tab=map#step-4");
+    expect(localPath(null)).toBe("/");
+  });
+
+  it("refuses targets a browser would take to another site", () => {
+    for (const target of [
+      "https://evil.example",
+      "//evil.example",
+      "/\\evil.example",
+      "/\t/evil.example",
+      "evil.example",
+    ]) {
+      expect(localPath(target)).toBe("/");
+    }
   });
 });
