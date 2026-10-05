@@ -185,14 +185,18 @@ final class AppModel {
         // Signing in again to the same server replaces the old account but
         // keeps its ID: queued steps, the offline copy and the photo
         // suggestions are filed under it and would otherwise be stranded.
+        // The same goes for an account the server signed out (`parkedKey`).
         let previous = accounts.filter { $0.kind == .author && $0.serverURL == server.url }
         for old in previous {
             // Best effort – otherwise the old device token stays valid.
             try? await client(for: old).signOut()
             try? tokens.removeToken(for: old.id)
         }
+        // Signed out by the server with steps still waiting: take them over.
+        let parked = UserDefaults.standard.string(forKey: parkedKey(server.url)).flatMap(UUID.init(uuidString:))
+        UserDefaults.standard.removeObject(forKey: parkedKey(server.url))
         let account = Account(
-            id: previous.first?.id ?? UUID(),
+            id: previous.first?.id ?? parked ?? UUID(),
             serverURL: server.url,
             serverName: server.info.name,
             kind: .author,
@@ -365,18 +369,32 @@ final class AppModel {
     }
 
     /// For tokens the server no longer accepts – e.g. signed out in the web UI.
+    /// What was written on the road and not sent yet stays: the queue keeps
+    /// it under the account's ID, and signing in to that server again takes
+    /// it over (`add`). Only an explicit sign-out discards it.
     func signedOutByServer(_ account: Account) {
-        notice = String(localized: "\(account.serverURL.host() ?? account.serverName) signed this device out.")
-        forget(account)
+        let host = account.serverURL.host() ?? account.serverName
+        if account.kind == .author, (try? uploads.hasPending(accountID: account.id)) == true {
+            UserDefaults.standard.set(account.id.uuidString, forKey: parkedKey(account.serverURL))
+            notice = String(localized: "\(host) signed this device out. Sign in again to send what's still waiting.")
+            forget(account, keepingQueue: true)
+        } else {
+            notice = String(localized: "\(host) signed this device out.")
+            forget(account)
+        }
     }
 
-    func forget(_ account: Account) {
+    /// The ID an author account had on this server when the server signed it
+    /// out with unsent steps – the next sign-in there continues under it.
+    private func parkedKey(_ serverURL: URL) -> String { "parked.author.\(serverURL.absoluteString)" }
+
+    func forget(_ account: Account, keepingQueue: Bool = false) {
         try? tokens.removeToken(for: account.id)
         UserDefaults.standard.removeObject(forKey: cursorKey(account))
         try? cache.removeAll(for: account.id)
         Task {
             await media.removeAll(for: account.id)
-            await uploads.removeAll(for: account.id)
+            if !keepingQueue { await uploads.removeAll(for: account.id) }
         }
         accounts.removeAll { $0.id == account.id }
         store.save(accounts)

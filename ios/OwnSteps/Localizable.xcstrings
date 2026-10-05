@@ -21,6 +21,16 @@
         }
       }
     },
+    "%@ signed this device out. Sign in again to send what's still waiting.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ hat dieses Gerät abgemeldet. Melde dich wieder an, um zu senden, was noch wartet."
+          }
+        }
+      }
+    },
     "%lld": {
       "shouldTranslate": false
     },

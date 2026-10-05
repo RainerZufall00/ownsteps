@@ -100,10 +100,11 @@ architecture doc and the phase is ticked off here.
 - [ ] String Catalogs en/de from day one (up to date through 4e).
 
 ### Phase 5 – Code review ("strangers run this now")
-- [x] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices (2026-10-02). Fixed: brakes on every password check (per address from the right end of `X-Forwarded-For`, plus per account and per trip), share passwords ≥ 8 characters, OIDC only matches verified emails, security headers and a nonce CSP, readers signed out on a new link or password. Accepted: setup stays open until the first account exists; the map proxy is as open as the instance.
+- [x] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices (2026-10-02). Fixed: brakes on every password check (per address from the right end of `X-Forwarded-For`, plus per account and per trip), share passwords ≥ 8 characters, OIDC only matches verified emails, security headers and a nonce CSP, readers signed out on a new link or password. Accepted: setup stays open until the first account exists.
 - [x] Rate limiting on the password login and token endpoints.
 - [x] `APP_SECRET`: refuse to start with a weak value, and document how to generate one. (Missing stays allowed: one is generated into the data directory.)
-- [ ] Open from the review: an account password change doesn't sign out other sessions and devices; locked share pages show title and summary; upload size is checked only after the body is read (signed-in authors only); `docker-entrypoint.js` follows symlinks when fixing ownership.
+- [x] Review of the whole repo and app (2026-10-05). Fixed: guests need the share token (comments were possible on every shared trip via sequential IDs), no open redirect after OIDC sign-in, the map proxy only forwards map assets, a password change is braked and signs out other web sessions, the entrypoint drops root's groups, uploads stream to disk, images are decoded once, orphaned upload files and covers are removed, the OSM fallback map works under the CSP, and the app keeps unsent steps across signing in again or being signed out by the server.
+- [ ] Open from the reviews: locked share pages show title and summary; `docker-entrypoint.js` follows symlinks when fixing ownership; app device tokens survive a password change (revoked one by one in the settings).
 - [ ] Review defaults and env vars, and fail with clear startup errors.
 - [ ] Check HEIC handling in the web upload path (sharp prebuilds likely cannot decode HEVC-HEIC).
 

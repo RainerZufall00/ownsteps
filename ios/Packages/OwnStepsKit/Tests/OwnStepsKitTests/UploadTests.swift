@@ -209,6 +209,22 @@ let stepJSON = """
         #expect(snapshot.uploadsByStepID[42]?.map(\.state) == [.uploading, .uploading])
     }
 
+    @Test func knowsWhetherAnythingIsStillOnItsWay() async throws {
+        let server = StubTransport()
+        let queue = try makeQueue(server: server, transport: FakeTransport(), clock: TestClock())
+        #expect(try queue.hasPending(accountID: account) == false)
+
+        try await queue.enqueueStep(
+            accountID: account, tripID: 1, body: "Offline", placeName: nil, lat: nil, lon: nil,
+            occurredAt: Date(), media: []
+        )
+        #expect(try queue.hasPending(accountID: account))
+        #expect(try queue.hasPending(accountID: UUID()) == false)
+
+        await queue.removeAll(for: account)
+        #expect(try queue.hasPending(accountID: account) == false)
+    }
+
     @Test func finishesSucceedsFailsAndRetries() async throws {
         let server = StubTransport()
         server.responses["createStep"] = (201, "application/json", stepJSON)

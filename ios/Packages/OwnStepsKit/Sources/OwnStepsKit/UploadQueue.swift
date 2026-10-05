@@ -352,6 +352,16 @@ public actor UploadQueue {
 
     // MARK: Reading
 
+    /// Whether the account still has steps or media on their way – what
+    /// must not vanish when the server signs the device out.
+    public nonisolated func hasPending(accountID: UUID) throws -> Bool {
+        try database.read { db in
+            let account = Column("account_id") == accountID.uuidString
+            return try PendingStep.filter(account).filter(Column("server_step_id") == nil).fetchCount(db) > 0
+                || PendingUpload.filter(account).fetchCount(db) > 0
+        }
+    }
+
     /// Where an upload's preview lives, if it has one.
     public nonisolated func thumbnailURL(for upload: PendingUpload) -> URL? {
         upload.thumbnailName.map(files.url)

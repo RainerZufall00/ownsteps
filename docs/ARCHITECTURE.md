@@ -418,6 +418,11 @@ when the system wakes it for finished background transfers. A step with
 only photos is created unpublished and appears with its first photo, like
 [E7]. Until the server has it, the timeline shows a local card with the
 pending thumbnails; once an upload finishes the trip is reloaded.
+If the server signs the device out (401, e.g. revoked in the web UI) while
+steps are still waiting, the queue keeps them under the account's ID and
+signing in to that server again takes them over; signing in again while
+the account still exists keeps its ID anyway. Only an explicit sign-out in
+the app discards unsent work.
 Editing, deleting and trip changes go straight to the server and need a
 connection (D19 – offline only creates).
 
