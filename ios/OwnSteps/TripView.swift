@@ -4,10 +4,10 @@ import Photos
 import SwiftUI
 
 /// One trip, laid out like Polarsteps: the route on a map that fills the
-/// screen, the steps as cards side by side below it. Swiping the cards moves
-/// the map along; a tapped marker brings its card; a tapped card opens the
-/// step full screen, where swiping sideways goes on to the next one. Shows
-/// the cached copy first and refreshes behind it.
+/// screen, the steps as glass cards side by side below it. Swiping the cards
+/// moves the map along; a tapped marker brings its card; a tapped card
+/// pushes the step's page, where swiping sideways goes on to the next one.
+/// Shows the cached copy first and refreshes behind it.
 struct TripView: View {
     let account: Account
     let tripID: Int
@@ -23,8 +23,10 @@ struct TripView: View {
     @State private var focusedItem: String?
     @State private var mapSelection: Int?
     @State private var camera: MapCameraPosition = .automatic
-    /// The step open full screen.
+    /// The step page pushed from the pager …
     @State private var detail: StepDetailRequest?
+    /// … and the step it shows now, after paging sideways.
+    @State private var openStepID: Int?
     @State private var queue = UploadSnapshot()
     @State private var composer: StepComposerView.Mode?
     /// Preselected for the composer, from the photo suggestions.
@@ -50,13 +52,13 @@ struct TripView: View {
     private var calendar: TripCalendar { model.calendar(for: account) }
 
     var body: some View {
-        // While a step is open full screen, sheets and dialogs are presented
-        // from there – a view can't present while something covers it.
+        // While a step page is open, sheets and dialogs are presented from
+        // there – the map below it can't present anything.
         presentations(mapLayer, active: detail == nil)
             .toolbar { toolbar }
             .navigationTitle(trip?.title ?? "")
             .navigationBarTitleDisplayMode(.inline)
-            .fullScreenCover(item: $detail) { request in
+            .navigationDestination(item: $detail) { request in
                 presentations(stepDetail(request), active: true)
             }
             .onChange(of: focusedItem) { _, id in followPager(to: id) }
@@ -107,8 +109,8 @@ struct TripView: View {
                     SuggestionsCard(count: banner.count, review: banner.review, dismiss: banner.dismiss)
                         .padding(14)
                         .frame(maxWidth: 440, alignment: .leading)
-                        .pagerCardBackground()
-                        .padding(.horizontal, 20)
+                        .glassEffect(.regular, in: .rect(cornerRadius: StepPager.cornerRadius))
+                        .padding(.horizontal, 16)
                 }
                 StepPager(
                     account: account,
@@ -119,6 +121,7 @@ struct TripView: View {
                     showViews: isAuthor,
                     focusedItem: $focusedItem
                 ) { stepID in
+                    openStepID = stepID
                     detail = StepDetailRequest(stepID: stepID)
                 }
             }
@@ -126,8 +129,8 @@ struct TripView: View {
         } else if let error {
             ContentUnavailableView("Trip unavailable", systemImage: "exclamationmark.triangle", description: Text(error))
                 .frame(maxHeight: StepPager.height)
-                .pagerCardBackground()
-                .padding(20)
+                .glassEffect(.regular, in: .rect(cornerRadius: StepPager.cornerRadius))
+                .padding(16)
         } else {
             ProgressView()
                 .frame(maxWidth: .infinity)
@@ -146,10 +149,10 @@ struct TripView: View {
                     actions: actions,
                     showViews: isAuthor,
                     stepID: Binding(
-                        get: { detail?.stepID ?? request.stepID },
+                        get: { openStepID ?? request.stepID },
                         set: { id in
-                            detail?.stepID = id
-                            // Closing leaves the pager and the map at this step.
+                            openStepID = id
+                            // Going back leaves the pager and the map at this step.
                             focusedItem = TimelineItem.id(serverStep: id)
                         }
                     ),
@@ -196,9 +199,9 @@ struct TripView: View {
         mapSelection = step.id
     }
 
-    /// The step a reader is looking at – full screen or in the pager.
+    /// The step a reader is looking at – on its page or in the pager.
     private var shownStepID: Int? {
-        if let detail { return detail.stepID }
+        if detail != nil { return openStepID }
         guard let focusedItem, let trip else { return nil }
         return trip.steps.first { TimelineItem.id(serverStep: $0.id) == focusedItem }?.id
     }
@@ -477,144 +480,6 @@ struct TripView: View {
     }
 }
 
-struct TripStat: View {
-    let label: LocalizedStringKey
-    let value: Int
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundStyle(.secondary)
-            Text(value, format: .number)
-                .font(.title2.bold())
-                .fontDesign(.rounded)
-                .contentTransition(.numericText())
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-struct StepCard: View {
-    let account: Account
-    let step: Components.Schemas.Step
-    let day: Int?
-    let calendar: TripCalendar
-    var pending: [PendingUpload] = []
-    /// Readers who saw the step – authors only.
-    var viewCount: Int? = nil
-    let actions: StepActions
-    let photoTransition: Namespace.ID
-    let openPhoto: (Int) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            StepHeader(
-                day: day,
-                date: step.occurredAt,
-                calendar: calendar,
-                place: step.placeName,
-                showOnMap: step.lat != nil && step.lon != nil ? { actions.showOnMap(step) } : nil
-            ) {
-                if actions.isAuthor {
-                    Button("Edit", systemImage: "pencil") { actions.edit(step) }
-                    Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
-                    Button("Share …", systemImage: "square.and.arrow.up") { actions.share(step) }
-                }
-                Button("Comment", systemImage: "text.bubble") { actions.comment(step) }
-            }
-
-            if !step.photos.isEmpty {
-                PhotoGrid(account: account, stepID: step.id, photos: step.photos, transition: photoTransition, open: openPhoto)
-            }
-
-            if !pending.isEmpty {
-                PendingUploadsView(uploads: pending)
-            }
-
-            if !step.body.isEmpty {
-                Text(step.body)
-                    .font(.body)
-                    .lineSpacing(2)
-            }
-
-            if !step.comments.isEmpty {
-                CommentList(
-                    comments: step.comments,
-                    calendar: calendar,
-                    delete: actions.isAuthor ? actions.deleteComment : nil
-                )
-            }
-
-            HStack(spacing: 22) {
-                Button { actions.comment(step) } label: {
-                    Label("Comment", systemImage: "bubble.left")
-                }
-                if actions.isAuthor {
-                    Button { actions.share(step) } label: {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                    }
-                }
-                if let viewCount {
-                    Spacer(minLength: 0)
-                    ViewCountLabel(count: viewCount)
-                        .help(Text("Readers who have seen this step, each counted once."))
-                }
-            }
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(.secondary)
-            .buttonStyle(.borderless)
-        }
-    }
-}
-
-/// Day, date, place and the step's menu – the same for steps on the server
-/// and steps still on the device.
-struct StepHeader<MenuItems: View>: View {
-    let day: Int?
-    let date: Date
-    let calendar: TripCalendar
-    var place: String?
-    /// Set when the step has a position.
-    var showOnMap: (() -> Void)?
-    @ViewBuilder let menu: () -> MenuItems
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
-                StepDateLine(day: day, date: date, calendar: calendar)
-
-                if let place {
-                    if let showOnMap {
-                        Button(action: showOnMap) {
-                            Text(place)
-                                .multilineTextAlignment(.leading)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityHint(Text("Show on map"))
-                    } else {
-                        Text(place)
-                    }
-                }
-            }
-            .font(.title3.bold())
-            Spacer(minLength: 0)
-            Menu {
-                menu()
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 36, height: 36)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text("Step options"))
-        }
-    }
-}
-
 struct StepActions {
     /// Readers only get to comment.
     let isAuthor: Bool
@@ -770,41 +635,6 @@ struct PhotoGrid: View {
         .buttonStyle(.plain)
         .matchedTransitionSource(id: Self.transitionID(stepID: stepID, index: index), in: transition)
         .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(index + 1)")))
-    }
-}
-
-struct CommentList: View {
-    let comments: [Components.Schemas.Comment]
-    let calendar: TripCalendar
-    /// Authors may delete comments ([D21]).
-    var delete: ((Components.Schemas.Comment) -> Void)?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(comments, id: \.id) { comment in
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(comment.authorName).font(.subheadline.bold())
-                        Text(comment.createdAt.formatted(
-                            Date.FormatStyle(date: .abbreviated, time: .omitted, timeZone: calendar.calendar.timeZone)
-                        ))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
-                    Text(comment.body).font(.subheadline)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.fill.tertiary, in: .rect(cornerRadius: 16))
-                .contentShape(.contextMenuPreview, .rect(cornerRadius: 16))
-                .contextMenu {
-                    if let delete {
-                        Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
-                    }
-                }
-            }
-        }
     }
 }
 

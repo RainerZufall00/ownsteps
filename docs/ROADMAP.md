@@ -38,7 +38,7 @@ architecture doc and the phase is ticked off here.
 | D26 | Transport | App: **HTTPS only**, plus `NSAllowsLocalNetworking` for LAN instances |
 | D27 | Polarsteps import | **After** the release, filed as a "help wanted" issue |
 | D28 | View counts | Authors see per step how many **readers** saw it (each counted once: app device, or share-link visitor by cookie); authors aren't counted, readers don't see the numbers. Seen = on screen for a second. Not in the change log. Details in [E17]. (Was O5.) |
-| D29 | App trip screen | Like Polarsteps: map fills the screen, steps as **horizontal cards** below it (trip card with cover first, then oldest → newest, opening on the newest), a tapped card opens the step **full screen with sideways paging**. Same layout on iPhone and iPad. The vertical timeline is gone. (Was O6.) |
+| D29 | App trip screen | Like Polarsteps: map fills the screen, steps as **horizontal glass cards** below it (trip card with cover first, then oldest → newest, opening on the newest), a tapped card **pushes the step's page** (grouped list, actions in the toolbars) with sideways paging. Same layout on iPhone and iPad. The vertical timeline is gone. System idioms over web ones: no drop shadows or gradient heroes, no inline text buttons. (Was O6.) |
 
 ---
 
@@ -102,10 +102,10 @@ architecture doc and the phase is ticked off here.
 - [ ] String Catalogs en/de from day one (up to date through 4e).
 - [x] **4f Feedback from first use (requested and built 2026-10-06):**
   - View counts per step for authors, web and app (D28, [E17]).
-  - Polarsteps-style trip screen in the app: map on top, steps as cards side
-    by side, a tapped card opens the step full screen with sideways paging
-    (D29). **Not compiled or run yet** – written without Xcode; build it and
-    check it on a device.
+  - Polarsteps-style trip screen in the app: map on top, steps as glass
+    cards side by side, a tapped card pushes the step's page with sideways
+    paging; made more iOS-native the same day (D29). **Not compiled or run
+    yet** – written without Xcode; build it and check it on a device.
   - Bug fixed: the app showed no cover. The trip screen had no place for it
     (now the first card), and after choosing a new cover the list card kept
     the old image or none until a pull to refresh.

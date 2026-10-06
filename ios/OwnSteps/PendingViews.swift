@@ -14,9 +14,14 @@ struct LocalStepCard: View {
     private var step: PendingStep { local.step }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            StepHeader(day: day, date: step.occurredAt, calendar: calendar, place: step.placeName) {
-                Button("Discard step", systemImage: "trash", role: .destructive) { confirmDiscard = true }
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                StepDateLine(day: day, date: step.occurredAt, calendar: calendar)
+                if let place = step.placeName {
+                    Text(place)
+                        .font(.headline)
+                        .lineLimit(1)
+                }
             }
 
             if !local.uploads.isEmpty {
@@ -24,7 +29,9 @@ struct LocalStepCard: View {
             }
 
             if !step.body.isEmpty {
+                // It sits in a card of the pager; the whole text comes with the server's copy.
                 Text(step.body)
+                    .lineLimit(local.uploads.isEmpty ? 4 : 1)
             }
 
             if let error = step.lastError {
@@ -40,6 +47,11 @@ struct LocalStepCard: View {
             }
         }
         .opacity(0.92)
+        .contentShape(.rect)
+        // Touch and hold, like any item that has actions.
+        .contextMenu {
+            Button("Discard step", systemImage: "trash", role: .destructive) { confirmDiscard = true }
+        }
         .confirmationDialog("Discard this step? It hasn't reached the server.", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("Discard step", role: .destructive) {
                 Task { await model.uploads.removeStep(clientUUID: step.clientUUID) }

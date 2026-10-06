@@ -1,12 +1,14 @@
 import OwnStepsKit
 import SwiftUI
+import UIKit
 
 /// The trip's steps as cards side by side under the map, like Polarsteps:
 /// swiping moves to the previous or next step and the map follows. Oldest
 /// on the left, so the route reads left to right; it opens on the newest,
 /// which is what readers come back for ([E13] – only the display differs,
 /// the data stays chronological). The trip itself is the first card, with
-/// its cover.
+/// its cover. The cards float over the map, so they're Liquid Glass, like
+/// the panels of Apple's Maps.
 struct StepPager: View {
     let account: Account
     let trip: Components.Schemas.TripDetail
@@ -20,6 +22,10 @@ struct StepPager: View {
     let open: (Int) -> Void
 
     static let height: CGFloat = 228
+    static let cornerRadius: CGFloat = 30
+    /// Photos inside a card keep the same distance to every edge, so their
+    /// corners run parallel to the card's.
+    static let inset: CGFloat = 8
 
     var body: some View {
         let items = TimelineItem.items(of: trip, queue: queue, calendar: calendar)
@@ -43,13 +49,13 @@ struct StepPager: View {
                                     viewCount: showViews ? step.viewCount : nil
                                 )
                             }
-                            .buttonStyle(CardButtonStyle())
+                            .buttonStyle(.plain)
                             .accessibilityHint(Text("Opens the step"))
                         case .local(let local):
                             LocalStepCard(account: account, local: local, day: item.day, calendar: calendar)
-                                .padding(16)
+                                .padding(18)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                .pagerCardBackground()
+                                .glassEffect(.regular, in: .rect(cornerRadius: StepPager.cornerRadius))
                         }
                     }
                     .pagerCard()
@@ -62,10 +68,11 @@ struct StepPager: View {
         .scrollPosition(id: $focusedItem, anchor: .center)
         // Opens on the newest step; a notification's step is set by the trip.
         .defaultScrollAnchor(.trailing)
-        .contentMargins(.horizontal, 20, for: .scrollContent)
+        .contentMargins(.horizontal, 16, for: .scrollContent)
         .scrollIndicators(.hidden)
         .scrollClipDisabled()
         .frame(height: Self.height)
+        .sensoryFeedback(.selection, trigger: focusedItem)
     }
 }
 
@@ -77,16 +84,7 @@ private extension View {
     }
 }
 
-extension View {
-    /// Cards are content, not controls – solid, not glass.
-    func pagerCardBackground() -> some View {
-        background(.background, in: .rect(cornerRadius: 24))
-            .clipShape(.rect(cornerRadius: 24))
-            .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
-    }
-}
-
-/// The first card: cover, title, dates and the trip in numbers.
+/// The first card: cover, title, dates, and how far the trip has come.
 struct TripCoverCard: View {
     let account: Account
     let trip: Components.Schemas.TripDetail
@@ -94,54 +92,39 @@ struct TripCoverCard: View {
     let staleSince: Date?
 
     var body: some View {
-        let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.firstStepAt)
-        let end = calendar.date(fromCalendarDay: trip.endDate) ?? trip.lastStepAt
-        Color.clear
-            .overlay { TripCover(account: account, trip: trip.withoutSteps, variant: .medium) }
-            .overlay {
-                LinearGradient(
-                    stops: [.init(color: .black.opacity(0.1), location: 0), .init(color: .black.opacity(0.78), location: 1)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .overlay(alignment: .bottomLeading) {
-                VStack(alignment: .leading, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(trip.title)
-                            .font(.title2.bold())
-                            .lineLimit(2)
-                        if let range = TripDates.range(start: start, end: end, calendar: calendar) {
-                            Text(range)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.white.opacity(0.85))
-                        }
-                    }
-                    HStack(alignment: .top, spacing: 0) {
-                        if let start, let end {
-                            TripStat(label: "Days", value: max(calendar.tripDay(of: end, start: start), 1))
-                        }
-                        TripStat(label: "Steps", value: trip.stepCount)
-                        TripStat(label: "Photos", value: trip.photoCount)
-                    }
+        VStack(alignment: .leading, spacing: 10) {
+            Color.clear
+                .frame(height: 112)
+                .overlay { TripCover(account: account, trip: trip.withoutSteps, variant: .medium, symbolSize: 34) }
+                .clipShape(.rect(cornerRadius: StepPager.cornerRadius - StepPager.inset))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(trip.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                TripMetaLine(trip: trip.withoutSteps, calendar: calendar)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Group {
                     if let staleSince {
                         OfflineNote(fetchedAt: staleSince)
                     } else if trip.steps.isEmpty {
                         Text("Steps appear here once the trip gets going.")
-                            .font(.footnote)
                     } else if let summary = trip.summary, !summary.isEmpty {
-                        Text(summary)
-                            .font(.footnote)
-                            .lineLimit(2)
+                        Text(summary).lineLimit(2)
                     }
                 }
-                .foregroundStyle(.white)
-                .environment(\.colorScheme, .dark)
-                .padding(18)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
-            .clipShape(.rect(cornerRadius: 24))
-            .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
-            .accessibilityElement(children: .combine)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 8)
+        }
+        .padding(StepPager.inset)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .glassEffect(.regular, in: .rect(cornerRadius: StepPager.cornerRadius))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -156,25 +139,24 @@ struct StepPreviewCard: View {
     var viewCount: Int?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 10) {
             if let photo = step.photos.first {
                 Color.clear
-                    .frame(height: 110)
+                    .frame(height: 112)
                     .overlay { RemoteImage(account: account, photo: photo, variant: .medium, fallbacks: [.thumb]) }
-                    .clipped()
+                    .clipShape(.rect(cornerRadius: StepPager.cornerRadius - StepPager.inset))
                     .overlay(alignment: .bottomTrailing) {
                         if step.photos.count > 1 {
                             Text("+\(step.photos.count - 1)")
-                                .font(.caption.weight(.bold))
+                                .font(.caption.weight(.semibold))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .glassEffect(.regular, in: .capsule)
-                                .environment(\.colorScheme, .dark)
                                 .padding(8)
                         }
                     }
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 StepDateLine(day: day, date: step.occurredAt, calendar: calendar)
                 if let place = step.placeName {
                     Text(place)
@@ -194,12 +176,15 @@ struct StepPreviewCard: View {
                     views: viewCount
                 )
             }
-            .padding(14)
+            .padding(.horizontal, 10)
+            .padding(.top, step.photos.isEmpty ? 10 : 0)
+            .padding(.bottom, 8)
         }
+        .padding(StepPager.inset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .multilineTextAlignment(.leading)
-        .foregroundStyle(.primary)
-        .pagerCardBackground()
+        .contentShape(.rect(cornerRadius: StepPager.cornerRadius))
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: StepPager.cornerRadius))
     }
 }
 
@@ -243,22 +228,13 @@ struct StepCounts: View {
                     .accessibilityLabel(Text("\(comments) comments"))
             }
             if let views {
-                ViewCountLabel(count: views)
+                Label("\(views)", systemImage: "eye")
+                    .accessibilityLabel(Text("\(views) views"))
             }
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(.secondary)
         .labelStyle(CompactLabelStyle())
-    }
-}
-
-/// How many readers saw a step – authors only.
-struct ViewCountLabel: View {
-    let count: Int
-
-    var body: some View {
-        Label("\(count)", systemImage: "eye")
-            .accessibilityLabel(Text("\(count) views"))
     }
 }
 
@@ -271,15 +247,18 @@ private struct CompactLabelStyle: LabelStyle {
     }
 }
 
-/// Which step is open full screen. The ID stays the same while paging, or
-/// the cover would be presented anew on every swipe.
-struct StepDetailRequest: Identifiable {
+/// A step opened from the pager. Equal by `id` only: which step is shown
+/// while paging lives elsewhere, or every swipe would push a new page.
+struct StepDetailRequest: Identifiable, Hashable {
     let id = UUID()
-    var stepID: Int
+    let stepID: Int
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
-/// One step full screen – photos, text, comments – and sideways to the
-/// previous and next one.
+/// The steps as pushed pages: back with the system's swipe from the edge,
+/// sideways to the previous and next step. Actions sit in the toolbars.
 struct StepDetailPager: View {
     let account: Account
     let trip: Components.Schemas.TripDetail
@@ -300,56 +279,68 @@ struct StepDetailPager: View {
         let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.steps.first?.occurredAt)
         let steps = trip.steps
         let index = steps.firstIndex { $0.id == stepID }
-        NavigationStack {
-            TabView(selection: $stepID) {
-                ForEach(steps) { step in
-                    ScrollView {
-                        StepCard(
-                            account: account,
-                            step: step,
-                            day: start.map { calendar.tripDay(of: step.occurredAt, start: $0) },
-                            calendar: calendar,
-                            pending: queue.uploadsByStepID[step.id] ?? [],
-                            viewCount: showViews ? step.viewCount : nil,
-                            actions: actions,
-                            photoTransition: photoTransition
-                        ) { photo in
-                            viewer = ViewerRequest(stepID: step.id, index: photo)
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+        let current = index.map { steps[$0] }
+        TabView(selection: $stepID) {
+            ForEach(steps) { step in
+                StepDetailPage(
+                    account: account,
+                    step: step,
+                    day: start.map { calendar.tripDay(of: step.occurredAt, start: $0) },
+                    calendar: calendar,
+                    pending: queue.uploadsByStepID[step.id] ?? [],
+                    viewCount: showViews ? step.viewCount : nil,
+                    actions: actions,
+                    photoTransition: photoTransition
+                ) { photo in
+                    viewer = ViewerRequest(stepID: step.id, index: photo)
+                }
+                .refreshable { await refresh() }
+                .tag(step.id)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .background(Color(uiColor: .systemGroupedBackground))
+        .navigationTitle(title(of: current, start: start))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if actions.isAuthor, let current {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("Edit", systemImage: "pencil") { actions.edit(current) }
+                        Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(current) }
+                        Button("Share …", systemImage: "square.and.arrow.up") { actions.share(current) }
+                    } label: {
+                        Image(systemName: "ellipsis")
                     }
-                    .refreshable { await refresh() }
-                    .tag(step.id)
+                    .accessibilityLabel(Text("Step options"))
                 }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .navigationTitle(index.map { Text("\($0 + 1) of \(steps.count)") } ?? Text(verbatim: ""))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                    }
-                    .accessibilityLabel(Text("Close"))
+            ToolbarItem(placement: .bottomBar) {
+                Button {
+                    if let index, index > 0 { withAnimation { stepID = steps[index - 1].id } }
+                } label: {
+                    Image(systemName: "chevron.left")
                 }
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Button {
-                        if let index, index > 0 { withAnimation { stepID = steps[index - 1].id } }
-                    } label: {
-                        Image(systemName: "chevron.left")
+                .disabled((index ?? 0) == 0)
+                .accessibilityLabel(Text("Previous step"))
+            }
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+            if let current {
+                ToolbarItem(placement: .bottomBar) {
+                    Button { actions.comment(current) } label: {
+                        Label("Comment", systemImage: "bubble.left")
                     }
-                    .disabled((index ?? 0) == 0)
-                    .accessibilityLabel(Text("Previous step"))
-                    Spacer()
-                    Button {
-                        if let index, index < steps.count - 1 { withAnimation { stepID = steps[index + 1].id } }
-                    } label: {
-                        Image(systemName: "chevron.right")
-                    }
-                    .disabled((index ?? steps.count - 1) >= steps.count - 1)
-                    .accessibilityLabel(Text("Next step"))
                 }
+            }
+            ToolbarSpacer(.flexible, placement: .bottomBar)
+            ToolbarItem(placement: .bottomBar) {
+                Button {
+                    if let index, index < steps.count - 1 { withAnimation { stepID = steps[index + 1].id } }
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .disabled((index ?? steps.count - 1) >= steps.count - 1)
+                .accessibilityLabel(Text("Next step"))
             }
         }
         // The step was deleted while open.
@@ -362,5 +353,129 @@ struct StepDetailPager: View {
                     .navigationTransition(.zoom(sourceID: request.id, in: photoTransition))
             }
         }
+    }
+
+    /// The place, like the heading of a step on the web; else the day.
+    private func title(of step: Components.Schemas.Step?, start: Date?) -> Text {
+        guard let step else { return Text(verbatim: "") }
+        if let place = step.placeName { return Text(verbatim: place) }
+        if let start { return Text("Day \(calendar.tripDay(of: step.occurredAt, start: start))") }
+        return Text(step.occurredAt.formatted(
+            Date.FormatStyle(date: .abbreviated, time: .omitted, timeZone: calendar.calendar.timeZone)
+        ))
+    }
+}
+
+/// One step as a grouped list, like a detail screen in Apple's apps: the
+/// photos on top, then the text, the facts, and the comments.
+struct StepDetailPage: View {
+    let account: Account
+    let step: Components.Schemas.Step
+    let day: Int?
+    let calendar: TripCalendar
+    var pending: [PendingUpload] = []
+    /// Readers who saw the step – authors only.
+    var viewCount: Int?
+    let actions: StepActions
+    let photoTransition: Namespace.ID
+    let openPhoto: (Int) -> Void
+
+    var body: some View {
+        List {
+            if !step.photos.isEmpty {
+                Section {
+                    PhotoGrid(account: account, stepID: step.id, photos: step.photos, transition: photoTransition, open: openPhoto)
+                        .listRowInsets(EdgeInsets())
+                }
+            }
+
+            if !pending.isEmpty {
+                Section {
+                    PendingUploadsView(uploads: pending)
+                }
+            }
+
+            if !step.body.isEmpty {
+                Section {
+                    Text(step.body)
+                        .lineSpacing(2)
+                        .textSelection(.enabled)
+                        .padding(.vertical, 4)
+                }
+            }
+
+            Section {
+                LabeledContent {
+                    if let day { Text("Day \(day)") }
+                } label: {
+                    Label(
+                        step.occurredAt.formatted(
+                            Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide).year()
+                        ),
+                        systemImage: "calendar"
+                    )
+                }
+                if let place = step.placeName {
+                    if step.lat != nil && step.lon != nil {
+                        Button { actions.showOnMap(step) } label: {
+                            Label(place, systemImage: "mappin.and.ellipse")
+                        }
+                        .accessibilityHint(Text("Show on map"))
+                    } else {
+                        Label(place, systemImage: "mappin.and.ellipse")
+                    }
+                }
+                if let viewCount {
+                    LabeledContent {
+                        Text("\(viewCount) readers")
+                    } label: {
+                        Label("Seen by", systemImage: "eye")
+                    }
+                }
+            } footer: {
+                if viewCount != nil {
+                    Text("Readers who have seen this step, each counted once.")
+                }
+            }
+
+            Section("Comments") {
+                ForEach(step.comments, id: \.id) { comment in
+                    CommentRow(comment: comment)
+                        .contextMenu {
+                            if actions.isAuthor {
+                                Button("Delete comment", systemImage: "trash", role: .destructive) {
+                                    actions.deleteComment(comment)
+                                }
+                            }
+                        }
+                }
+                Button { actions.comment(step) } label: {
+                    Label("Write a comment", systemImage: "square.and.pencil")
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+}
+
+/// A comment as a list row: name and when, then the text.
+struct CommentRow: View {
+    let comment: Components.Schemas.Comment
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(comment.authorName)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(comment.createdAt.formatted(.relative(presentation: .named)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(comment.body)
+                .font(.subheadline)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
     }
 }

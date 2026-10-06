@@ -417,26 +417,37 @@ needs no second request; older servers leave it out and get a colored
 placeholder). With room for it (iPad, regular width) the trips are a sidebar
 next to the open trip. Opening a card zooms into the trip, laid out like
 Polarsteps (changed on 2026-10-06 – the vertical timeline in a sheet over the
-map wasn't intuitive): the route fills the screen, the steps lie below it as
-cards side by side (`StepPager`). The first card is the trip itself – cover,
-title, dates, numbers –, then the steps oldest to newest, so the cards run
+map wasn't intuitive): the route fills the screen, the steps float below it
+as cards side by side (`StepPager`). The first card is the trip itself –
+cover, title, dates –, then the steps oldest to newest, so the cards run
 along the route; the pager opens on the newest ([E13]). Swiping the cards
-flies the map to the step, a tapped marker brings its card. A tapped card
-opens the step full screen (`StepDetailPager`): photos, text, comments, and
-sideways on to the previous and next step; closing it leaves pager and map
-at the step reached. Photos open with a zoom transition and close by swiping
-down. Controls that float over content are Liquid Glass; the content itself
-(cards, comments) is not.
+flies the map to the step (with a selection tick), a tapped marker brings
+its card. A tapped card **pushes** the step's page (`StepDetailPager`), with
+the system back button and edge swipe; sideways it pages on to the previous
+and next step, and going back leaves pager and map at the step reached.
+Photos open from there with a zoom transition and close by swiping down.
 
-Two SwiftUI traps from building it: a view can't present a sheet while a
-full-screen cover lies over it, so every sheet and dialog of the trip is
-attached twice – to the map and to the open step – and only the copy on top
-gets the real bindings (`gate()` in `TripView`). Gating the bindings rather
-than the modifiers keeps the map's identity; an `if` around the modifiers
-would rebuild it each time a step opens. And state read only inside a lazy
-container's closures doesn't make `body` update: the trip list stayed on its
-spinner after a first load into an empty cache, so `body` reads the lists
-and hands them down.
+The look follows the system rather than the web UI (also 2026-10-06, after
+"it still feels like a PWA"): cards that float over the map are Liquid
+Glass with concentric corners, like the panels of Apple's Maps – no drop
+shadows, no gradient hero; a step's page is a grouped `List` like a detail
+screen in Apple's apps (photos, text, a facts section with date, place →
+map and, for authors, "Seen by", then the comments as rows); actions live
+in the toolbars (⋯ menu top right, previous / comment / next at the
+bottom) and behind touch and hold (deleting a comment, discarding a step
+still on the device) instead of inline text buttons.
+
+Two SwiftUI traps from building it: while the step page is pushed, the map
+below it can't present anything, so every sheet and dialog of the trip is
+attached twice – to the map and to the step page – and only the copy on
+top gets the real bindings (`gate()` in `TripView`). Gating the bindings
+rather than the modifiers keeps the map's identity; an `if` around the
+modifiers would rebuild it each time a step opens. The pushed item is
+compared by an ID only (`StepDetailRequest`) and the page shown lives in
+separate state – otherwise every swipe sideways would count as a new
+destination. And state read only inside a lazy container's closures doesn't
+make `body` update: the trip list stayed on its spinner after a first load
+into an empty cache, so `body` reads the lists and hands them down.
 
 After a new cover the form loads the trip once more: the card shows the
 photo behind `cover`, and with only the new `coverPhotoId` it kept the old
@@ -1431,12 +1442,12 @@ Not verified – be careful when building on these:
   of all map data are checked, the rendering itself isn't.
 - **OIDC never ran against a real instance.** The flow is built to spec but
   untested.
-- **The app's step pager (2026-10-06) was never compiled or run.** It was
-  written in an environment without Xcode: the horizontal cards, the
-  full-screen step with sideways paging, the cover card, the view counts
-  and the refreshed cover after editing a trip. Build it and try it on a
-  device before relying on it – especially where the pager opens, whether
-  the map follows the cards, and sheets presented from the open step.
+- **The app's trip screen of 2026-10-06 was never compiled or run.** It
+  was written in an environment without Xcode: the glass cards, the pushed
+  step page with sideways paging, the cover card, the view counts and the
+  refreshed cover after editing a trip. Build it and try it on a device
+  before relying on it – especially where the pager opens, whether the map
+  follows the cards, and sheets presented from the step page.
 - Automated tests (`npm test`) cover access control, the image pipeline and sign-in basics – not the route handlers or the UI yet.
 
 ---

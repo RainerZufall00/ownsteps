@@ -77,16 +77,6 @@
         }
       }
     },
-    "%lld of %lld": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$lld von %2$lld"
-          }
-        }
-      }
-    },
     "%lld photos": {
       "localizations": {
         "en": {
@@ -160,6 +150,46 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld photos from this trip aren't in it yet."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld readers": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld reader"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld readers"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Person"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Personen"
                 }
               }
             }
@@ -400,6 +430,16 @@
         }
       }
     },
+    "Comments": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommentare"
+          }
+        }
+      }
+    },
     "Continue": {
       "localizations": {
         "de": {
@@ -426,16 +466,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tag %lld"
-          }
-        }
-      }
-    },
-    "Days": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tage"
           }
         }
       }
@@ -1253,6 +1283,16 @@
         }
       }
     },
+    "Seen by": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesehen von"
+          }
+        }
+      }
+    },
     "Select all": {
       "localizations": {
         "de": {
@@ -1299,16 +1339,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Einstellungen"
-          }
-        }
-      }
-    },
-    "Share": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Teilen"
           }
         }
       }
@@ -1489,16 +1519,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Optionen für den Beitrag"
-          }
-        }
-      }
-    },
-    "Steps": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stationen"
           }
         }
       }
@@ -2119,6 +2139,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Was ist passiert?"
+          }
+        }
+      }
+    },
+    "Write a comment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommentar schreiben"
           }
         }
       }
