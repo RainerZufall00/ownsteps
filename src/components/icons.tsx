@@ -59,6 +59,15 @@ export function CommentIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+export function EyeIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <StrokeIcon
+      className={className}
+      d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+    />
+  );
+}
+
 export function PinIcon({ className = "h-4 w-4 text-accent" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">

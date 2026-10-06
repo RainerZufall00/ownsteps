@@ -164,6 +164,12 @@ the proxy.
 Whoever has the link can **comment** – type a name, write a text, no account.
 Only signed-in authors can delete comments.
 
+Authors see on every step **how many readers have seen it** – each reader
+counted once, whether they follow in the app or read the share link.
+Readers don't see the numbers, and authors aren't counted. To tell browsers
+apart, the share page sets a random cookie (`ownsteps_visitor`); the server
+stores only its hash and which steps it saw, no IP addresses.
+
 The timeline shows the **newest step on top**. Day counting ("day 6") still
 counts from the start of the trip, and the map naturally draws the route in
 the direction traveled.

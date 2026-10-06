@@ -37,6 +37,96 @@
     "%lld / %lld": {
       "shouldTranslate": false
     },
+    "%lld comments": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld comment"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld comments"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Kommentar"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Kommentare"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld von %2$lld"
+          }
+        }
+      }
+    },
+    "%lld photos": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photo"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld photos"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Foto"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Fotos"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld photos from this trip aren't in it yet.": {
       "localizations": {
         "de": {
@@ -110,6 +200,46 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld Stationen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld views": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld view"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld views"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Aufruf"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Aufrufe"
                 }
               }
             }
@@ -670,6 +800,16 @@
         }
       }
     },
+    "Next step": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Station"
+          }
+        }
+      }
+    },
     "No OwnSteps server answers at this address.": {
       "localizations": {
         "de": {
@@ -696,16 +836,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Noch keine Orte"
-          }
-        }
-      }
-    },
-    "No steps yet": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Noch keine Stationen"
           }
         }
       }
@@ -806,6 +936,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Im Browser öffnen"
+          }
+        }
+      }
+    },
+    "Opens the step": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet die Station"
           }
         }
       }
@@ -983,6 +1123,16 @@
         }
       }
     },
+    "Previous step": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorherige Station"
+          }
+        }
+      }
+    },
     "QR code of the link": {
       "localizations": {
         "de": {
@@ -1009,6 +1159,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Leser in der App"
+          }
+        }
+      }
+    },
+    "Readers who have seen this step, each counted once.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leser, die diese Station gesehen haben, jeder einmal gezählt."
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisieren"
           }
         }
       }
@@ -1679,16 +1849,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diese Reise gibt es nicht mehr."
-          }
-        }
-      }
-    },
-    "Timeline": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Timeline"
           }
         }
       }

@@ -127,6 +127,7 @@ erDiagram
     trips ||--o{ steps : contains
     trips ||--o{ photos : owns
     steps ||--o{ photos : shows
+    steps ||--o{ step_views : "seen by"
 
     users {
         int id PK
@@ -181,6 +182,11 @@ erDiagram
         text body
         int created_at
     }
+    step_views {
+        int step_id PK
+        text viewer PK "device:<id> or web:<hash>"
+        int created_at
+    }
 ```
 
 Important quirks:
@@ -203,6 +209,9 @@ Important quirks:
 - **`photos.trip_id` is redundant** with `steps.trip_id`, but it makes the
   access check when serving a single join and allows photos without a step
   (the cover image).
+- **`step_views` holds one row per step and reader**, never a running
+  counter, so a reader coming back doesn't count twice ([E17]). It isn't
+  part of the change log.
 - **`photos.step_id` cascades (`ON DELETE CASCADE`)**: step gone, photo rows
   gone. The *files* are cleaned up by `deletePhotoFilesFor` – every deletion
   path has to do that itself, SQLite doesn't know about the disk.
@@ -375,6 +384,10 @@ services the web UI calls.
   Viewers only see their trip's entries. **Anything that writes to trips,
   steps, photos or comments must go through these functions** or record the
   change itself, otherwise the app never learns about it.
+- **Views.** A reader's app reports the steps it showed with
+  `POST /api/v1/trips/{id}/views`; authors may call it too, they just aren't
+  counted. The trip detail carries `viewCount` on every step for authors
+  only ([E17]).
 - **Errors** are `application/problem+json` with `type`
   `urn:ownsteps:problem:<code>` – the same codes the services throw.
 - **The OpenAPI document** (`src/lib/api/openapi.ts`, served at
@@ -401,23 +414,34 @@ drops them (`simplifyNullables()` in `src/lib/api/openapi.ts`).
 **Layout**: on the iPhone the trips are large cover cards (the trip's
 `cover` from the API – the cover photo, else the first one – so the list
 needs no second request; older servers leave it out and get a colored
-placeholder). Opening a card zooms into the trip, where the route fills the
-screen and the timeline lies over it as a sheet in three heights. With room
-for it (iPad, regular width) the trips are a sidebar and the timeline an
-inspector column next to the map. Map and timeline follow each other: a
-tapped marker scrolls the timeline to its step, scrolling the timeline flies
-the map to the step at the top. Photos open with a zoom transition and close
-by swiping down. Controls that float over content are Liquid Glass; the
-content itself (cards, comments) is not.
+placeholder). With room for it (iPad, regular width) the trips are a sidebar
+next to the open trip. Opening a card zooms into the trip, laid out like
+Polarsteps (changed on 2026-10-06 – the vertical timeline in a sheet over the
+map wasn't intuitive): the route fills the screen, the steps lie below it as
+cards side by side (`StepPager`). The first card is the trip itself – cover,
+title, dates, numbers –, then the steps oldest to newest, so the cards run
+along the route; the pager opens on the newest ([E13]). Swiping the cards
+flies the map to the step, a tapped marker brings its card. A tapped card
+opens the step full screen (`StepDetailPager`): photos, text, comments, and
+sideways on to the previous and next step; closing it leaves pager and map
+at the step reached. Photos open with a zoom transition and close by swiping
+down. Controls that float over content are Liquid Glass; the content itself
+(cards, comments) is not.
 
-Three SwiftUI traps from building it: the inspector does *not* turn into a
-sheet on the iPhone as documented, so the iPhone uses a real sheet – and
-since a view can't present a second sheet while one is up, every other sheet
-of the trip is presented from inside the timeline sheet. The toolbar has to
-be attached *outside* `.inspector`, or its items vanish while the inspector
-is open. And state read only inside a lazy container's closures doesn't
-make `body` update: the trip list stayed on its spinner after a first load
-into an empty cache, so `body` reads the lists and hands them down.
+Two SwiftUI traps from building it: a view can't present a sheet while a
+full-screen cover lies over it, so every sheet and dialog of the trip is
+attached twice – to the map and to the open step – and only the copy on top
+gets the real bindings (`gate()` in `TripView`). Gating the bindings rather
+than the modifiers keeps the map's identity; an `if` around the modifiers
+would rebuild it each time a step opens. And state read only inside a lazy
+container's closures doesn't make `body` update: the trip list stayed on its
+spinner after a first load into an empty cache, so `body` reads the lists
+and hands them down.
+
+After a new cover the form loads the trip once more: the card shows the
+photo behind `cover`, and with only the new `coverPhotoId` it kept the old
+image (or none) until the next pull to refresh. Editing a trip bumps
+`tripListRevision`, which makes the list load again.
 
 **Reading** (phase 4b): the trip list and each trip are shown from the GRDB
 cache (`TripCache`, responses stored as JSON per account and trip) and
@@ -801,6 +825,11 @@ After clicking a marker or an entry in the map strip, `suppressObserver`
 pauses tracking for 800 ms. Without that, scrolling to the target overrides
 the choice just made along the way.
 
+On the authors' page every step shows how many readers have seen it
+(`viewCounts`, [E17]) – only if the trip is shared or was read before, so
+a private trip doesn't say "0 views" everywhere. On the share page the same
+component reports what the visitor read (`useStepViews`).
+
 The "timeline / map" toggle **deliberately doesn't stick** – a bar scrolling
 along above the timeline feels restless.
 
@@ -1032,6 +1061,10 @@ chronological: it depicts the path, not the news feed.
 The step active on opening is therefore `steps.at(-1)` – the top step of the
 timeline and the last point of the route.
 
+The app's step cards (since 2026-10-06) follow the route as well: oldest on
+the left, newest on the right. They open on the newest card, so readers
+still land on what's new.
+
 ### [E14] An entered date range beats the steps
 
 `trips.start_date` and `end_date` are optional but take precedence once set.
@@ -1083,6 +1116,38 @@ rendered per request anyway (nonce CSP), so this costs nothing.
   translates them with its String Catalogs.
 - **User content isn't translated** – trip titles, texts and captions are
   shown as written.
+
+### [E17] View counts for authors, once per reader
+
+Decided on 2026-10-06. Authors see on every step how many readers have seen
+it – in the web timeline and in the app. Readers never see the numbers.
+
+- **Once per reader and step**, not per page view: a table `step_views`
+  with one row per step and reader. A grandmother reloading the page ten
+  times is one reader, and the number answers "who has read this?", not
+  "how much traffic was there?".
+- **What counts as seen**: in the app, a step that stayed on screen for a
+  second (in the pager or opened); on the share page, a step that filled a
+  good part of the screen for a second (`useStepViews`, an
+  `IntersectionObserver` that reports in batches to
+  `POST /api/share-views/<token>`). Scrolling past doesn't count.
+- **Who is a reader**: app devices by their `viewer_devices` ID; share-link
+  visitors by a random cookie (`ownsteps_visitor`, a year, stored only as a
+  hash). No IP addresses, no accounts. A visitor who clears cookies or
+  switches browsers counts again – good enough for a family's travel
+  journal, and nothing more precise would be worth the tracking. The
+  same person in the app and the browser counts twice.
+- **Authors are never counted**: a signed-in browser on the share link and
+  an author token in the app are ignored by the server, so the clients
+  don't need to know who they are.
+- **Not in the change log.** A view isn't content; recorded there, every
+  reader scrolling past a step would make the authors' apps fetch the trip
+  again. The numbers arrive with the next normal refresh.
+- **Abuse**: the share route needs the link's token (and the unlock for a
+  password), only takes `application/json` (a cross-site form can't send it
+  without a CORS preflight), and counts only published steps of that trip.
+  Someone with the link who wants to inflate the numbers can still do so –
+  accepted, it only fools the authors about their own audience.
 
 ---
 
@@ -1327,6 +1392,10 @@ Verified (production build, real HTTP requests):
   (`GET /` → 200), and the account is created from the claims. With
   `X-Forwarded-Host` the callback URL is built on the public domain instead of
   `0.0.0.0`
+- View counts, in Chromium against a production build (2026-10-06): a
+  share-link visitor scrolling through four of six steps reported each of
+  the four once, and the author's trip page showed "1 view" on those and
+  "0 views" on the rest
 - iOS app writing, in the iPhone simulator against the dev server: a step
   with two HEIC photos (with GPS) and a video arrives with all three files,
   the GPS position survives the JPEG conversion; a text step written with the
@@ -1362,6 +1431,12 @@ Not verified – be careful when building on these:
   of all map data are checked, the rendering itself isn't.
 - **OIDC never ran against a real instance.** The flow is built to spec but
   untested.
+- **The app's step pager (2026-10-06) was never compiled or run.** It was
+  written in an environment without Xcode: the horizontal cards, the
+  full-screen step with sideways paging, the cover card, the view counts
+  and the refreshed cover after editing a trip. Build it and try it on a
+  device before relying on it – especially where the pager opens, whether
+  the map follows the cards, and sheets presented from the open step.
 - Automated tests (`npm test`) cover access control, the image pipeline and sign-in basics – not the route handlers or the UI yet.
 
 ---

@@ -119,6 +119,9 @@ export const de: Dictionary = {
     tapToRead: "Antippen zum Lesen",
     marker: "Station {number}",
     openPhoto: "Foto {index} von {count} öffnen",
+    views: { one: "{count} Aufruf", other: "{count} Aufrufe" },
+    viewsHint:
+      "Leser, die diese Station gesehen haben, jeder einmal gezählt – in der App und über den Freigabe-Link. Sehen nur die Autoren.",
   },
 
   lightbox: {

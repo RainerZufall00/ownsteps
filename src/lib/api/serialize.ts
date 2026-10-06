@@ -58,7 +58,8 @@ export function commentDto(comment: Comment): CommentDto {
   };
 }
 
-export function stepDto(step: StepWithPhotos): StepDto {
+/** `viewCount` only for authors – readers never learn who else reads along. */
+export function stepDto(step: StepWithPhotos, viewCount?: number): StepDto {
   return {
     id: step.id,
     tripId: step.tripId,
@@ -72,6 +73,7 @@ export function stepDto(step: StepWithPhotos): StepDto {
     updatedAt: toIso(step.updatedAt)!,
     photos: step.photos.map(photoDto),
     comments: step.comments.map(commentDto),
+    ...(viewCount === undefined ? {} : { viewCount }),
   };
 }
 
@@ -111,10 +113,12 @@ export function tripDetailDto(
   steps: StepWithPhotos[],
   share: { url: string } | null,
   cover: Photo | null,
+  /** Per step, for authors; without it the steps carry no `viewCount`. */
+  viewCounts?: Map<number, number>,
 ): TripDetailDto {
   return {
     ...tripDto(trip, summarizeSteps(trip, steps), share, cover),
-    steps: steps.map(stepDto),
+    steps: steps.map((step) => stepDto(step, viewCounts && (viewCounts.get(step.id) ?? 0))),
   };
 }
 

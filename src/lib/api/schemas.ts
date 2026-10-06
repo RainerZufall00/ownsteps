@@ -1,6 +1,11 @@
 import "zod-openapi";
 import { z } from "zod";
-import { CAPTION_MAX_LENGTH, TRIP_SUMMARY_MAX_LENGTH, TRIP_TITLE_MAX_LENGTH } from "@/lib/limits";
+import {
+  CAPTION_MAX_LENGTH,
+  TRIP_SUMMARY_MAX_LENGTH,
+  TRIP_TITLE_MAX_LENGTH,
+  VIEW_BATCH_MAX,
+} from "@/lib/limits";
 
 /**
  * Shapes of `/api/v1`. The response schemas document what the serializers
@@ -63,6 +68,12 @@ export const stepSchema = z
     updatedAt: isoDateTime,
     photos: z.array(photoSchema),
     comments: z.array(commentSchema),
+    /**
+     * How many readers (app devices and share-link visitors) have seen the
+     * step. Authors only, and only in a trip's detail – left out otherwise
+     * and by older servers (feature `step-views`).
+     */
+    viewCount: z.number().int().optional(),
   })
   .meta({
     id: "Step",
@@ -277,6 +288,13 @@ export const redeemSchema = z
     deviceName: z.string().max(100).optional(),
   })
   .meta({ id: "Redeem" });
+
+export const stepViewsSchema = z
+  .object({
+    /** Steps of this trip the reader has seen; unknown ones are ignored. */
+    stepIds: z.array(z.number().int()).min(1).max(VIEW_BATCH_MAX),
+  })
+  .meta({ id: "StepViews" });
 
 export const mediaUploadSchema = z
   .object({

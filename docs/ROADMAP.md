@@ -37,6 +37,8 @@ architecture doc and the phase is ticked off here.
 | D25 | App Store review | **Demo instance** on the maintainer's VPS, reset nightly. Privacy label: "Data Not Collected". |
 | D26 | Transport | App: **HTTPS only**, plus `NSAllowsLocalNetworking` for LAN instances |
 | D27 | Polarsteps import | **After** the release, filed as a "help wanted" issue |
+| D28 | View counts | Authors see per step how many **readers** saw it (each counted once: app device, or share-link visitor by cookie); authors aren't counted, readers don't see the numbers. Seen = on screen for a second. Not in the change log. Details in [E17]. (Was O5.) |
+| D29 | App trip screen | Like Polarsteps: map fills the screen, steps as **horizontal cards** below it (trip card with cover first, then oldest → newest, opening on the newest), a tapped card opens the step **full screen with sideways paging**. Same layout on iPhone and iPad. The vertical timeline is gone. (Was O6.) |
 
 ---
 
@@ -98,27 +100,15 @@ architecture doc and the phase is ticked off here.
   - several instances in one app
   - `BGAppRefreshTask` plus local notifications for authors and viewers
 - [ ] String Catalogs en/de from day one (up to date through 4e).
-- [ ] **4f Feedback from first use (requested 2026-10-06):**
-  - **View counts per step for authors.** Authors see on every step how often
-    it was viewed (web and app); viewers never see it. Server: count per step,
-    deduplicated per viewer device (app) and per share-link visitor (web,
-    e.g. a cookie-bound visitor ID), authors' own views excluded. Delivered
-    with the step in `/api/v1` as an author-only field, so `features[]` in
-    `/info` gets an entry and older servers simply show nothing (D13). What
-    exactly counts as a view is open point O5.
-  - **Polarsteps-style trip screen in the app** instead of the vertical
-    timeline in the sheet: map on top, steps as a horizontal pager at the
-    bottom; swiping moves to the previous/next step and the map follows. A
-    tapped step opens full screen and can be swiped sideways as well. Order
-    left → right is chronological, the pager opens on the newest step – the
-    data stays ascending ([E13]). Details in open point O6; build a prototype
-    first and decide on the device.
-  - **Bug: the cover image isn't shown correctly in the app.** Leads so far:
-    after uploading a new cover, `TripFormView` only sets `coverPhotoId` on
-    the saved trip, not `cover`, so the card keeps the old image (or the
-    first step photo) until the next reload; the trip screen itself
-    (`TripHeader`) shows no cover at all. Reproduce on the device first – it
-    may be something else.
+- [x] **4f Feedback from first use (requested and built 2026-10-06):**
+  - View counts per step for authors, web and app (D28, [E17]).
+  - Polarsteps-style trip screen in the app: map on top, steps as cards side
+    by side, a tapped card opens the step full screen with sideways paging
+    (D29). **Not compiled or run yet** – written without Xcode; build it and
+    check it on a device.
+  - Bug fixed: the app showed no cover. The trip screen had no place for it
+    (now the first card), and after choosing a new cover the list card kept
+    the old image or none until a pull to refresh.
 
 ### Phase 5 – Code review ("strangers run this now")
 - [x] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices (2026-10-02). Fixed: brakes on every password check (per address from the right end of `X-Forwarded-For`, plus per account and per trip), share passwords ≥ 8 characters, OIDC only matches verified emails, security headers and a nonce CSP, readers signed out on a new link or password. Accepted: setup stays open until the first account exists.
@@ -154,14 +144,5 @@ architecture doc and the phase is ticked off here.
   (`sanitizeAttributions`, see [E9]). `npm audit` keeps reporting the
   advisory until v6; whether a v6 upgrade with a fixed worker URL works is
   still worth a try – in a real browser.
-- **O5 – What counts as a view:** opening the step in the app, or the step
-  being on screen for a moment (web: `IntersectionObserver` beacon, needs to
-  fit the nonce CSP)? Unique viewers or raw opens? Show names for app viewers
-  ("seen by Anna, Ben"), since they register a name anyway (D17)? How long
-  are visitor IDs kept? Mention it in the README – the instance owner now
-  stores who read what.
-- **O6 – Trip screen layout in the app:** full-width step cards or a peek of
-  the neighbors, where the trip header (title, dates, numbers) and the
-  "add step" button go, how comments fit into the full-screen step, and
-  whether the vertical timeline stays reachable as a list (e.g. for long
-  trips or VoiceOver).
+- ~~**O5 – What counts as a view**~~ – decided as D28.
+- ~~**O6 – Trip screen layout in the app**~~ – decided as D29.

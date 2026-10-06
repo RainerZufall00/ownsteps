@@ -74,6 +74,22 @@ extension ServerClient {
         }
     }
 
+    // MARK: Views
+
+    /// Reports steps the reader has looked at, so the authors see how often
+    /// each was read. The server ignores authors, so callers needn't know
+    /// who they are.
+    public func recordViews(tripID: Int, stepIDs: [Int]) async throws {
+        let output = try await client.recordViews(
+            path: .init(tripId: String(tripID)),
+            body: .json(.init(stepIds: stepIDs))
+        )
+        switch output {
+        case .noContent: return
+        case .default(let status, let response): throw problem(response.body, status: status)
+        }
+    }
+
     // MARK: Changes
 
     /// Changes after `cursor`; without one, only the current cursor.

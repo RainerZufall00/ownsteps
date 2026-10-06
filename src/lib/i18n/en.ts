@@ -125,6 +125,9 @@ export const en = {
     tapToRead: "Tap to read",
     marker: "Step {number}",
     openPhoto: "Open photo {index} of {count}",
+    views: { one: "{count} view", other: "{count} views" },
+    viewsHint:
+      "Readers who have seen this step, each counted once – in the app and through the share link. Only authors see this.",
   },
 
   lightbox: {

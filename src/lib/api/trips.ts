@@ -6,6 +6,7 @@ import { publicOrigin } from "@/lib/origin";
 import { shareUrl } from "@/lib/share";
 import { getPhoto } from "@/lib/photos";
 import { getSteps, listTrips, summarizeSteps, type TripSummary } from "@/lib/trips";
+import { countStepViews } from "@/lib/views";
 import type { Trip } from "@/db/schema";
 import type { Principal } from "./principal";
 import { tripDetailDto, tripDto } from "./serialize";
@@ -45,5 +46,7 @@ export async function tripDetailFor(principal: Principal, trip: Trip, request: R
   const cover =
     steps.flatMap((step) => step.photos).find((photo) => photo.id === coverId) ??
     (coverId ? await getPhoto(coverId) : null);
-  return tripDetailDto(trip, steps, shareFor(principal, trip, request), cover);
+  const viewCounts =
+    principal.kind === "author" ? await countStepViews(steps.map((step) => step.id)) : undefined;
+  return tripDetailDto(trip, steps, shareFor(principal, trip, request), cover, viewCounts);
 }

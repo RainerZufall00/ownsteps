@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   index,
   integer,
+  primaryKey,
   real,
   sqliteTable,
   text,
@@ -208,6 +209,26 @@ export const changes = sqliteTable(
     createdAt: integer("created_at").notNull().default(now),
   },
   (t) => [index("changes_trip_idx").on(t.tripId, t.seq)],
+);
+
+/**
+ * Who has seen which step, so authors see how often a step was read. One row
+ * per step and reader: `viewer` is `device:<viewer_devices.id>` for a reader
+ * device in the app, `web:<hash>` for a visitor of the share link (a random
+ * cookie, hashed). Authors are never recorded. Not part of the change log:
+ * a view isn't content, and the app would otherwise refetch the trip for
+ * every reader that scrolls past a step.
+ */
+export const stepViews = sqliteTable(
+  "step_views",
+  {
+    stepId: integer("step_id")
+      .notNull()
+      .references(() => steps.id, { onDelete: "cascade" }),
+    viewer: text("viewer").notNull(),
+    createdAt: integer("created_at").notNull().default(now),
+  },
+  (t) => [primaryKey({ columns: [t.stepId, t.viewer] })],
 );
 
 export type User = typeof users.$inferSelect;

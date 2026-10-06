@@ -4,8 +4,8 @@ import SwiftUI
 
 /// The route on Apple's map ([D18]: MapKit, no key, no cost for the host).
 /// The line connects the steps in the order they happened. It fills the trip
-/// screen; the timeline lies on top of it, and both follow each other: a
-/// tapped marker scrolls the timeline, a scrolled timeline moves the map.
+/// screen with the step cards below, and both follow each other: a tapped
+/// marker brings its card, a swiped card moves the map.
 struct TripMapView: View {
     let account: Account
     let trip: Components.Schemas.TripDetail

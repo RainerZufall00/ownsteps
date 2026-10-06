@@ -162,6 +162,17 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS changes_trip_idx ON changes(trip_id, seq);
     `,
   },
+  {
+    name: "0005_step_views",
+    sql: `
+      CREATE TABLE IF NOT EXISTS step_views (
+        step_id INTEGER NOT NULL REFERENCES steps(id) ON DELETE CASCADE,
+        viewer TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+        PRIMARY KEY (step_id, viewer)
+      );
+    `,
+  },
 ];
 
 function isBusyError(error: unknown) {

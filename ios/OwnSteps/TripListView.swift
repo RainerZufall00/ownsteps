@@ -91,6 +91,9 @@ struct TripListView: View {
             open(route)
             Task { await refresh() }
         }
+        .onChange(of: model.tripListRevision) {
+            Task { await refresh() }
+        }
         .task {
             loadCached()
             await refresh()

@@ -4,15 +4,17 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { formatWeekday, fromDateInput } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
+import { plural } from "@/lib/i18n/text";
 import type { MapStyleConfig } from "@/lib/map";
 import type { ViewStep, ViewTrip } from "@/lib/view-types";
 import CommentSection from "./CommentSection";
 import MapCanvas, { type MapStep } from "./MapCanvas";
 import MapTimelineStrip from "./MapTimelineStrip";
 import { MediaBaseProvider } from "./media-context";
-import { ChevronRightIcon, PinIcon } from "./icons";
+import { ChevronRightIcon, EyeIcon, PinIcon } from "./icons";
 import PhotoGrid from "./PhotoGrid";
 import { useDayLabel } from "./trip-day";
+import { useStepViews } from "./use-step-views";
 
 type Props = {
   trip: ViewTrip;
@@ -26,8 +28,13 @@ type Props = {
    * URLs and the photos can't be reached without it.
    */
   mediaBase?: string;
-  /** Share link token; guests need it to comment. */
+  /**
+   * Share link token; guests need it to comment, and the page reports with it
+   * which steps were read.
+   */
   shareToken?: string;
+  /** Readers per step – only on the authors' page. */
+  viewCounts?: Record<number, number>;
   /** Header contributed by the respective page (title, actions). */
   header: ReactNode;
 };
@@ -39,6 +46,7 @@ export default function TripView({
   editable = false,
   mediaBase = "/api/photos",
   shareToken,
+  viewCounts,
   header,
 }: Props) {
   const { locale, t } = useI18n();
@@ -108,6 +116,8 @@ export default function TripView({
     elements.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
   }, [steps]);
+
+  useStepViews(shareToken, articleRefs, steps);
 
   /**
    * On phones the map should reach down to the bottom edge. How much space
@@ -268,6 +278,15 @@ export default function TripView({
                             </span>
                           )}
                           <span>{formatWeekday(step.occurredAt, locale)}</span>
+                          {viewCounts && (
+                            <span
+                              title={t.timeline.viewsHint}
+                              className="ml-auto inline-flex items-center gap-1 text-ink-faint"
+                            >
+                              <EyeIcon className="h-3.5 w-3.5" />
+                              {plural(t.timeline.views, viewCounts[step.id] ?? 0)}
+                            </span>
+                          )}
                         </div>
 
                         {step.placeName && (

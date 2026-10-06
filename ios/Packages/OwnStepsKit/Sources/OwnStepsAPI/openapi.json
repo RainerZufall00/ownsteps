@@ -579,6 +579,52 @@
         }
       }
     },
+    "/api/v1/trips/{tripId}/views": {
+      "post": {
+        "operationId": "recordViews",
+        "summary": "Report steps the reader has seen; counted once per device and step. Authors' views are not recorded.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tripId",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepViews"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "description": "Error (RFC 9457 problem details, `code` is stable)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/steps/{stepId}": {
       "patch": {
         "operationId": "updateStep",
@@ -1282,6 +1328,24 @@
             "type": "boolean"
           }
         }
+      },
+      "StepViews": {
+        "type": "object",
+        "properties": {
+          "stepIds": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "required": [
+          "stepIds"
+        ]
       },
       "StepPatch": {
         "type": "object",
@@ -2010,6 +2074,11 @@
             "items": {
               "$ref": "#/components/schemas/Comment"
             }
+          },
+          "viewCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
           }
         },
         "required": [

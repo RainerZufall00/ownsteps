@@ -20,6 +20,7 @@ import {
   stepCreateSchema,
   stepPatchSchema,
   stepSchema,
+  stepViewsSchema,
   tokenRequestSchema,
   tripCreateSchema,
   tripDetailSchema,
@@ -239,6 +240,17 @@ export function buildOpenApiDocument() {
           summary: "Remove every reader's device (authors)",
           security: secured,
           requestParams: { path: idPath("tripId") },
+          responses: { "204": noContent },
+        }),
+      },
+      "/api/v1/trips/{tripId}/views": {
+        post: op({
+          operationId: "recordViews",
+          summary:
+            "Report steps the reader has seen; counted once per device and step. Authors' views are not recorded.",
+          security: secured,
+          requestParams: { path: idPath("tripId") },
+          requestBody: jsonBody(stepViewsSchema),
           responses: { "204": noContent },
         }),
       },

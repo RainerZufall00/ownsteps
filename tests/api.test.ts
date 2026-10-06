@@ -472,6 +472,110 @@ describe("viewers", () => {
   });
 });
 
+describe("step views", () => {
+  async function tripWithReader() {
+    const token = await signIn();
+    const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Norway" } });
+    await call("PATCH", "/api/v1/trips/{id}", {
+      token,
+      params: { id: trip.json.id },
+      body: { shareEnabled: true },
+    });
+    const steps = [];
+    for (const body of ["Oslo", "Bergen"]) {
+      const step = await call("POST", "/api/v1/trips/{id}/steps", {
+        token,
+        params: { id: trip.json.id },
+        body: { body },
+      });
+      steps.push(step.json.id as number);
+    }
+    const detail = await call("GET", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } });
+    const redeem = async (name: string) =>
+      (
+        await call("POST", "/api/v1/viewers/redeem", {
+          body: { shareLink: detail.json.share.url, name },
+        })
+      ).json.token as string;
+    return { token, tripId: trip.json.id as number, steps, redeem };
+  }
+
+  const counts = async (token: string, tripId: number) => {
+    const { json } = await call("GET", "/api/v1/trips/{id}", { token, params: { id: tripId } });
+    return json.steps.map((step: { viewCount?: number }) => step.viewCount);
+  };
+
+  it("counts each reader once per step and shows the numbers to authors only", async () => {
+    const { token, tripId, steps, redeem } = await tripWithReader();
+    expect(await counts(token, tripId)).toEqual([0, 0]);
+
+    const grandma = await redeem("Grandma");
+    const uncle = await redeem("Uncle");
+    for (const viewer of [grandma, grandma, uncle]) {
+      const { status } = await call("POST", "/api/v1/trips/{id}/views", {
+        token: viewer,
+        params: { id: tripId },
+        body: { stepIds: [steps[0]] },
+      });
+      expect(status).toBe(204);
+    }
+    await call("POST", "/api/v1/trips/{id}/views", {
+      token: grandma,
+      params: { id: tripId },
+      body: { stepIds: [steps[1], 999_999] },
+    });
+
+    expect(await counts(token, tripId)).toEqual([2, 1]);
+    // Readers don't learn how many others read along.
+    expect(await counts(grandma, tripId)).toEqual([undefined, undefined]);
+  });
+
+  it("doesn't count authors, and only accepts the trip's own steps", async () => {
+    const { token, tripId, steps, redeem } = await tripWithReader();
+    await call("POST", "/api/v1/trips/{id}/views", {
+      token,
+      params: { id: tripId },
+      body: { stepIds: steps },
+    });
+    expect(await counts(token, tripId)).toEqual([0, 0]);
+
+    const other = await call("POST", "/api/v1/trips", { token, body: { title: "Iceland" } });
+    const foreign = await call("POST", "/api/v1/trips/{id}/steps", {
+      token,
+      params: { id: other.json.id },
+      body: { body: "Reykjavík" },
+    });
+    const viewer = await redeem("Grandma");
+    // Its own trip, but a step of another one: ignored.
+    await call("POST", "/api/v1/trips/{id}/views", {
+      token: viewer,
+      params: { id: tripId },
+      body: { stepIds: [foreign.json.id] },
+    });
+    // Another trip altogether: not readable for this device.
+    const elsewhere = await call("POST", "/api/v1/trips/{id}/views", {
+      token: viewer,
+      params: { id: other.json.id },
+      body: { stepIds: [foreign.json.id] },
+    });
+    expect(elsewhere.status).toBe(404);
+    const { json } = await call("GET", "/api/v1/trips/{id}", { token, params: { id: other.json.id } });
+    expect(json.steps[0].viewCount).toBe(0);
+
+    const empty = await call("POST", "/api/v1/trips/{id}/views", {
+      token: viewer,
+      params: { id: tripId },
+      body: { stepIds: [] },
+    });
+    expect(empty.status).toBe(400);
+  });
+
+  it("is announced in /info", async () => {
+    const { json } = await call("GET", "/api/v1/info");
+    expect(json.features).toContain("step-views");
+  });
+});
+
 describe("client address", () => {
   it("trusts only the entries the reverse proxies added", async () => {
     const { clientAddress } = await import("@/lib/rate-limit");

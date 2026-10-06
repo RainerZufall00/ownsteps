@@ -34,6 +34,8 @@ export const TRIP_SUMMARY_MAX_LENGTH = 500;
 export const PASSWORD_MIN_LENGTH = 10;
 /** Guessing is braked (services/share.ts), but 4 digits were still too few. */
 export const SHARE_PASSWORD_MIN_LENGTH = 8;
+/** Steps one request may report as seen (web beacon and app alike). */
+export const VIEW_BATCH_MAX = 100;
 
 /** Placeholders every UI text may use, e.g. "at least {passwordMin} characters". */
 export const LIMIT_PARAMS = {

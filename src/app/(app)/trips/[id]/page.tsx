@@ -9,6 +9,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { getMapStyle } from "@/lib/map";
 import { getSteps, getTrip, summarizeSteps } from "@/lib/trips";
 import { toViewStep, toViewTrip } from "@/lib/view-types";
+import { countStepViews } from "@/lib/views";
 import { startStepAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export default async function TripPage({ params }: PageProps<"/trips/[id]">) {
 
   const steps = await getSteps(tripId);
   const { t } = await getI18n();
+  const views = await countStepViews(steps.map((step) => step.id));
 
   const header = (
     <header className="mb-5">
@@ -69,6 +71,8 @@ export default async function TripPage({ params }: PageProps<"/trips/[id]">) {
         steps={steps.map(toViewStep)}
         mapStyle={getMapStyle()}
         editable
+        // A private trip that never had readers would only say "0 views".
+        viewCounts={trip.shareEnabled || views.size > 0 ? Object.fromEntries(views) : undefined}
         header={header}
       />
       <Fab label={t.trip.addStep} action={startStepAction} fields={{ tripId: trip.id }} />

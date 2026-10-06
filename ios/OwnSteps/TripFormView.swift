@@ -134,6 +134,11 @@ struct TripFormView: View {
                 }
                 if let coverItem, let coverID = try await uploadCover(coverItem, tripID: saved.id, client: client) {
                     saved.coverPhotoId = coverID
+                    // The card shows `cover`, the photo itself – with only the
+                    // ID it kept the old image, or none, until the next reload.
+                    if let fresh = try? await client.trip(id: saved.id) {
+                        saved = fresh.withoutSteps
+                    }
                 }
                 onSaved(saved)
                 dismiss()

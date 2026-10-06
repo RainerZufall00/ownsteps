@@ -25,7 +25,7 @@ export async function GET() {
       oidc: oidcEnabled,
       oidcLabel: oidcEnabled ? OIDC_BUTTON_LABEL : null,
     },
-    features: ["viewers", "changes", "idempotent-uploads"],
+    features: ["viewers", "changes", "idempotent-uploads", "step-views"],
   };
   return json(info);
 }

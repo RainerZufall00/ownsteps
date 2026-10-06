@@ -22,6 +22,9 @@ final class AppModel {
     var pendingInvite: Invite?
     /// A trip to show, e.g. after tapping a notification.
     var openTrip: TripRoute?
+    /// Bumped when a trip changed in a way its card shows (title, dates,
+    /// cover); the trip list loads again.
+    var tripListRevision = 0
     /// Trips as last seen, for offline reading ([D22]).
     let cache: TripCache
     /// Photos, loaded with the account's token and kept on disk.

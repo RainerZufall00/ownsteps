@@ -9,7 +9,8 @@ import {
   hasUnlock,
   resolveTripAccess,
 } from "@/lib/share";
-import { createTrip, getTrip, updateTrip } from "@/lib/trips";
+import { createStep, createTrip, getTrip, updateTrip } from "@/lib/trips";
+import { countStepViews } from "@/lib/views";
 import { uploadCover } from "@/lib/services/media";
 import { jar } from "./helpers/cookie-jar";
 import { makeJpeg } from "./helpers/exif";
@@ -175,5 +176,59 @@ describe("public cover", () => {
 
     await updateTrip(trip.id, { sharePasswordHash: await bcrypt.hash("fjord-password", 4) });
     expect(await coverRequest(cover.id)).toBe(403);
+  });
+});
+
+describe("share-link views", () => {
+  async function report(token: string, stepIds: number[], contentType = "application/json") {
+    const { POST } = await import("@/app/api/share-views/[token]/route");
+    const response = await POST(
+      new Request(`http://localhost/api/share-views/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": contentType },
+        body: JSON.stringify({ stepIds }),
+      }),
+      { params: Promise.resolve({ token }) },
+    );
+    return response.status;
+  }
+
+  async function withSteps(options: { shared?: boolean; password?: string } = {}) {
+    const { user, trip } = await setup(options);
+    const step = await createStep({ tripId: trip.id, occurredAt: Date.now(), published: true, userId: user.id });
+    const draft = await createStep({ tripId: trip.id, occurredAt: Date.now(), published: false, userId: user.id });
+    return { user, trip, step, draft };
+  }
+
+  const viewsOf = async (stepId: number) => (await countStepViews([stepId])).get(stepId) ?? 0;
+
+  it("counts a visitor once, by a cookie it hands out", async () => {
+    const { trip, step, draft } = await withSteps({ shared: true });
+    expect(await report(trip.shareToken, [step.id, draft.id])).toBe(204);
+    expect(jar.get("ownsteps_visitor")).toMatch(/^[\w-]{24}$/);
+    expect(await report(trip.shareToken, [step.id])).toBe(204);
+    expect(await viewsOf(step.id)).toBe(1);
+    // Drafts aren't in the timeline, so nobody can have read them.
+    expect(await viewsOf(draft.id)).toBe(0);
+
+    // Another browser.
+    jar.delete("ownsteps_visitor");
+    await report(trip.shareToken, [step.id]);
+    expect(await viewsOf(step.id)).toBe(2);
+  });
+
+  it("ignores signed-in authors and refuses what a visitor can't read", async () => {
+    const { user, trip, step } = await withSteps({ shared: true });
+    await createSession(user.id);
+    expect(await report(trip.shareToken, [step.id])).toBe(204);
+    expect(await viewsOf(step.id)).toBe(0);
+
+    jar.delete("ownsteps_session");
+    await updateTrip(trip.id, { sharePasswordHash: await bcrypt.hash("fjord-password", 4) });
+    expect(await report(trip.shareToken, [step.id])).toBe(403);
+    expect(await report("wrong-token", [step.id])).toBe(404);
+    await updateTrip(trip.id, { sharePasswordHash: null });
+    expect(await report(trip.shareToken, [step.id], "text/plain")).toBe(415);
+    expect(await viewsOf(step.id)).toBe(0);
   });
 });
