@@ -10,8 +10,8 @@
  */
 const MB = 1024 * 1024;
 
-export const MAX_IMAGE_MB = 25;
-export const MAX_VIDEO_MB = 400;
+const MAX_IMAGE_MB = 25;
+const MAX_VIDEO_MB = 400;
 export const MAX_IMAGE_BYTES = MAX_IMAGE_MB * MB;
 export const MAX_VIDEO_BYTES = MAX_VIDEO_MB * MB;
 

@@ -262,4 +262,3 @@ const globalForDb = globalThis as unknown as {
 export const db = globalForDb.__ownstepsDb ?? createDb();
 if (process.env.NODE_ENV !== "production") globalForDb.__ownstepsDb = db;
 
-export { schema };

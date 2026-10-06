@@ -15,14 +15,7 @@ struct LocalStepCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                StepDateLine(day: day, date: step.occurredAt, calendar: calendar)
-                if let place = step.placeName {
-                    Text(place)
-                        .font(.headline)
-                        .lineLimit(1)
-                }
-            }
+            StepTitle(day: day, date: step.occurredAt, calendar: calendar, place: step.placeName)
 
             if !local.uploads.isEmpty {
                 LocalThumbnails(uploads: local.uploads)
@@ -107,6 +100,32 @@ struct PendingUploadsView: View {
     }
 }
 
+/// A photo or video that only exists on the device so far, from the
+/// thumbnail written when it was prepared.
+struct FileThumbnail: View {
+    let url: URL?
+    let isVideo: Bool
+    let size: CGFloat
+    /// Still being prepared: no thumbnail yet, but one is coming.
+    var loading = false
+
+    var body: some View {
+        ZStack {
+            if let url, let image = UIImage(contentsOfFile: url.path(percentEncoded: false)) {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                Rectangle().fill(.quaternary)
+                if loading { ProgressView() }
+            }
+            if isVideo {
+                Image(systemName: "play.circle.fill").foregroundStyle(.white, .black.opacity(0.4))
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(.rect(cornerRadius: 8))
+    }
+}
+
 /// Previews of media that only exist on the device so far.
 struct LocalThumbnails: View {
     let uploads: [PendingUpload]
@@ -117,21 +136,8 @@ struct LocalThumbnails: View {
         ScrollView(.horizontal) {
             HStack(spacing: 4) {
                 ForEach(uploads) { upload in
-                    ZStack {
-                        if let url = model.uploads.thumbnailURL(for: upload),
-                           let image = UIImage(contentsOfFile: url.path(percentEncoded: false))
-                        {
-                            Image(uiImage: image).resizable().scaledToFill()
-                        } else {
-                            Rectangle().fill(.quaternary)
-                        }
-                        if upload.isVideo {
-                            Image(systemName: "play.circle.fill").foregroundStyle(.white, .black.opacity(0.4))
-                        }
-                    }
-                    .frame(width: 72, height: 72)
-                    .clipShape(.rect(cornerRadius: 8))
-                    .opacity(upload.state == .failed ? 0.5 : 1)
+                    FileThumbnail(url: model.uploads.thumbnailURL(for: upload), isVideo: upload.isVideo, size: 72)
+                        .opacity(upload.state == .failed ? 0.5 : 1)
                 }
             }
         }

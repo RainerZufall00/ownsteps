@@ -87,6 +87,23 @@ async function signIn() {
   return json.token as string;
 }
 
+/** A signed-in author with a shared trip, as the author sees it. */
+async function sharedTrip(password?: string) {
+  const token = await signIn();
+  const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Norway" } });
+  await call("PATCH", "/api/v1/trips/{id}", {
+    token,
+    params: { id: trip.json.id },
+    body: { shareEnabled: true },
+  });
+  if (password) {
+    const { updateSharing } = await import("@/lib/services/trips");
+    await updateSharing(trip.json.id, { enabled: true, password });
+  }
+  const detail = await call("GET", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } });
+  return { token, trip: detail.json };
+}
+
 /** Routes anyone may call; everything else needs a token. */
 const PUBLIC = new Set([
   "GET /api/v1/info",
@@ -323,22 +340,6 @@ describe("authors", () => {
 });
 
 describe("viewers", () => {
-  async function sharedTrip(password?: string) {
-    const token = await signIn();
-    const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Norway" } });
-    await call("PATCH", "/api/v1/trips/{id}", {
-      token,
-      params: { id: trip.json.id },
-      body: { shareEnabled: true },
-    });
-    if (password) {
-      const { updateSharing } = await import("@/lib/services/trips");
-      await updateSharing(trip.json.id, { enabled: true, password });
-    }
-    const detail = await call("GET", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } });
-    return { token, trip: detail.json };
-  }
-
   it("redeems a share link, asking for the password once", async () => {
     const { trip } = await sharedTrip("fjordland");
 
@@ -474,30 +475,20 @@ describe("viewers", () => {
 
 describe("step views", () => {
   async function tripWithReader() {
-    const token = await signIn();
-    const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Norway" } });
-    await call("PATCH", "/api/v1/trips/{id}", {
-      token,
-      params: { id: trip.json.id },
-      body: { shareEnabled: true },
-    });
+    const { token, trip } = await sharedTrip();
     const steps = [];
     for (const body of ["Oslo", "Bergen"]) {
       const step = await call("POST", "/api/v1/trips/{id}/steps", {
         token,
-        params: { id: trip.json.id },
+        params: { id: trip.id },
         body: { body },
       });
       steps.push(step.json.id as number);
     }
-    const detail = await call("GET", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } });
     const redeem = async (name: string) =>
-      (
-        await call("POST", "/api/v1/viewers/redeem", {
-          body: { shareLink: detail.json.share.url, name },
-        })
-      ).json.token as string;
-    return { token, tripId: trip.json.id as number, steps, redeem };
+      (await call("POST", "/api/v1/viewers/redeem", { body: { shareLink: trip.share.url, name } }))
+        .json.token as string;
+    return { token, tripId: trip.id as number, steps, redeem };
   }
 
   const counts = async (token: string, tripId: number) => {

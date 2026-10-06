@@ -19,17 +19,17 @@ struct SettingsView: View {
                     Text("Off, videos are reduced to 1080p before uploading – usually a third of the size, so uploads on the road finish. Photos always keep their full resolution.")
                 }
 
-                Section("Accounts") {
-                    ForEach(model.accounts) { account in
+                ForEach(model.accounts) { account in
+                    Section(account.host) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(account.displayName)
-                            Text(account.serverURL.host() ?? account.serverName)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                            if let email = account.email {
+                                Text(email)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        .swipeActions {
-                            Button("Sign out", role: .destructive) { accountToSignOut = account }
-                        }
+                        Button("Sign out", role: .destructive) { accountToSignOut = account }
                     }
                 }
 
@@ -53,7 +53,7 @@ struct SettingsView: View {
                     Task { await model.signOut(account) }
                 }
             } message: { account in
-                Text("This device stops having access to \(account.serverURL.host() ?? account.serverName).")
+                Text("This device stops having access to \(account.host).")
             }
         }
     }

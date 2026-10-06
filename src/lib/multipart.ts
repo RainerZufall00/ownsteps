@@ -32,7 +32,7 @@ export type UploadedFile = {
   path: string;
 };
 
-export type MultipartForm = {
+type MultipartForm = {
   fields: Map<string, string>;
   files: UploadedFile[];
   file(field: string): UploadedFile | null;

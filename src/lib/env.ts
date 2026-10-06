@@ -6,7 +6,7 @@ import { DATA_DIR } from "@/db";
 import { randomToken } from "./crypto";
 
 /** What `openssl rand -base64 32` produces is 44 characters. */
-export const MIN_SECRET_LENGTH = 32;
+const MIN_SECRET_LENGTH = 32;
 
 /**
  * Why the configured `APP_SECRET` can't be used, or null if it's fine or

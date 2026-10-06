@@ -68,7 +68,6 @@ export const tripInput = z
   })
   .refine(datesInOrder, { error: "trip_dates_reversed" });
 
-export type TripInput = z.infer<typeof tripInput>;
 
 export const stepInput = z.object({
   body: z.string().trim().default(""),
@@ -88,7 +87,6 @@ export const stepInput = z.object({
     ),
 });
 
-export type StepInput = z.infer<typeof stepInput>;
 
 export const shareInput = z.object({
   enabled: z.boolean(),
@@ -102,7 +100,6 @@ export const shareInput = z.object({
   removePassword: z.boolean().default(false),
 });
 
-export type ShareInput = z.infer<typeof shareInput>;
 
 /** The name a guest comments under – and a reader follows a trip under. */
 export const authorNameInput = z
@@ -120,7 +117,6 @@ export const commentInput = z.object({
     .max(COMMENT_MAX_LENGTH, { error: "comment_too_long" }),
 });
 
-export type CommentInput = z.infer<typeof commentInput>;
 
 const newPassword = z.string().min(PASSWORD_MIN_LENGTH, { error: "password_too_short" });
 
@@ -133,7 +129,6 @@ export const newAccountInput = z.object({
   password: newPassword,
 });
 
-export type NewAccountInput = z.infer<typeof newAccountInput>;
 
 export const passwordChangeInput = z.object({
   currentPassword: z.string().default(""),

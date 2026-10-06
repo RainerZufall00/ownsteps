@@ -80,7 +80,7 @@ export const stepSchema = z
     description: "Steps are returned oldest first, like the data model; the app reverses for display.",
   });
 
-export const shareSchema = z
+const shareSchema = z
   .object({
     enabled: z.boolean(),
     /** The trip's share link – also the invite link for readers. */

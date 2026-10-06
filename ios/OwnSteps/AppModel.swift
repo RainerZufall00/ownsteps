@@ -375,7 +375,7 @@ final class AppModel {
     /// it under the account's ID, and signing in to that server again takes
     /// it over (`add`). Only an explicit sign-out discards it.
     func signedOutByServer(_ account: Account) {
-        let host = account.serverURL.host() ?? account.serverName
+        let host = account.host
         if account.kind == .author, (try? uploads.hasPending(accountID: account.id)) == true {
             UserDefaults.standard.set(account.id.uuidString, forKey: parkedKey(account.serverURL))
             notice = String(localized: "\(host) signed this device out. Sign in again to send what's still waiting.")

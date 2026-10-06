@@ -263,19 +263,12 @@ private struct PreviewStrip: View {
         ScrollView(.horizontal) {
             HStack(spacing: 6) {
                 ForEach(items) { item in
-                    ZStack {
-                        if let url = item.prepared?.media.thumbnail, let image = UIImage(contentsOfFile: url.path(percentEncoded: false)) {
-                            Image(uiImage: image).resizable().scaledToFill()
-                        } else {
-                            Rectangle().fill(.quaternary)
-                            ProgressView()
-                        }
-                        if item.prepared?.media.mime.hasPrefix("video/") == true {
-                            Image(systemName: "play.circle.fill").foregroundStyle(.white, .black.opacity(0.4))
-                        }
-                    }
-                    .frame(width: 64, height: 64)
-                    .clipShape(.rect(cornerRadius: 8))
+                    FileThumbnail(
+                        url: item.prepared?.media.thumbnail,
+                        isVideo: item.prepared?.media.mime.hasPrefix("video/") == true,
+                        size: 64,
+                        loading: item.prepared == nil
+                    )
                 }
             }
         }

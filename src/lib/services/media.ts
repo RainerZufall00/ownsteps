@@ -50,9 +50,9 @@ export type IncomingMedia = {
   clientUuid?: string | null;
 };
 
-export type MediaFailure = { name: string; code: ErrorCode };
+type MediaFailure = { name: string; code: ErrorCode };
 
-export type MediaResult = {
+type MediaResult = {
   photos: Photo[];
   failed: MediaFailure[];
   /** What the step took over from the media, for the editor to show. */

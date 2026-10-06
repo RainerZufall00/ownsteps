@@ -24,7 +24,7 @@ function bearer(request: Request) {
   return match?.[1] ?? null;
 }
 
-export async function getPrincipal(request: Request): Promise<Principal | null> {
+async function getPrincipal(request: Request): Promise<Principal | null> {
   const token = bearer(request);
   if (!token) return null;
   if (isAuthorToken(token)) {

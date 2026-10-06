@@ -8,4 +8,3 @@ import type { Locale } from "./locales";
  */
 export const DICTIONARIES: Record<Locale, Dictionary> = { en, de };
 
-export type { Dictionary };

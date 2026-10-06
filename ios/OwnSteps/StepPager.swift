@@ -157,12 +157,7 @@ struct StepPreviewCard: View {
                     }
             }
             VStack(alignment: .leading, spacing: 3) {
-                StepDateLine(day: day, date: step.occurredAt, calendar: calendar)
-                if let place = step.placeName {
-                    Text(place)
-                        .font(.headline)
-                        .lineLimit(1)
-                }
+                StepTitle(day: day, date: step.occurredAt, calendar: calendar, place: step.placeName)
                 if !step.body.isEmpty {
                     Text(step.body)
                         .font(.subheadline)
@@ -188,26 +183,34 @@ struct StepPreviewCard: View {
     }
 }
 
-/// "Day 3 · Tuesday, 12 May"
-struct StepDateLine: View {
+/// "Day 3 · Tuesday, 12 May" over the place – how a step card starts.
+struct StepTitle: View {
     let day: Int?
     let date: Date
     let calendar: TripCalendar
+    let place: String?
 
     var body: some View {
-        HStack(spacing: 6) {
-            if let day {
-                Text("Day \(day)")
-                    .foregroundStyle(.tint)
-                Text("·")
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                if let day {
+                    Text("Day \(day)")
+                        .foregroundStyle(.tint)
+                    Text("·")
+                }
+                Text(date.formatted(
+                    Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
+                ))
             }
-            Text(date.formatted(
-                Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
-            ))
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            if let place {
+                Text(place)
+                    .font(.headline)
+                    .lineLimit(1)
+            }
         }
-        .font(.footnote.weight(.semibold))
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
     }
 }
 

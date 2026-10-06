@@ -7,13 +7,13 @@ import exifr from "exifr";
 import sharp from "sharp";
 import { UPLOAD_DIR } from "@/db";
 
-export const VARIANTS = {
+const VARIANTS = {
   thumb: { width: 480, quality: 70 },
   medium: { width: 1280, quality: 78 },
   large: { width: 2400, quality: 80 },
 } as const;
 
-export type VariantName = keyof typeof VARIANTS;
+type VariantName = keyof typeof VARIANTS;
 
 export function isVariant(value: string): value is VariantName {
   return value in VARIANTS;

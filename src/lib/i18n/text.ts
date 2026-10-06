@@ -7,7 +7,7 @@ import { LIMIT_PARAMS } from "../limits";
  * available, so no text repeats a number from `limits.ts`.
  */
 
-export type Plural = { one: string; other: string };
+type Plural = { one: string; other: string };
 
 export function fill(template: string, params: Record<string, string | number> = {}) {
   const values: Record<string, string | number> = { ...LIMIT_PARAMS, ...params };

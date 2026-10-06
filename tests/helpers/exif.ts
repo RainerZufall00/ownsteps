@@ -76,7 +76,7 @@ function writeIfd(entries: Entry[], offset: number) {
   return Buffer.concat([head, ...data]);
 }
 
-export type ExifSpec = {
+type ExifSpec = {
   lat?: number;
   lon?: number;
   /** "YYYY:MM:DD HH:MM:SS", as cameras write it. */

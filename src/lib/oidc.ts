@@ -24,8 +24,8 @@ export function redirectUriFor(request: Request) {
   return `${publicOrigin(request, PUBLIC_URL)}/api/auth/oidc/callback`;
 }
 
-export const OIDC_ISSUER = process.env.OIDC_ISSUER?.trim().replace(/\/$/, "") ?? "";
-export const OIDC_CLIENT_ID = process.env.OIDC_CLIENT_ID?.trim() ?? "";
+const OIDC_ISSUER = process.env.OIDC_ISSUER?.trim().replace(/\/$/, "") ?? "";
+const OIDC_CLIENT_ID = process.env.OIDC_CLIENT_ID?.trim() ?? "";
 const OIDC_CLIENT_SECRET = process.env.OIDC_CLIENT_SECRET?.trim() ?? "";
 export const OIDC_BUTTON_LABEL =
   process.env.OIDC_BUTTON_LABEL?.trim() || "Pocket ID";
@@ -79,7 +79,7 @@ const globalForOidc = globalThis as unknown as {
 
 const DISCOVERY_TTL_MS = 1000 * 60 * 60;
 
-export async function discover(): Promise<Discovery> {
+async function discover(): Promise<Discovery> {
   const cached = globalForOidc.__oidcDiscovery;
   if (cached && Date.now() - cached.fetchedAt < DISCOVERY_TTL_MS) {
     return cached.value;
@@ -124,7 +124,7 @@ async function buildAuthorizationUrl(input: {
 }
 
 /** What the flow cookie carries from the start of a sign-in to its return. */
-export type OidcFlow = {
+type OidcFlow = {
   state: string;
   verifier: string;
   nonce: string;
@@ -182,7 +182,7 @@ export function appCallbackUrl(
   return url.toString();
 }
 
-export type OidcClaims = {
+type OidcClaims = {
   subject: string;
   email: string;
   /** The provider confirmed the address belongs to the user. */

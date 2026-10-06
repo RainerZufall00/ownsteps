@@ -68,11 +68,7 @@ struct TripSidebarRow: View {
                 Text(trip.title)
                     .font(.headline)
                     .lineLimit(1)
-                if let range = TripDates.range(
-                    start: calendar.date(fromCalendarDay: trip.startDate) ?? trip.firstStepAt,
-                    end: calendar.date(fromCalendarDay: trip.endDate) ?? trip.lastStepAt,
-                    calendar: calendar
-                ) {
+                if let range = TripDates.range(of: trip, calendar: calendar) {
                     Text(range)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -135,11 +131,7 @@ struct TripMetaLine: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            if let range = TripDates.range(
-                start: calendar.date(fromCalendarDay: trip.startDate) ?? trip.firstStepAt,
-                end: calendar.date(fromCalendarDay: trip.endDate) ?? trip.lastStepAt,
-                calendar: calendar
-            ) {
+            if let range = TripDates.range(of: trip, calendar: calendar) {
                 Text(range)
                 Text("·")
             }
@@ -173,6 +165,14 @@ struct OfflineNote: View {
 
 /// Date range like the web shows it: entered dates win over the steps ([E14]).
 enum TripDates {
+    static func range(of trip: Components.Schemas.Trip, calendar: TripCalendar) -> String? {
+        range(
+            start: calendar.date(fromCalendarDay: trip.startDate) ?? trip.firstStepAt,
+            end: calendar.date(fromCalendarDay: trip.endDate) ?? trip.lastStepAt,
+            calendar: calendar
+        )
+    }
+
     static func range(start: Date?, end: Date?, calendar: TripCalendar) -> String? {
         guard let start else { return nil }
         var style = Date.IntervalFormatStyle().day().month(.abbreviated).year()

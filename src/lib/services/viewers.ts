@@ -18,7 +18,7 @@ import { requireTrip } from "./trips";
 const redeemsPerClient = createRateLimit("redeem-client", { windowMs: 60_000, max: 10 });
 
 /** Accepts the full share link or just its token. */
-export function shareTokenFrom(shareLink: string) {
+function shareTokenFrom(shareLink: string) {
   const trimmed = shareLink.trim();
   const match = /\/s\/([^/?#]+)/.exec(trimmed);
   return match ? decodeURIComponent(match[1]) : trimmed;

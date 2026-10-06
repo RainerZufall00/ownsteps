@@ -1,16 +1,6 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "%@ (%@)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ (%2$@)"
-          }
-        }
-      }
-    },
     "%@ signed this device out.": {
       "localizations": {
         "de": {
@@ -279,26 +269,6 @@
     },
     "+%lld": {
       "shouldTranslate": false
-    },
-    "Account": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Account"
-          }
-        }
-      }
-    },
-    "Accounts": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Konten"
-          }
-        }
-      }
     },
     "Add": {
       "localizations": {
@@ -730,16 +700,6 @@
         }
       }
     },
-    "Map": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Karte"
-          }
-        }
-      }
-    },
     "More": {
       "localizations": {
         "de": {
@@ -856,16 +816,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kein Zugriff auf deine Fotos"
-          }
-        }
-      }
-    },
-    "No places yet": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Noch keine Orte"
           }
         }
       }
@@ -2059,16 +2009,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Videos in Originalqualität"
-          }
-        }
-      }
-    },
-    "View": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ansicht"
           }
         }
       }

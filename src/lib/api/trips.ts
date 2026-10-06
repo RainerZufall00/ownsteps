@@ -12,7 +12,7 @@ import type { Principal } from "./principal";
 import { tripDetailDto, tripDto } from "./serialize";
 
 /** Share settings go to authors only; viewers never see the link's secrets. */
-export function shareFor(principal: Principal, trip: Trip, request: Request) {
+function shareFor(principal: Principal, trip: Trip, request: Request) {
   if (principal.kind !== "author") return null;
   return { url: shareUrl(publicOrigin(request, PUBLIC_URL), trip.shareToken) };
 }

@@ -10,7 +10,7 @@ import { ServiceError } from "./errors";
  * route handlers can end up in separate bundles, and the web login and the
  * app's token endpoint must count against the same budget.
  */
-export type RateLimit = {
+type RateLimit = {
   /** Counts an attempt and says whether it's still within the limit. */
   allow(key: string): boolean;
   /** Whether the key is over the limit, without counting anything. */
@@ -110,7 +110,7 @@ export async function checkWithBrakes(input: {
  * right. Entries further left come from the client itself and can be
  * anything, so they must never decide which bucket a request counts against.
  */
-export const TRUSTED_PROXIES = Math.max(
+const TRUSTED_PROXIES = Math.max(
   0,
   Number.parseInt(process.env.TRUSTED_PROXIES ?? "1", 10) || 0,
 );

@@ -8,7 +8,7 @@ import { ServiceError, type ErrorCode, ERROR_STATUS } from "@/lib/errors";
  * them; `title` is an English hint for developers, not UI text.
  */
 
-export const PROBLEM_TYPE_PREFIX = "urn:ownsteps:problem:";
+const PROBLEM_TYPE_PREFIX = "urn:ownsteps:problem:";
 
 function titleFor(code: ErrorCode) {
   const text = code.replace(/_/g, " ");

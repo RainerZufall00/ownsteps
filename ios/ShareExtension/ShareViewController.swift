@@ -268,7 +268,7 @@ struct ShareView: View {
                     ForEach(model.accounts) { account in
                         let trips = model.targets.trips(for: account.id)
                         if model.accounts.count > 1 {
-                            Section(account.serverURL.host() ?? account.serverName) {
+                            Section(account.host) {
                                 tripOptions(trips, account: account)
                             }
                         } else {

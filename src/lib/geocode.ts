@@ -6,8 +6,6 @@ import { DEFAULT_LOCALE, type Locale } from "./i18n/locales";
 
 import type { PlaceHit, PlaceInfo } from "./view-types";
 
-export type { PlaceHit, PlaceInfo };
-
 const NO_PLACE: PlaceInfo = { placeName: null, countryCode: null };
 
 /** A MapTiler geocoding request for `query` (a search term or "lon,lat"). */

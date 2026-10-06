@@ -4,7 +4,7 @@ import { and, asc, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { changes, type Change } from "@/db/schema";
 
-export type ChangeEntity = Change["entity"];
+type ChangeEntity = Change["entity"];
 
 /**
  * Appends to the change log. Called from the data-access functions that

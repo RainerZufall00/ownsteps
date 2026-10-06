@@ -23,6 +23,9 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
     /// in it, like the web does ([E12]).
     public var timeZoneIdentifier: String?
 
+    /// How the server is named in lists and messages.
+    public var host: String { serverURL.host() ?? serverName }
+
     public var timeZone: TimeZone {
         timeZoneIdentifier.flatMap(TimeZone.init(identifier:)) ?? .current
     }

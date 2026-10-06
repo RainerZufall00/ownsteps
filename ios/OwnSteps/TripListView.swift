@@ -21,7 +21,6 @@ struct TripListView: View {
     @State private var tripsByAccount: [UUID: [Components.Schemas.Trip]] = [:]
     @State private var staleSince: [UUID: Date] = [:]
     @State private var errors: [UUID: String] = [:]
-    @State private var accountToSignOut: Account?
     /// The open trip on the iPhone …
     @State private var path: [TripRoute] = []
     /// … and in the sidebar. Handed over when the size class changes.
@@ -71,20 +70,6 @@ struct TripListView: View {
         } message: { _ in
             Text("You can follow again with the link.")
         }
-        .confirmationDialog(
-            "Sign out of this server?",
-            isPresented: Binding(
-                get: { accountToSignOut != nil },
-                set: { if !$0 { accountToSignOut = nil } }
-            ),
-            presenting: accountToSignOut
-        ) { account in
-            Button("Sign out", role: .destructive) {
-                Task { await model.signOut(account) }
-            }
-        } message: { account in
-            Text("This device stops having access to \(host(account)).")
-        }
         .onChange(of: model.openTrip, initial: true) { _, route in
             guard let route else { return }
             model.openTrip = nil
@@ -109,7 +94,7 @@ struct TripListView: View {
                     ForEach(model.authorAccounts) { account in
                         VStack(alignment: .leading, spacing: 12) {
                             if model.authorAccounts.count > 1 {
-                                GroupHeader(title: host(account))
+                                GroupHeader(title: account.host)
                             }
                             cards(for: account, in: lists)
                         }
@@ -185,14 +170,14 @@ struct TripListView: View {
         if let trip = lists.trips[account.id]?.first {
             let route = TripRoute(accountID: account.id, tripID: trip.id)
             NavigationLink(value: route) {
-                TripCard(account: account, trip: trip, calendar: model.calendar(for: account), badge: host(account))
+                TripCard(account: account, trip: trip, calendar: model.calendar(for: account), badge: account.host)
                     .matchedTransitionSource(id: route, in: cardTransition)
             }
             .buttonStyle(CardButtonStyle())
             .contextMenu { unfollowButton(account) }
         } else {
             VStack(alignment: .leading, spacing: 2) {
-                Text(host(account)).font(.headline)
+                Text(account.host).font(.headline)
                 Text(lists.errors[account.id] ?? String(localized: "Loading …"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -213,7 +198,7 @@ struct TripListView: View {
                     Section {
                         sidebarRows(for: account, in: lists)
                     } header: {
-                        if model.authorAccounts.count > 1 { Text(host(account)) }
+                        if model.authorAccounts.count > 1 { Text(account.host) }
                     } footer: {
                         if let date = lists.staleSince[account.id] { OfflineNote(fetchedAt: date) }
                     }
@@ -269,11 +254,11 @@ struct TripListView: View {
     @ViewBuilder private func followedRow(_ account: Account, in lists: Lists) -> some View {
         Group {
             if let trip = lists.trips[account.id]?.first {
-                TripSidebarRow(account: account, trip: trip, calendar: model.calendar(for: account), caption: host(account))
+                TripSidebarRow(account: account, trip: trip, calendar: model.calendar(for: account), caption: account.host)
                     .tag(TripRoute(accountID: account.id, tripID: trip.id))
             } else {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(host(account))
+                    Text(account.host)
                     Text(lists.errors[account.id] ?? String(localized: "Loading …"))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -290,29 +275,18 @@ struct TripListView: View {
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Menu {
-                ForEach(model.authorAccounts) { account in
-                    Section(host(account)) {
-                        Text("\(account.displayName) (\(account.email ?? ""))")
-                        Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                            accountToSignOut = account
-                        }
-                    }
-                }
-                Section {
-                    Button("Settings", systemImage: "gearshape") { showingSettings = true }
-                }
-            } label: {
+            // Accounts and signing out live in Settings, like in Apple's apps.
+            Button { showingSettings = true } label: {
                 Image(systemName: "person.crop.circle")
             }
-            .accessibilityLabel(Text("Account"))
+            .accessibilityLabel(Text("Settings"))
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 if model.authorAccounts.count > 1 {
                     Section("New trip") {
                         ForEach(model.authorAccounts) { account in
-                            Button(host(account)) { newTripFor = account }
+                            Button(account.host) { newTripFor = account }
                         }
                     }
                 } else if let account = model.authorAccounts.first {
@@ -328,10 +302,6 @@ struct TripListView: View {
 
     private func unfollowButton(_ account: Account) -> some View {
         Button("Stop following", systemImage: "person.badge.minus", role: .destructive) { accountToUnfollow = account }
-    }
-
-    private func host(_ account: Account) -> String {
-        account.serverURL.host() ?? account.serverName
     }
 
     private func open(_ route: TripRoute) {
