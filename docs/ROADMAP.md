@@ -124,7 +124,7 @@ architecture doc and the phase is ticked off here.
 - [ ] Maps and geocoding without a key (D24).
 - [ ] `LICENSE` (AGPL-3.0) at the root, `ios/LICENSE` (MPL-2.0).
 - [ ] English README: quick start, example `docker-compose.yml`, backup, upgrade, OIDC setup.
-- [ ] GHCR image for amd64 and arm64, semver tags, `CHANGELOG.md`.
+- [ ] GHCR image for amd64 and arm64, semver tags, `CHANGELOG.md`. The workflow exists (`.github/workflows/docker.yml`, runs on `v*.*.*` tags); still open: the first tag, making the package public on GitHub, and `CHANGELOG.md`. Installations update with `docker compose pull` – `deploy.sh` (git pull and build on the server) is gone.
 - [ ] `SECURITY.md`, `CONTRIBUTING.md`.
 - [ ] Demo instance for App Review, then App Store submission. Put the App Store ID into the Smart App Banner.
 

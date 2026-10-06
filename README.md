@@ -16,18 +16,24 @@ follow along gets a secret link – no account, no sign-up.
 
 ## Quick start
 
-```bash
-git clone <your-repo> ownsteps && cd ownsteps
-cp .env.example .env
-```
-
-Then edit `.env` – at least `PUBLIC_URL` and `MAPTILER_KEY`. Then:
+OwnSteps runs as a ready-made Docker image; all you need is Docker with the
+compose plugin. Fetch the compose file and the configuration template into
+a folder of their own:
 
 ```bash
-docker compose up -d --build
+mkdir ownsteps && cd ownsteps
+curl -fsSLO https://raw.githubusercontent.com/RainerZufall00/ownsteps/main/docker-compose.yml
+curl -fsSL -o .env https://raw.githubusercontent.com/RainerZufall00/ownsteps/main/.env.example
 ```
 
-The app runs on port 2555. On the first visit, `/setup` walks you through
+Edit `.env` – at least `PUBLIC_URL` and `MAPTILER_KEY`. Then:
+
+```bash
+docker compose up -d
+```
+
+The image is published for amd64 and arm64 (e.g. a Raspberry Pi 4/5). The
+app runs on port 2555. On the first visit, `/setup` walks you through
 creating the first account (skipped if `ADMIN_EMAIL` and `ADMIN_PASSWORD` are
 set in `.env` or sign-in runs through OIDC).
 
@@ -74,7 +80,7 @@ web UI and the app alike.
 The iOS app talks to `/api/v1`, a versioned REST API with bearer tokens. The
 description is served at `/api/v1/openapi.json`; `/api/v1/info` tells clients
 which sign-in methods and features the server offers. Signed-in app devices
-show up under *Einstellungen* and can be signed out there; readers who follow a
+show up under *Settings* and can be signed out there; readers who follow a
 trip in the app are listed in the trip's settings. Details in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), section 5.
 
@@ -239,29 +245,35 @@ web sizes; the original is only kept as a safeguard under
 ## Updating
 
 ```bash
-./deploy.sh
+docker compose pull && docker compose up -d
 ```
 
-The script fetches the changes, rebuilds the image and waits until the
-container reports healthy; otherwise it prints the last log lines. By hand it
-works the same way:
+This fetches the newest image and restarts the container with it. Schema
+changes are applied automatically on startup; `.env` and `data/` stay
+untouched. Making a backup first (see above) doesn't hurt.
 
-```bash
-git pull && docker compose up -d --build
-```
-
-Schema changes are applied automatically on startup. `.env` and `data/` are
-not in the repository and stay untouched by an update.
+`docker-compose.yml` follows `latest`, i.e. every release. To decide yourself
+when to move on, pin a version there instead – `:1` takes every 1.x release,
+`:1.2.3` exactly that one. The releases and what changed are listed on the
+[releases page](https://github.com/RainerZufall00/ownsteps/releases).
 
 ## Development
 
 ```bash
+git clone https://github.com/RainerZufall00/ownsteps.git && cd ownsteps
 npm install
 cp .env.example .env
 npm run dev
 ```
 
 Without `DATA_DIR`, database and photos go into the `./data` folder.
+`npm test` runs the tests. To try your own Docker image, build it with
+`docker build -t ownsteps .` and put `image: ownsteps` into
+`docker-compose.yml`.
+
+A new release is a version tag: `git tag v1.2.3 && git push --tags` builds the
+image for both architectures and publishes it to the GitHub Container
+Registry (`.github/workflows/docker.yml`).
 
 ## Tech
 

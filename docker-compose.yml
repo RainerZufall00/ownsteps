@@ -1,7 +1,8 @@
 services:
   ownsteps:
-    build: .
-    image: ownsteps:latest
+    # "latest" follows every release. To update on your own terms, pin a
+    # version instead, e.g. :1 (all 1.x) or :1.2.3.
+    image: ghcr.io/rainerzufall00/ownsteps:latest
     container_name: ownsteps
     restart: unless-stopped
     env_file: .env

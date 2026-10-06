@@ -1434,9 +1434,12 @@ Verified (production build, real HTTP requests):
 
 Not verified – be careful when building on these:
 
-- **The Docker image was never built** (missing permissions on the Docker
-  socket in the development environment). Instead the standalone build was
-  checked, i.e. the part the Dockerfile merely copies.
+- **The published image hasn't been built yet.** The development environment
+  couldn't run Docker (missing permissions on the socket); the image was only
+  built on the maintainer's server (amd64), where `deploy.sh` did that until
+  2026-10-06. Since then `.github/workflows/docker.yml` builds amd64 and
+  arm64 on every version tag – the first run, and arm64 at all, are still
+  to be watched.
 - **The rendered map image was never seen.** The test browser renders no
   frames, so MapLibre's render loop never starts. Marker creation and delivery
   of all map data are checked, the rendering itself isn't.
