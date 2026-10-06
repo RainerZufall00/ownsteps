@@ -418,9 +418,13 @@ placeholder). With room for it (iPad, regular width) the trips are a sidebar
 next to the open trip. Opening a card zooms into the trip, laid out like
 Polarsteps (changed on 2026-10-06 – the vertical timeline in a sheet over the
 map wasn't intuitive): the route fills the screen, the steps float below it
-as cards side by side (`StepPager`). The first card is the trip itself –
-cover, title, dates –, then the steps oldest to newest, so the cards run
-along the route; the pager opens on the newest ([E13]). Swiping the cards
+as cards side by side (`StepPager`), oldest to newest, so the cards run
+along the route; the pager opens on the newest ([E13]). The trip itself is
+not a card – as the first one it read like one more day, and reaching the
+overview meant scrolling to the far left – but a glass bar at the top of
+the map (`TripOverviewBar`: cover, dates, steps and photos) that frames the
+whole route when tapped. Only a trip without steps shows its cover card in
+the pager. Swiping the cards
 flies the map to the step (with a selection tick), a tapped marker brings
 its card. A tapped card **pushes** the step's page (`StepDetailPager`), with
 the system back button and edge swipe; sideways it pages on to the previous

@@ -10,7 +10,7 @@ where it isn't obvious.
 
 ## [Unreleased]
 
-## [0.1.0] – not released yet
+## [0.1.0] – 2026-10-06
 
 The first public version.
 
@@ -41,8 +41,9 @@ The first public version.
 
 - Native SwiftUI app for iOS 26: sign in to several servers, by password or
   OIDC.
-- Trips on a map with the steps as cards side by side; each step on its own
-  page, swiping sideways to the next.
+- Trips on a map with the steps as cards side by side and the trip at a
+  glance above the map; each step on its own page, swiping sideways to the
+  next.
 - Write steps offline; photos and videos upload in the background, also
   after the app was closed. HEIC becomes JPEG, videos are reduced to 1080p
   unless switched off.

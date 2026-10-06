@@ -6,9 +6,10 @@ import UIKit
 /// swiping moves to the previous or next step and the map follows. Oldest
 /// on the left, so the route reads left to right; it opens on the newest,
 /// which is what readers come back for ([E13] – only the display differs,
-/// the data stays chronological). The trip itself is the first card, with
-/// its cover. The cards float over the map, so they're Liquid Glass, like
-/// the panels of Apple's Maps.
+/// the data stays chronological). The trip itself isn't a card – it reads
+/// like one more day – but the `TripOverviewBar` above the map; only a trip
+/// without steps shows its cover card here. The cards float over the map,
+/// so they're Liquid Glass, like the panels of Apple's Maps.
 struct StepPager: View {
     let account: Account
     let trip: Components.Schemas.TripDetail
@@ -31,9 +32,11 @@ struct StepPager: View {
         let items = TimelineItem.items(of: trip, queue: queue, calendar: calendar)
         ScrollView(.horizontal) {
             LazyHStack(spacing: 10) {
-                TripCoverCard(account: account, trip: trip, calendar: calendar, staleSince: staleSince)
-                    .pagerCard()
-                    .id(TimelineItem.coverID)
+                if items.isEmpty {
+                    TripCoverCard(account: account, trip: trip, calendar: calendar, staleSince: staleSince)
+                        .pagerCard()
+                        .id(TimelineItem.coverID)
+                }
 
                 ForEach(items) { item in
                     Group {
@@ -84,7 +87,7 @@ private extension View {
     }
 }
 
-/// The first card: cover, title, dates, and how far the trip has come.
+/// The only card while the trip has no steps: cover, title, dates.
 struct TripCoverCard: View {
     let account: Account
     let trip: Components.Schemas.TripDetail
@@ -125,6 +128,55 @@ struct TripCoverCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .glassEffect(.regular, in: .rect(cornerRadius: StepPager.cornerRadius))
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The trip at a glance, at the top of the map: cover, dates, how far it
+/// has come. Tapping it shows the whole route – the overview the trip card
+/// used to give, without scrolling to the far left for it.
+struct TripOverviewBar: View {
+    let account: Account
+    let trip: Components.Schemas.TripDetail
+    let calendar: TripCalendar
+    let staleSince: Date?
+    let showAll: () -> Void
+
+    var body: some View {
+        Button(action: showAll) {
+            HStack(spacing: 10) {
+                Color.clear
+                    .frame(width: 38, height: 38)
+                    .overlay { TripCover(account: account, trip: trip.withoutSteps, variant: .thumb, symbolSize: 14) }
+                    .clipShape(.circle)
+                VStack(alignment: .leading, spacing: 1) {
+                    if let range = TripDates.range(of: trip.withoutSteps, calendar: calendar) {
+                        Text(range)
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    Group {
+                        if let staleSince {
+                            OfflineNote(fetchedAt: staleSince)
+                        } else {
+                            Text("\(trip.stepCount) steps") + Text(verbatim: " · ") + Text("\(trip.photoCount) photos")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                .lineLimit(1)
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 4)
+            }
+            .padding(.leading, 6)
+            .padding(.trailing, 16)
+            .padding(.vertical, 6)
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .accessibilityHint(Text("Show the whole trip"))
     }
 }
 

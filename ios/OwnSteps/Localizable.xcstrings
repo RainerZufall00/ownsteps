@@ -1353,6 +1353,16 @@
         }
       }
     },
+    "Show the whole trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt die ganze Reise"
+          }
+        }
+      }
+    },
     "Shown as %@.": {
       "localizations": {
         "de": {

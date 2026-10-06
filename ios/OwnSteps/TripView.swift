@@ -98,8 +98,27 @@ struct TripView: View {
             // Frames the route in what the cards leave free, and keeps the
             // map's controls above them.
             .safeAreaPadding(.bottom, StepPager.height + 8)
+            // Room for the overview bar, so the route isn't framed under it.
+            .safeAreaPadding(.top, trip?.steps.isEmpty == false ? 56 : 0)
             pager
         }
+        .overlay(alignment: .topLeading) {
+            if let trip, !trip.steps.isEmpty {
+                TripOverviewBar(account: account, trip: trip, calendar: calendar, staleSince: staleSince) {
+                    showWholeTrip()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
+        }
+    }
+
+    /// Back to the overview: the whole route, no step picked.
+    private func showWholeTrip() {
+        guard let trip else { return }
+        mapSelection = nil
+        focusedItem = nil
+        withAnimation(.smooth(duration: 0.9)) { camera = TripMapView.overview(of: trip) }
     }
 
     @ViewBuilder private var pager: some View {

@@ -84,18 +84,21 @@ enum LibrarySuggestions {
     }
 
     /// "Not now" on the card: it stays away until newer photos turn up.
+    /// Stored as `Date` keeps it, since the reference date: going through
+    /// 1970 lost a fraction of a millisecond, the newest photo then counted
+    /// as newer than itself, and "Not now" did nothing.
     static func dismissedUntil(account: Account, tripID: Int) -> Date? {
-        let value = UserDefaults.standard.double(forKey: dismissKey(account: account, tripID: tripID))
-        return value > 0 ? Date(timeIntervalSince1970: value) : nil
+        let value = UserDefaults.standard.object(forKey: dismissKey(account: account, tripID: tripID)) as? Double
+        return value.map(Date.init(timeIntervalSinceReferenceDate:))
     }
 
     static func dismiss(_ suggestions: [PHAsset], account: Account, tripID: Int) {
         guard let newest = suggestions.compactMap(\.creationDate).max() else { return }
-        UserDefaults.standard.set(newest.timeIntervalSince1970, forKey: dismissKey(account: account, tripID: tripID))
+        UserDefaults.standard.set(newest.timeIntervalSinceReferenceDate, forKey: dismissKey(account: account, tripID: tripID))
     }
 
     private static func dismissKey(account: Account, tripID: Int) -> String {
-        "suggestions.dismissed.\(account.id.uuidString).\(tripID)"
+        "suggestions.dismissedUntil.\(account.id.uuidString).\(tripID)"
     }
 }
 
