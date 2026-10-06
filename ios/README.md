@@ -56,3 +56,8 @@ xcrun simctl launch booted de.ownsteps.app \
   -OwnStepsDebugServer http://localhost:2555 \
   -OwnStepsDebugEmail you@example.com -OwnStepsDebugPassword '…'
 ```
+
+## License
+
+The app is licensed under the [Mozilla Public License 2.0](LICENSE) – unlike
+the server, which is under the AGPL (see the repository root).

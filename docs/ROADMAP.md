@@ -122,10 +122,10 @@ architecture doc and the phase is ticked off here.
 ### Phase 6 – Release prep
 - [x] Web i18n (en default, de): cookie switch plus `Accept-Language`, no locale URLs, see [E16] in ARCHITECTURE.md (2026-10-05).
 - [ ] Maps and geocoding without a key (D24).
-- [ ] `LICENSE` (AGPL-3.0) at the root, `ios/LICENSE` (MPL-2.0).
+- [x] `LICENSE` (AGPL-3.0) at the root, `ios/LICENSE` (MPL-2.0) (2026-10-06).
 - [ ] English README: quick start, example `docker-compose.yml`, backup, upgrade, OIDC setup.
-- [ ] GHCR image for amd64 and arm64, semver tags, `CHANGELOG.md`. The workflow exists (`.github/workflows/docker.yml`, runs on `v*.*.*` tags); still open: the first tag, making the package public on GitHub, and `CHANGELOG.md`. Installations update with `docker compose pull` – `deploy.sh` (git pull and build on the server) is gone.
-- [ ] `SECURITY.md`, `CONTRIBUTING.md`.
+- [ ] GHCR image for amd64 and arm64, semver tags, `CHANGELOG.md`. The workflow exists (`.github/workflows/docker.yml`, runs on `v*.*.*` tags); `CHANGELOG.md` exists; still open: the first tag and making the package public on GitHub. Installations update with `docker compose pull` – `deploy.sh` (git pull and build on the server) is gone.
+- [x] `SECURITY.md`, `CONTRIBUTING.md` (2026-10-06). Reports go through GitHub's private vulnerability reporting – switch it on in the repository settings when going public.
 - [ ] Demo instance for App Review, then App Store submission. Put the App Store ID into the Smart App Banner.
 
 ### Phase 7 – Open source

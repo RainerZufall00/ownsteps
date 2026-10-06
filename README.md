@@ -284,6 +284,13 @@ If you work on the code, **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** has
 the data model, the flows behind upload, access control and sign-in, and the
 reasoning behind every decision made.
 
+## Contributing
+
+Bug reports and pull requests are welcome – see
+[CONTRIBUTING.md](CONTRIBUTING.md). Security problems please report
+privately, as described in [SECURITY.md](SECURITY.md). What changed between
+versions is in [CHANGELOG.md](CHANGELOG.md).
+
 ## Known quirks
 
 - **HEIC from iPhones:** Safari usually converts photos to JPEG on upload. If
@@ -292,3 +299,10 @@ reasoning behind every decision made.
 - **No geocoding without a MapTiler key:** place names like "Bergen, Norway"
   are looked up via MapTiler. Without a key the field stays empty and can be
   filled in by hand.
+
+## License
+
+The server and web UI are free software under the
+[GNU Affero General Public License v3.0](LICENSE): if you run a modified
+version for others, you have to offer them its source code. The iOS app in
+`ios/` is under the [Mozilla Public License 2.0](ios/LICENSE).
