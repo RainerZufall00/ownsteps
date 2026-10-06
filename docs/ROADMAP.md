@@ -98,6 +98,27 @@ architecture doc and the phase is ticked off here.
   - several instances in one app
   - `BGAppRefreshTask` plus local notifications for authors and viewers
 - [ ] String Catalogs en/de from day one (up to date through 4e).
+- [ ] **4f Feedback from first use (requested 2026-10-06):**
+  - **View counts per step for authors.** Authors see on every step how often
+    it was viewed (web and app); viewers never see it. Server: count per step,
+    deduplicated per viewer device (app) and per share-link visitor (web,
+    e.g. a cookie-bound visitor ID), authors' own views excluded. Delivered
+    with the step in `/api/v1` as an author-only field, so `features[]` in
+    `/info` gets an entry and older servers simply show nothing (D13). What
+    exactly counts as a view is open point O5.
+  - **Polarsteps-style trip screen in the app** instead of the vertical
+    timeline in the sheet: map on top, steps as a horizontal pager at the
+    bottom; swiping moves to the previous/next step and the map follows. A
+    tapped step opens full screen and can be swiped sideways as well. Order
+    left → right is chronological, the pager opens on the newest step – the
+    data stays ascending ([E13]). Details in open point O6; build a prototype
+    first and decide on the device.
+  - **Bug: the cover image isn't shown correctly in the app.** Leads so far:
+    after uploading a new cover, `TripFormView` only sets `coverPhotoId` on
+    the saved trip, not `cover`, so the card keeps the old image (or the
+    first step photo) until the next reload; the trip screen itself
+    (`TripHeader`) shows no cover at all. Reproduce on the device first – it
+    may be something else.
 
 ### Phase 5 – Code review ("strangers run this now")
 - [x] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices (2026-10-02). Fixed: brakes on every password check (per address from the right end of `X-Forwarded-For`, plus per account and per trip), share passwords ≥ 8 characters, OIDC only matches verified emails, security headers and a nonce CSP, readers signed out on a new link or password. Accepted: setup stays open until the first account exists.
@@ -133,3 +154,14 @@ architecture doc and the phase is ticked off here.
   (`sanitizeAttributions`, see [E9]). `npm audit` keeps reporting the
   advisory until v6; whether a v6 upgrade with a fixed worker URL works is
   still worth a try – in a real browser.
+- **O5 – What counts as a view:** opening the step in the app, or the step
+  being on screen for a moment (web: `IntersectionObserver` beacon, needs to
+  fit the nonce CSP)? Unique viewers or raw opens? Show names for app viewers
+  ("seen by Anna, Ben"), since they register a name anyway (D17)? How long
+  are visitor IDs kept? Mention it in the README – the instance owner now
+  stores who read what.
+- **O6 – Trip screen layout in the app:** full-width step cards or a peek of
+  the neighbors, where the trip header (title, dates, numbers) and the
+  "add step" button go, how comments fit into the full-screen step, and
+  whether the vertical timeline stays reachable as a list (e.g. for long
+  trips or VoiceOver).
