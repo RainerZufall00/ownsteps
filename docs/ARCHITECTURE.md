@@ -436,17 +436,20 @@ The look follows the system rather than the web UI (also 2026-10-06, after
 like the place cards of Apple's Maps, with concentric corners (changed on
 2026-10-07 – as Liquid Glass they took on the map's colors and were hard to
 read; glass stays for small controls over the map: the overview bar, the
-photo count). A step's page reads like a page of a travel journal (also
-2026-10-07 – the grouped list put a photo grid first and the text small
-below it): the lead photo large and up under the bars, then day, date and
-the place as a large title, the text as body copy, the other photos in two
-columns, "Show on map" and, for authors, the readers, then the comments.
-Pages swipe sideways in a paging scroll view, one step per swipe – a
-page-style `TabView` kept the status bar free, so the photo couldn't reach
-the top. Actions live in the toolbars (⋯ menu top right, previous /
-comment / next at the bottom) and behind touch and hold (deleting a
-comment, discarding a step still on the device) instead of inline text
-buttons.
+photo count). A step opens as a **story**, like a WhatsApp status (also
+2026-10-07 – a "title photo" per step, with the others in a grid below,
+made one photo more important than the rest): every photo fills the screen
+in turn over a blurred copy of itself, a tap on the right goes on, on the
+left back, past the last photo on to the next step; bars at the top show
+where you are. Day, place and the text stay at the bottom on a dark fade
+(three lines, a tap opens all of it), the photo's caption above them;
+comments open as a sheet, pinching a photo opens the zoomable viewer. A
+step without photos is a text story on a colored background. Steps swipe
+sideways in a paging scroll view, one per swipe – a page-style `TabView`
+kept the status bar free, so the photos couldn't fill the screen. Videos
+keep their player; only narrow edges of them advance. Actions live in the
+toolbar (⋯ menu top right) and behind touch and hold (deleting a comment,
+discarding a step still on the device) instead of inline text buttons.
 
 Two SwiftUI traps from building it: while the step page is pushed, the map
 below it can't present anything, so every sheet and dialog of the trip is

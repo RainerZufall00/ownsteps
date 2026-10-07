@@ -880,6 +880,16 @@
         }
       }
     },
+    "Next photo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächstes Foto"
+          }
+        }
+      }
+    },
     "Next step": {
       "localizations": {
         "de": {
@@ -906,6 +916,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kein Zugriff auf deine Fotos"
+          }
+        }
+      }
+    },
+    "No comments yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Kommentare"
           }
         }
       }
@@ -1213,6 +1233,16 @@
         }
       }
     },
+    "Previous photo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorheriges Foto"
+          }
+        }
+      }
+    },
     "Previous step": {
       "localizations": {
         "de": {
@@ -1479,6 +1509,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kurzbeschreibung (optional)"
+          }
+        }
+      }
+    },
+    "Show less": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weniger zeigen"
+          }
+        }
+      }
+    },
+    "Show more": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehr zeigen"
           }
         }
       }

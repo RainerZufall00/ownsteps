@@ -322,7 +322,7 @@ struct StepDetailRequest: Identifiable, Hashable {
 }
 
 /// The steps as pushed pages: back with the system's swipe from the edge,
-/// sideways to the previous and next step. Actions sit in the toolbars.
+/// sideways to the previous and next step. Each step is a story.
 struct StepDetailPager: View {
     let account: Account
     let trip: Components.Schemas.TripDetail
@@ -334,40 +334,44 @@ struct StepDetailPager: View {
     let refresh: () async -> Void
 
     @Environment(\.dismiss) private var dismiss
-    /// One viewer for all pages: with one per page, reused pages presented
-    /// another step's photos (as List rows did).
+    /// The photo each step is at – kept while paging between steps.
+    @State private var photoIndex: [Int: Int] = [:]
+    @State private var commentsFor: CommentsRequest?
+    /// Pinching a photo opens it full screen to zoom.
     @State private var viewer: ViewerRequest?
-    @Namespace private var photoTransition
 
     var body: some View {
         let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.steps.first?.occurredAt)
         let steps = trip.steps
-        let index = steps.firstIndex { $0.id == stepID }
-        let current = index.map { steps[$0] }
+        let current = steps.first { $0.id == stepID }
         // Paging scroll view, not a page-style TabView: that one kept the
-        // status bar free, so the lead photo couldn't reach the top edge.
-        // The bars' height is read before the safe area is ignored, for
-        // pages without a photo.
+        // status bar free, so the photos couldn't fill the screen. The bars'
+        // heights are read before the safe area is ignored.
         GeometryReader { geometry in
-            let barsHeight = geometry.safeAreaInsets.top
+            let insets = geometry.safeAreaInsets
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 0) {
                     ForEach(steps) { step in
-                        StepDetailPage(
+                        StepStoryPage(
                             account: account,
                             step: step,
                             day: start.map { calendar.tripDay(of: step.occurredAt, start: $0) },
                             calendar: calendar,
                             pending: queue.uploadsByStepID[step.id] ?? [],
                             viewCount: showViews ? step.viewCount : nil,
-                            actions: actions,
-                            photoTransition: photoTransition,
-                            topInset: barsHeight
-                        ) { photo in
-                            viewer = ViewerRequest(stepID: step.id, index: photo)
-                        }
-                        .refreshable { await refresh() }
-                        .frame(width: geometry.size.width)
+                            index: Binding(
+                                get: { min(photoIndex[step.id] ?? 0, max(step.photos.count - 1, 0)) },
+                                set: { photoIndex[step.id] = $0 }
+                            ),
+                            isCurrent: step.id == stepID,
+                            insets: insets,
+                            next: { advance(from: step, by: 1) },
+                            previous: { advance(from: step, by: -1) },
+                            showComments: { commentsFor = CommentsRequest(stepID: step.id) },
+                            showOnMap: { actions.showOnMap(step) },
+                            zoom: { viewer = ViewerRequest(stepID: step.id, index: photoIndex[step.id] ?? 0) }
+                        )
+                        .frame(width: geometry.size.width, height: geometry.size.height + insets.top + insets.bottom)
                         .id(step.id)
                     }
                 }
@@ -376,10 +380,11 @@ struct StepDetailPager: View {
             .scrollTargetBehavior(OneStepPaging())
             .scrollIndicators(.hidden)
             .scrollPosition(id: Binding(get: { stepID }, set: { if let id = $0 { stepID = id } }))
-            .ignoresSafeArea(edges: .top)
+            .ignoresSafeArea()
         }
-        .background(Color(uiColor: .systemBackground))
-        .navigationTitle(title(of: current, start: start))
+        .background(Color.black)
+        .environment(\.colorScheme, .dark)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if actions.isAuthor, let current {
@@ -394,33 +399,6 @@ struct StepDetailPager: View {
                     .accessibilityLabel(Text("Step options"))
                 }
             }
-            ToolbarItem(placement: .bottomBar) {
-                Button {
-                    if let index, index > 0 { withAnimation { stepID = steps[index - 1].id } }
-                } label: {
-                    Image(systemName: "chevron.left")
-                }
-                .disabled((index ?? 0) == 0)
-                .accessibilityLabel(Text("Previous step"))
-            }
-            ToolbarSpacer(.flexible, placement: .bottomBar)
-            if let current {
-                ToolbarItem(placement: .bottomBar) {
-                    Button { actions.comment(current) } label: {
-                        Label("Comment", systemImage: "bubble.left")
-                    }
-                }
-            }
-            ToolbarSpacer(.flexible, placement: .bottomBar)
-            ToolbarItem(placement: .bottomBar) {
-                Button {
-                    if let index, index < steps.count - 1 { withAnimation { stepID = steps[index + 1].id } }
-                } label: {
-                    Image(systemName: "chevron.right")
-                }
-                .disabled((index ?? steps.count - 1) >= steps.count - 1)
-                .accessibilityLabel(Text("Next step"))
-            }
         }
         // The step was deleted while open.
         .onChange(of: steps.map(\.id)) { _, ids in
@@ -429,27 +407,54 @@ struct StepDetailPager: View {
         .fullScreenCover(item: $viewer) { request in
             if let step = steps.first(where: { $0.id == request.stepID }) {
                 PhotoViewer(account: account, photos: step.photos, startIndex: request.index)
-                    .navigationTransition(.zoom(sourceID: request.id, in: photoTransition))
+            }
+        }
+        .sheet(item: $commentsFor) { request in
+            if let step = steps.first(where: { $0.id == request.stepID }) {
+                StepCommentsSheet(step: step, isAuthor: actions.isAuthor, delete: actions.deleteComment) {
+                    // The composer is presented by the trip; one sheet at a time.
+                    commentsFor = nil
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(450))
+                        actions.comment(step)
+                    }
+                }
+                .presentationDetents([.medium, .large])
             }
         }
     }
 
-    /// The place, like the heading of a step on the web; else the day.
-    private func title(of step: Components.Schemas.Step?, start: Date?) -> Text {
-        guard let step else { return Text(verbatim: "") }
-        if let place = step.placeName { return Text(verbatim: place) }
-        if let start { return Text("Day \(calendar.tripDay(of: step.occurredAt, start: start))") }
-        return Text(step.occurredAt.formatted(
-            Date.FormatStyle(date: .abbreviated, time: .omitted, timeZone: calendar.calendar.timeZone)
-        ))
+    /// Next or previous photo; past the last or first, on to the next or
+    /// previous step – like stories.
+    private func advance(from step: Components.Schemas.Step, by delta: Int) {
+        let steps = trip.steps
+        let current = min(photoIndex[step.id] ?? 0, max(step.photos.count - 1, 0))
+        let target = current + delta
+        if target >= 0 && target < step.photos.count {
+            photoIndex[step.id] = target
+            return
+        }
+        guard let position = steps.firstIndex(where: { $0.id == step.id }) else { return }
+        let neighbor = position + delta
+        guard steps.indices.contains(neighbor) else { return }
+        let other = steps[neighbor]
+        // Going back lands on the previous step's last photo.
+        photoIndex[other.id] = delta > 0 ? 0 : max(other.photos.count - 1, 0)
+        withAnimation(.snappy) { stepID = other.id }
     }
 }
 
-/// One step like a page of a travel journal: the lead photo large on top,
-/// then day, date and place as the heading, the text as body copy, and only
-/// then the other photos, the facts and the comments. Before, a photo grid
-/// filled the screen and the text sat small in a list cell below it.
-struct StepDetailPage: View {
+struct CommentsRequest: Identifiable {
+    let stepID: Int
+    var id: Int { stepID }
+}
+
+/// One step as a story: its photos one at a time over the whole screen, all
+/// of them equal – none is the step's "title photo". Tapping the right side
+/// goes on, the left side back; bars at the top show where you are. Day,
+/// place and the text stay at the bottom on a dark fade, the photo's caption
+/// above them. A step without photos becomes a text story.
+struct StepStoryPage: View {
     let account: Account
     let step: Components.Schemas.Step
     let day: Int?
@@ -457,154 +462,237 @@ struct StepDetailPage: View {
     var pending: [PendingUpload] = []
     /// Readers who saw the step – authors only.
     var viewCount: Int?
-    let actions: StepActions
-    let photoTransition: Namespace.ID
-    /// Height of status and navigation bar: the lead photo runs under
-    /// them, a page without one starts below them.
-    var topInset: CGFloat = 0
-    let openPhoto: (Int) -> Void
+    @Binding var index: Int
+    let isCurrent: Bool
+    /// Status, navigation and home indicator areas – the photo runs under
+    /// them, the controls stay clear of them.
+    let insets: EdgeInsets
+    let next: () -> Void
+    let previous: () -> Void
+    let showComments: () -> Void
+    let showOnMap: () -> Void
+    let zoom: () -> Void
 
-    private let columns = [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4)]
+    @State private var expanded = false
+
+    private var photo: Components.Schemas.Photo? { step.photos.indices.contains(index) ? step.photos[index] : nil }
+    private var hasPlace: Bool { step.lat != nil && step.lon != nil }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                if let lead = step.photos.first {
-                    photoTile(lead, index: 0, variant: .large)
-                        .frame(height: topInset + 300)
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                }
-
-                VStack(alignment: .leading, spacing: 22) {
-                    heading
-
+        GeometryReader { geometry in
+            ZStack {
+                if let photo {
+                    media(photo)
+                        .id(photo.id)
+                        .transition(.opacity)
+                } else {
+                    CoverPlaceholder(seed: step.id, symbolSize: 0)
                     if !step.body.isEmpty {
                         Text(step.body)
-                            .font(.body)
-                            .lineSpacing(5)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .font(.title2.weight(.semibold))
+                            .multilineTextAlignment(.center)
+                            .padding(32)
+                            .minimumScaleFactor(0.6)
                     }
-
-                    if !pending.isEmpty {
-                        PendingUploadsView(uploads: pending)
-                    }
-
-                    if step.photos.count > 1 {
-                        LazyVGrid(columns: columns, spacing: 4) {
-                            ForEach(Array(step.photos.enumerated()).dropFirst(), id: \.element.id) { index, photo in
-                                photoTile(photo, index: index, variant: .medium)
-                                    .aspectRatio(1, contentMode: .fit)
-                                    .clipShape(.rect(cornerRadius: 12))
-                            }
-                        }
-                    }
-
-                    facts
-
-                    comments
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, step.photos.isEmpty ? topInset + 12 : 20)
-                .padding(.bottom, 32)
+                tapZones(width: geometry.size.width)
             }
+            .animation(.easeInOut(duration: 0.2), value: index)
+            .overlay(alignment: .top) { progress.padding(.top, insets.top + 6) }
+            .overlay(alignment: .bottom) { bottom(height: geometry.size.height) }
         }
-        .contentMargins(.top, 0, for: .scrollContent)
-        .background(Color(uiColor: .systemBackground))
+        .foregroundStyle(.white)
+        .clipped()
     }
 
-    private var heading: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                if let day {
-                    Text("Day \(day)")
-                        .foregroundStyle(.tint)
-                    Text("·")
-                }
-                Text(step.occurredAt.formatted(
-                    Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide).year()
-                ))
-            }
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
+    // MARK: Photo
 
-            if let place = step.placeName {
-                Text(place)
-                    .font(.largeTitle.bold())
-                    .fixedSize(horizontal: false, vertical: true)
+    private func media(_ photo: Components.Schemas.Photo) -> some View {
+        ZStack {
+            // The photo itself, blurred, fills what the fitted one leaves.
+            Color.clear
+                .overlay { RemoteImage(account: account, photo: photo, variant: .thumb) }
+                .clipped()
+                .blur(radius: 40)
+                .overlay(Color.black.opacity(0.35))
+            if photo.mediaType == .video {
+                VideoPage(account: account, photo: photo, isCurrent: isCurrent)
+                    .padding(.top, insets.top)
+            } else {
+                RemoteImage(account: account, photo: photo, variant: .large, contentMode: .fit, fallbacks: [.medium, .thumb])
             }
+        }
+        .accessibilityElement()
+        .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(index + 1)")))
+    }
+
+    /// Left third back, the rest on – narrower on videos, which bring
+    /// their own controls in the middle.
+    private func tapZones(width: CGFloat) -> some View {
+        let isVideo = photo?.mediaType == .video
+        return HStack(spacing: 0) {
+            Button(action: previous) { Color.clear.contentShape(.rect) }
+                .frame(width: width * (isVideo ? 0.18 : 0.33))
+                .accessibilityLabel(Text("Previous photo"))
+            Color.clear
+                .allowsHitTesting(!isVideo)
+                .contentShape(.rect)
+                .onTapGesture(perform: next)
+                .accessibilityHidden(true)
+            if isVideo {
+                Button(action: next) { Color.clear.contentShape(.rect) }
+                    .frame(width: width * 0.18)
+                    .accessibilityLabel(Text("Next photo"))
+            }
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            MagnifyGesture().onEnded { value in
+                if value.magnification > 1.15 && photo?.mediaType == .photo { zoom() }
+            }
+        )
+        .accessibilityAction(named: Text("Next photo"), next)
+    }
+
+    /// One bar per photo, filled up to the one shown.
+    @ViewBuilder private var progress: some View {
+        if step.photos.count > 1 {
+            HStack(spacing: 4) {
+                ForEach(step.photos.indices, id: \.self) { position in
+                    Capsule()
+                        .fill(.white.opacity(position <= index ? 0.95 : 0.35))
+                        .frame(height: 3)
+                }
+            }
+            .padding(.horizontal, 12)
+            .shadow(color: .black.opacity(0.3), radius: 2)
+            .accessibilityHidden(true)
         }
     }
 
-    /// The map link and, for authors, who has seen the step.
-    @ViewBuilder private var facts: some View {
-        let onMap = step.placeName != nil && step.lat != nil && step.lon != nil
-        if onMap || viewCount != nil {
+    // MARK: Text
+
+    private func bottom(height: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let caption = photo?.caption, !caption.isEmpty {
+                Text(caption)
+                    .font(.callout.weight(.medium))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.black.opacity(0.45), in: .rect(cornerRadius: 16))
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    if let day {
+                        Text("Day \(day)")
+                            .foregroundStyle(.tint)
+                        Text("·")
+                    }
+                    Text(step.occurredAt.formatted(
+                        Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
+                    ))
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.8))
+                if let place = step.placeName {
+                    Text(place)
+                        .font(.title.bold())
+                        .lineLimit(2)
+                }
+            }
+
+            // On a text story the text is the picture already.
+            if photo != nil && !step.body.isEmpty {
+                ScrollView {
+                    Text(step.body)
+                        .font(.body)
+                        .lineSpacing(3)
+                        .lineLimit(expanded ? nil : 3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+                .scrollDisabled(!expanded)
+                .frame(maxHeight: expanded ? height * 0.4 : nil)
+                .fixedSize(horizontal: false, vertical: !expanded)
+                .contentShape(.rect)
+                .onTapGesture { withAnimation(.snappy) { expanded.toggle() } }
+                .accessibilityHint(Text(expanded ? "Show less" : "Show more"))
+            }
+
+            if !pending.isEmpty {
+                PendingUploadsView(uploads: pending)
+            }
+
             HStack(spacing: 10) {
-                if onMap {
-                    Button { actions.showOnMap(step) } label: {
-                        Label("Show on map", systemImage: "map")
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
+                Button(action: showComments) {
+                    Label("\(step.comments.count)", systemImage: "bubble.left")
+                        .accessibilityLabel(Text("Comments"))
                 }
+                if hasPlace {
+                    Button(action: showOnMap) {
+                        Label("Show on map", systemImage: "map")
+                            .labelStyle(.iconOnly)
+                    }
+                }
+                Spacer()
                 if let viewCount {
-                    Label("\(viewCount) readers", systemImage: "eye")
+                    Label("\(viewCount)", systemImage: "eye")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.8))
                         .accessibilityLabel(Text("Seen by \(viewCount) readers"))
                 }
             }
+            .buttonStyle(.glass)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 60)
+        .padding(.bottom, insets.bottom + 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black.opacity(expanded ? 0.85 : 0.65), location: 0.35),
+                    .init(color: .black.opacity(expanded ? 0.9 : 0.8), location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
         }
     }
+}
 
-    private var comments: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Comments")
-                .font(.title3.bold())
-            ForEach(step.comments, id: \.id) { comment in
-                CommentRow(comment: comment)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.fill.tertiary, in: .rect(cornerRadius: 16))
-                    .contentShape(.contextMenuPreview, .rect(cornerRadius: 16))
-                    .contextMenu {
-                        if actions.isAuthor {
-                            Button("Delete comment", systemImage: "trash", role: .destructive) {
-                                actions.deleteComment(comment)
+/// The comments of a step, opened from its story.
+struct StepCommentsSheet: View {
+    let step: Components.Schemas.Step
+    let isAuthor: Bool
+    let delete: (Components.Schemas.Comment) -> Void
+    let write: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if step.comments.isEmpty {
+                    Text("No comments yet")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(step.comments, id: \.id) { comment in
+                    CommentRow(comment: comment)
+                        .swipeActions {
+                            if isAuthor {
+                                Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
                             }
                         }
-                    }
-            }
-            Button { actions.comment(step) } label: {
-                Label("Write a comment", systemImage: "square.and.pencil")
-            }
-            .padding(.top, 2)
-        }
-        .padding(.top, 8)
-    }
-
-    private func photoTile(_ photo: Components.Schemas.Photo, index: Int, variant: MediaVariant) -> some View {
-        Button { openPhoto(index) } label: {
-            Color.clear
-                .overlay {
-                    RemoteImage(account: account, photo: photo, variant: variant, fallbacks: [.medium, .thumb])
                 }
-                .clipped()
-                .overlay {
-                    if photo.mediaType == .video {
-                        Image(systemName: "play.circle.fill")
-                            .font(.largeTitle)
-                            .foregroundStyle(.white, .black.opacity(0.4))
-                    }
+                Button(action: write) {
+                    Label("Write a comment", systemImage: "square.and.pencil")
                 }
-                .contentShape(.rect)
+            }
+            .navigationTitle("Comments")
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .buttonStyle(.plain)
-        .matchedTransitionSource(id: PhotoGrid.transitionID(stepID: step.id, index: index), in: photoTransition)
-        .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(index + 1)")))
     }
 }
 

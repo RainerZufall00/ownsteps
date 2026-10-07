@@ -14,10 +14,9 @@ where it isn't obvious.
 
 - App: the step cards over the map are solid instead of see-through glass,
   so they stand out from the map.
-- App: a step's page puts the text up front – lead photo, day and place as
-  the heading, the text, then the other photos and the comments – instead
-  of a photo grid with the text small below it. Swiping moves one step at
-  a time.
+- App: a step opens as a story, like a WhatsApp status – all photos equal
+  and full screen, tap to go on, captions per photo, the text at the
+  bottom. Steps without photos become a text story. Pinch to zoom.
 
 ## [0.1.1] – 2026-10-07
 
