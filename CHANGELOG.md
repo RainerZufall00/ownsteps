@@ -10,6 +10,8 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.1.1] – 2026-10-07
+
 ### Added
 
 - App: delete a trip – after typing its name, like on the web
@@ -81,5 +83,6 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/RainerZufall00/ownsteps/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/RainerZufall00/ownsteps/releases/tag/v0.1.0
