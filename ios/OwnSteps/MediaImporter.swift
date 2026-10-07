@@ -47,7 +47,7 @@ enum MediaImporter {
                 guard let data = try await item.loadTransferable(type: Data.self) else {
                     throw MediaPreparation.Problem.unreadableImage
                 }
-                prepared.append(try photo(data, asset: asset, timeZone: timeZone, assetID: item.itemIdentifier))
+                prepared.append(try await photo(data, asset: asset, timeZone: timeZone, assetID: item.itemIdentifier))
             }
         }
         return prepared
@@ -66,7 +66,7 @@ enum MediaImporter {
                 prepared.append(try await video(from: asset, original: originalVideos))
             } else {
                 let data = try await imageData(for: asset)
-                prepared.append(try photo(data, asset: asset, timeZone: timeZone, assetID: asset.localIdentifier))
+                prepared.append(try await photo(data, asset: asset, timeZone: timeZone, assetID: asset.localIdentifier))
             }
         }
         return prepared
@@ -81,24 +81,46 @@ enum MediaImporter {
         return PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject
     }
 
-    private static func photo(_ data: Data, asset: PHAsset?, timeZone: TimeZone, assetID: String?) throws -> PreparedMedia {
+    /// The library's facts are read here, the conversion runs off the main
+    /// actor: a 48 MP HEIC takes a second or two, and on the main thread
+    /// that froze the composer for every photo.
+    private static func photo(_ data: Data, asset: PHAsset?, timeZone: TimeZone, assetID: String?) async throws -> PreparedMedia {
+        try await convert(
+            data, coordinate: asset?.location?.coordinate, fallbackDate: asset?.creationDate,
+            timeZone: timeZone, assetID: assetID
+        )
+    }
+
+    @concurrent nonisolated private static func convert(
+        _ data: Data,
+        coordinate: CLLocationCoordinate2D?,
+        fallbackDate: Date?,
+        timeZone: TimeZone,
+        assetID: String?
+    ) async throws -> PreparedMedia {
         do {
             return try MediaPreparation.preparePhoto(
-                data: data, location: asset?.location, fallbackDate: asset?.creationDate,
-                timeZone: timeZone, assetID: assetID
+                data: data,
+                location: coordinate.map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) },
+                fallbackDate: fallbackDate,
+                timeZone: timeZone,
+                assetID: assetID
             )
         } catch {
             throw MediaPreparation.Problem.unreadableImage
         }
     }
 
-    private static func video(at url: URL, original: Bool, asset: PHAsset?, assetID: String?) async throws -> PreparedMedia {
+    private nonisolated static func video(at url: URL, original: Bool, asset: PHAsset?, assetID: String?) async throws -> PreparedMedia {
         try await MediaPreparation.prepareVideo(
-            at: url, original: original, fallbackDate: asset?.creationDate, assetID: assetID
+            at: url, original: original, fallbackDate: asset?.creationDate, location: asset?.location, assetID: assetID
         )
     }
 
-    private static func imageData(for asset: PHAsset) async throws -> Data {
+    // Nonisolated, like `video(from:)`: Photos calls these handlers on its own
+    // queues, and a closure written in a main-actor function would assert
+    // it runs on the main thread – and crash.
+    private nonisolated static func imageData(for asset: PHAsset) async throws -> Data {
         let options = PHImageRequestOptions()
         options.isNetworkAccessAllowed = true
         options.version = .current
@@ -112,7 +134,7 @@ enum MediaImporter {
 
     /// Plain videos are copied as files; edited or slow-motion ones come as a
     /// composition, which Photos exports for us.
-    private static func video(from asset: PHAsset, original: Bool) async throws -> PreparedMedia {
+    private nonisolated static func video(from asset: PHAsset, original: Bool) async throws -> PreparedMedia {
         let options = PHVideoRequestOptions()
         options.isNetworkAccessAllowed = true
         options.version = .current

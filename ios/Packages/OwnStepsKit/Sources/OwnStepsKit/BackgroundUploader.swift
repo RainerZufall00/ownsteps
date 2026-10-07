@@ -15,13 +15,15 @@ public final class BackgroundUploader: NSObject, UploadTransport, URLSessionData
 
     /// Set by the app; receives every finished upload.
     public var onCompletion: (@Sendable (String, Int?, Data?, (any Error)?) -> Void)?
-    /// Progress per upload ID, 0…1.
+    /// Progress per upload ID, 0…1 – at most once per whole percent.
     public var onProgress: (@Sendable (String, Double) -> Void)?
     /// Called once the events iOS woke the app for are delivered.
     public var onEventsFinished: (@Sendable () -> Void)?
 
     private let lock = NSLock()
     private var responses: [Int: Data] = [:]
+    /// The last whole percent reported per task.
+    private var reportedPercent: [Int: Int] = [:]
     /// From the app delegate when iOS wakes the app for this session.
     private var eventsCompletion: (@Sendable () -> Void)?
     /// The session may deliver its events before the app delegate's
@@ -103,11 +105,25 @@ public final class BackgroundUploader: NSObject, UploadTransport, URLSessionData
         totalBytesExpectedToSend: Int64
     ) {
         guard let id = task.taskDescription, totalBytesExpectedToSend > 0 else { return }
-        onProgress?(id, Double(totalBytesSent) / Double(totalBytesExpectedToSend))
+        // URLSession reports every few kilobytes – hundreds of times a second
+        // on a fast line. Passed on as they came, they flooded the main
+        // thread with view updates until iOS killed the app for not
+        // responding (0x8BADF00D while uploading photos).
+        let fraction = Double(totalBytesSent) / Double(totalBytesExpectedToSend)
+        let percent = Int(fraction * 100)
+        let isNew = lock.withLock {
+            guard reportedPercent[task.taskIdentifier] != percent else { return false }
+            reportedPercent[task.taskIdentifier] = percent
+            return true
+        }
+        if isNew { onProgress?(id, fraction) }
     }
 
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
-        let body = lock.withLock { responses.removeValue(forKey: task.taskIdentifier) }
+        let body = lock.withLock {
+            reportedPercent[task.taskIdentifier] = nil
+            return responses.removeValue(forKey: task.taskIdentifier)
+        }
         guard let id = task.taskDescription else { return }
         let status = (task.response as? HTTPURLResponse)?.statusCode
         onCompletion?(id, status, body, error)

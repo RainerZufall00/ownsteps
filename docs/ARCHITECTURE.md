@@ -604,6 +604,17 @@ events delivered" – in whichever order the two arrive. The app first imports
 the inbox before joining sessions, so the session may already be done by the
 time the handler gets there.
 
+Three concurrency traps (the app target runs on the main actor by
+default): **upload progress** must be thinned out – URLSession reports
+every few kilobytes, and passing each report to the UI flooded the main
+thread until iOS killed the app (`0x8BADF00D`); `BackgroundUploader` passes
+on whole percents only. **Heavy work** like converting a 48 MP HEIC must be
+moved off explicitly (`@concurrent`), or it runs on the main thread.
+And **closures handed to Photos or NSItemProvider** must not be written in a
+main-actor function: those frameworks call back on their own queues, and
+Swift 6 traps when a main-actor closure runs elsewhere – the functions that
+create them are `nonisolated`.
+
 Two MapKit/SwiftUI traps: with `.hybrid(elevation: .realistic)` the map
 draws the route but no annotations at all, so the style stays flat. And a
 `fullScreenCover` per List row presented another row's photos (cell reuse);

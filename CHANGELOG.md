@@ -21,6 +21,14 @@ where it isn't obvious.
   different places are offered as a choice; videos bring their recording
   location.
 
+### Fixed
+
+- App: iOS killed the app while photos were uploading (watchdog
+  `0x8BADF00D`). Upload progress arrived hundreds of times a second and
+  flooded the main thread with view updates; it's now passed on once per
+  percent. Converting photos to JPEG no longer runs on the main thread
+  either, which froze the composer for a second or two per photo.
+
 ### Changed
 
 - A step written in the app takes the position chosen there instead of the

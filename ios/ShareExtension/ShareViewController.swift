@@ -148,7 +148,10 @@ final class ShareModel {
         items.forEach { $0.prepared?.discard() }
     }
 
-    private static func prepare(
+    // Nonisolated: NSItemProvider calls its handlers on its own queues, and a
+    // closure written in a main-actor function would assert it runs on the
+    // main thread – and crash.
+    private nonisolated static func prepare(
         _ provider: NSItemProvider,
         timeZone: TimeZone,
         originalVideos: Bool
@@ -169,7 +172,7 @@ final class ShareModel {
     }
 
     /// The provider's file only lives during the callback, so it's copied.
-    private static func copyFile(from provider: NSItemProvider, type: UTType) async throws -> URL {
+    private nonisolated static func copyFile(from provider: NSItemProvider, type: UTType) async throws -> URL {
         try await withCheckedThrowingContinuation { continuation in
             _ = provider.loadFileRepresentation(for: type, openInPlace: false) { url, _, error in
                 guard let url else { return continuation.resume(throwing: error ?? CancellationError()) }

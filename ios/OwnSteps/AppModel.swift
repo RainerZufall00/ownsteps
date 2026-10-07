@@ -87,7 +87,8 @@ final class AppModel {
         )
 
         let (uploads, uploaders, inbox) = (self.uploads, self.uploaders, shared?.inbox)
-        uploaders.onCompletion = { id, status, body, error in
+        uploaders.onCompletion = { [weak self] id, status, body, error in
+            Task { @MainActor in self?.uploadProgress[id] = nil }
             Task {
                 await uploads.handleCompletion(uploadID: id, statusCode: status, body: body, error: error)
                 await uploads.process()
