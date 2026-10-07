@@ -339,6 +339,11 @@ struct TripListView: View {
                 }
             }
         }
+        // A trip deleted meanwhile (here or on the web) closes – on the iPad
+        // it would otherwise stay open next to the list.
+        if let selection, tripsByAccount[selection.accountID]?.contains(where: { $0.id == selection.tripID }) == false {
+            self.selection = nil
+        }
         // Once for all accounts: the Share Extension's trip list.
         model.publishShareTargets()
     }

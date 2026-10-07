@@ -152,7 +152,7 @@ private struct ExportBox: @unchecked Sendable {
     let session: AVAssetExportSession
 }
 
-/// "Use my location" for steps written on the spot – the lifeline for
+/// "My location" for steps written on the spot – the lifeline for
 /// photos without GPS ([E8]).
 enum CurrentLocation {
     enum Problem: LocalizedError {

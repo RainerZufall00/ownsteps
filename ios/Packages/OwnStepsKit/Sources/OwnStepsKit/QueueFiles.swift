@@ -54,7 +54,8 @@ public struct QueueFiles: Sendable {
             notBefore: nil,
             lastError: nil,
             photoID: nil,
-            createdAt: now
+            createdAt: now,
+            caption: item.caption
         )
     }
 
@@ -80,6 +81,9 @@ public struct QueueFiles: Sendable {
         }
         if let duration = upload.durationMs {
             parts.append(.field(name: "durationMs", value: String(duration)))
+        }
+        if let caption = upload.caption, !caption.isEmpty {
+            parts.append(.field(name: "caption", value: caption))
         }
         try multipart.write(parts, to: body)
         try multipart.boundary.write(to: boundaryFile, atomically: true, encoding: .utf8)

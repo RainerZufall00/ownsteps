@@ -32,6 +32,15 @@ extension ServerClient {
         }
     }
 
+    /// Deletes the trip with all its steps, photos and comments, for good.
+    /// The caller has the author confirm it first.
+    public func deleteTrip(id: Int) async throws {
+        switch try await client.deleteTrip(path: .init(tripId: String(id))) {
+        case .noContent: return
+        case .default(let status, let response): throw problem(response.body, status: status)
+        }
+    }
+
     /// Uploads a prepared JPEG as the trip's cover and returns the photo's
     /// ID. Directly, not through the queue: it's one image and the form waits.
     public func uploadCover(tripID: Int, jpeg: URL, session: URLSession = .shared) async throws -> Int {

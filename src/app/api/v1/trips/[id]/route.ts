@@ -1,9 +1,9 @@
-import { handle, idParam, json, readJson } from "@/lib/api/http";
+import { handle, idParam, json, noContent, readJson } from "@/lib/api/http";
 import { requireAuthor, requirePrincipal, requireReadableTrip } from "@/lib/api/principal";
 import { tripPatchSchema } from "@/lib/api/schemas";
 import { tripDetailFor, tripSummaryDto } from "@/lib/api/trips";
 import { parseInput } from "@/lib/schemas";
-import { patchTrip } from "@/lib/services/trips";
+import { patchTrip, removeTrip } from "@/lib/services/trips";
 
 export const dynamic = "force-dynamic";
 
@@ -24,5 +24,17 @@ export async function PATCH(request: Request, context: RouteContext<"/api/v1/tri
     const patch = parseInput(tripPatchSchema, await readJson(request));
     const trip = await patchTrip(tripId, patch);
     return json(await tripSummaryDto(principal, trip, request));
+  });
+}
+
+/**
+ * Deletes the trip with all steps, photos and comments – for good. The app
+ * makes the author type the trip's name first, like the web UI does.
+ */
+export async function DELETE(request: Request, context: RouteContext<"/api/v1/trips/[id]">) {
+  return handle(async () => {
+    await requireAuthor(request);
+    await removeTrip(idParam((await context.params).id, "trip_not_found"));
+    return noContent();
   });
 }

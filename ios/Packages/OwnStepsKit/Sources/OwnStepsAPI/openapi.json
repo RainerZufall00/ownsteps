@@ -384,6 +384,40 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "deleteTrip",
+        "summary": "Delete the trip with all its steps, photos and comments (authors)",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tripId",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "description": "Error (RFC 9457 problem details, `code` is stable)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/trips/{tripId}/cover": {
@@ -1402,6 +1436,10 @@
           "clientUuid": {
             "type": "string",
             "description": "Makes retries idempotent."
+          },
+          "caption": {
+            "type": "string",
+            "description": "Shown below the photo or video."
           }
         },
         "required": [

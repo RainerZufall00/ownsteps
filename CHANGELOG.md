@@ -10,6 +10,23 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Added
+
+- App: delete a trip – after typing its name, like on the web
+  (`DELETE /api/v1/trips/{id}`).
+- App: a caption for every photo and video when writing a step (`caption`
+  with the upload).
+- App: choose where a step goes on the map – from a photo (preselected),
+  your current location, or a place picked on the map. Photos from
+  different places are offered as a choice; videos bring their recording
+  location.
+
+### Changed
+
+- A step written in the app takes the position chosen there instead of the
+  first photo that happens to arrive; the server names positions that come
+  without a name.
+
 ## [0.1.0] – 2026-10-06
 
 The first public version.

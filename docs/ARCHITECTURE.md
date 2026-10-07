@@ -501,7 +501,23 @@ fit under 25 MB; Live Photos contribute their still. Videos are exported to
 1080p MP4 unless "Videos in original quality" is on, and get a poster frame
 and their duration. The step's date defaults to the oldest capture date.
 `uploaded_asset` remembers which library photos already went up, for the
-photo suggestions.
+photo suggestions. Every photo can get a caption before uploading; it
+travels in the queue (`pending_upload.caption`) and as a `caption` field
+with the upload.
+
+The step's place has three sources ([E8]): **from a photo** (preselected
+when one carries a position – from its EXIF data, the library, or for
+videos the recording location in the file), **my location**, or **on the
+map** (a pin to move, with Apple's place search). Photos from different
+places – more than a kilometre apart – are offered as a choice; the
+earliest one is preselected, like the date, and each photo keeps its own
+position either way. The app sends the chosen position with the step:
+otherwise the server would take whichever photo happens to arrive first.
+A position without a name (looked up on the device, offline not possible)
+is named by the server like photo positions.
+
+Deleting a trip asks for its name, like the web; the trip's cached copy
+and whatever was still queued for it go too.
 
 **Convenience** (phase 4d, [D21]/[D22]):
 
@@ -1011,6 +1027,9 @@ on the route. So there are additionally, in this order: the **device
 location** button (the device's position), the **place search** in the place
 field (MapTiler geocoding; picking sets name, coordinates and map section) and
 finally **tapping the map**.
+
+The app offers the same as a choice when writing a step – from a photo
+(preselected), my location, on the map – see "The iOS app" in section 5.
 
 ### [E9] Pin maplibre-gl to version 5
 v6 derives its worker's address from `import.meta.url`. After bundling, that

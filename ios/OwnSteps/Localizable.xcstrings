@@ -310,6 +310,16 @@
         }
       }
     },
+    "All its steps, photos and comments will be gone for good. Type “%@” to confirm.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Stationen, Fotos und Kommentare sind dann endgültig weg. Gib zur Bestätigung „%@“ ein."
+          }
+        }
+      }
+    },
     "Anyone with the link can then read the trip.": {
       "localizations": {
         "de": {
@@ -356,6 +366,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Auswahl ändern"
+          }
+        }
+      }
+    },
+    "Choose a place": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ort wählen"
           }
         }
       }
@@ -440,6 +460,16 @@
         }
       }
     },
+    "Delete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
+        }
+      }
+    },
     "Delete comment": {
       "localizations": {
         "de": {
@@ -466,6 +496,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diesen Beitrag mit allen Fotos löschen?"
+          }
+        }
+      }
+    },
+    "Delete this trip?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Reise löschen?"
+          }
+        }
+      }
+    },
+    "Delete trip …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reise löschen …"
           }
         }
       }
@@ -560,6 +610,16 @@
         }
       }
     },
+    "Finding your location …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standort wird bestimmt …"
+          }
+        }
+      }
+    },
     "Follow a trip": {
       "localizations": {
         "de": {
@@ -630,6 +690,16 @@
         }
       }
     },
+    "From photo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus Foto"
+          }
+        }
+      }
+    },
     "Got a link from travellers? You can read along without an account.": {
       "localizations": {
         "de": {
@@ -690,6 +760,16 @@
         }
       }
     },
+    "Location": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standort"
+          }
+        }
+      }
+    },
     "Location access is turned off for OwnSteps.": {
       "localizations": {
         "de": {
@@ -706,6 +786,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mehr"
+          }
+        }
+      }
+    },
+    "My location": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mein Standort"
           }
         }
       }
@@ -880,6 +970,16 @@
         }
       }
     },
+    "OK": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
     "Off, videos are reduced to 1080p before uploading – usually a third of the size, so uploads on the road finish. Photos always keep their full resolution.": {
       "localizations": {
         "de": {
@@ -896,6 +996,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Offline · Stand %@"
+          }
+        }
+      }
+    },
+    "On the map": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf der Karte"
           }
         }
       }
@@ -1033,22 +1143,22 @@
         }
       }
     },
+    "Place": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ort"
+          }
+        }
+      }
+    },
     "Place (optional)": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Ort (optional)"
-          }
-        }
-      }
-    },
-    "Place and date come from the photos when they carry them.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ort und Datum kommen aus den Fotos, sofern sie welche enthalten."
           }
         }
       }
@@ -1229,6 +1339,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gescannt oder geöffnet zeigt der Link die Reise – in der App, wenn sie installiert ist."
+          }
+        }
+      }
+    },
+    "Search for a place": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ort suchen"
           }
         }
       }
@@ -1453,6 +1573,16 @@
         }
       }
     },
+    "Something went wrong": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das hat nicht geklappt"
+          }
+        }
+      }
+    },
     "Start a trip, then add steps with photos as you go.": {
       "localizations": {
         "de": {
@@ -1593,6 +1723,16 @@
         }
       }
     },
+    "The date comes from the photos when they carry one.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Datum kommt aus den Fotos, wenn sie eines enthalten."
+          }
+        }
+      }
+    },
     "The description is too long.": {
       "localizations": {
         "de": {
@@ -1719,6 +1859,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Name der Reise ist zu lang."
+          }
+        }
+      }
+    },
+    "These photos were taken in different places. The step appears on the map at the one you pick; each photo keeps its own position.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Fotos wurden an verschiedenen Orten aufgenommen. Die Station erscheint auf der Karte an dem Ort, den du wählst; jedes Foto behält seine eigene Position."
           }
         }
       }
@@ -1969,16 +2119,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Uploads"
-          }
-        }
-      }
-    },
-    "Use my location": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Meinen Standort verwenden"
           }
         }
       }

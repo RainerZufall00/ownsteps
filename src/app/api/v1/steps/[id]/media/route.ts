@@ -8,9 +8,9 @@ import { getStep } from "@/lib/trips";
 
 /**
  * Uploads one photo or video to a step (multipart: `file`, for videos
- * `poster` and `durationMs`, optionally `clientUuid`). One file per request
- * suits background uploads, and a retry with the same `clientUuid` returns
- * the photo stored the first time.
+ * `poster` and `durationMs`, optionally `clientUuid` and `caption`). One
+ * file per request suits background uploads, and a retry with the same
+ * `clientUuid` returns the photo stored the first time.
  *
  * Must stay excluded from the proxy matcher (src/proxy.ts) – otherwise Next
  * caps the body at 10 MB.
@@ -33,6 +33,7 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/step
             durationMs: Number(form.fields.get("durationMs")),
           }),
           clientUuid: form.fields.get("clientUuid") || null,
+          caption: form.fields.get("caption") ?? null,
         },
       ], language);
 

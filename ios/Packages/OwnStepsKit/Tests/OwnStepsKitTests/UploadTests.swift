@@ -65,6 +65,16 @@ func properties(of data: Data) -> [CFString: Any] {
         #expect(abs(location.longitude - 151.21) < 0.0001)
     }
 
+    @Test func readsVideoRecordingLocations() {
+        let bergen = MediaPreparation.coordinate(iso6709: "+60.3913+005.3221+012.000/")
+        #expect(bergen?.latitude == 60.3913)
+        #expect(bergen?.longitude == 5.3221)
+        let sydney = MediaPreparation.coordinate(iso6709: "-33.8600+151.2100/")
+        #expect(sydney?.latitude == -33.86)
+        #expect(sydney?.longitude == 151.21)
+        #expect(MediaPreparation.coordinate(iso6709: "nowhere") == nil)
+    }
+
     @Test func keepsExistingGPSOverTheLibraryLocation() throws {
         let heic = try makeHEIC(gps: .init(latitude: 10, longitude: 20))
         let jpeg = try MediaPreparation.jpeg(from: heic, location: CLLocation(latitude: 50, longitude: 50))
@@ -167,7 +177,7 @@ let stepJSON = """
     let account = UUID()
     let directory = FileManager.default.temporaryDirectory.appending(path: "queue-\(UUID().uuidString)")
 
-    func media(_ name: String, video: Bool = false) throws -> UploadQueue.NewMedia {
+    func media(_ name: String, video: Bool = false, caption: String? = nil) throws -> UploadQueue.NewMedia {
         let staging = FileManager.default.temporaryDirectory.appending(path: "staging-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
         let file = staging.appending(path: video ? "\(name).mp4" : "\(name).jpg")
@@ -178,7 +188,7 @@ let stepJSON = """
             try Data("poster".utf8).write(to: poster!)
         }
         return .init(file: file, poster: poster, mime: video ? "video/mp4" : "image/jpeg",
-                     durationMs: video ? 5000 : nil, assetID: "asset-\(name)")
+                     durationMs: video ? 5000 : nil, assetID: "asset-\(name)", caption: caption)
     }
 
     func makeQueue(server: StubTransport, transport: FakeTransport, clock: TestClock) throws -> UploadQueue {
@@ -201,7 +211,7 @@ let stepJSON = """
 
         try await queue.enqueueStep(
             accountID: account, tripID: 1, body: " Fjords ", placeName: nil, lat: nil, lon: nil,
-            occurredAt: Date(), media: [try media("a"), try media("clip", video: true)]
+            occurredAt: Date(), media: [try media("a", caption: "Harbour"), try media("clip", video: true)]
         )
         var snapshot = try queue.snapshot(accountID: account, tripID: 1)
         #expect(snapshot.localSteps.count == 1)
@@ -217,12 +227,17 @@ let stepJSON = """
         #expect(first.request.value(forHTTPHeaderField: "Authorization") == "Bearer osa_t")
         #expect(first.request.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("multipart/form-data; boundary=") == true)
 
-        // The video's body carries file, poster, duration and the client UUID.
+        // The photo's body carries its caption …
+        let photoBody = try String(contentsOf: first.body, encoding: .utf8)
+        #expect(photoBody.contains("name=\"caption\"\r\n\r\nHarbour"))
+
+        // … the video's file, poster, duration and the client UUID.
         let videoBody = try String(contentsOf: transport.started[1].body, encoding: .utf8)
         #expect(videoBody.contains("bytes of clip"))
         #expect(videoBody.contains("name=\"poster\""))
         #expect(videoBody.contains("5000"))
         #expect(videoBody.contains(transport.started[1].id))
+        #expect(!videoBody.contains("name=\"caption\""))
 
         snapshot = try queue.snapshot(accountID: account, tripID: 1)
         #expect(snapshot.localSteps.isEmpty)

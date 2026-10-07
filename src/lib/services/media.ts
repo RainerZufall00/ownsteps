@@ -48,6 +48,8 @@ export type IncomingMedia = {
   durationMs?: number | null;
   /** Set by the app; a retried upload with the same UUID isn't stored twice. */
   clientUuid?: string | null;
+  /** Written in the app before uploading. */
+  caption?: string | null;
 };
 
 type MediaFailure = { name: string; code: ErrorCode };
@@ -152,6 +154,7 @@ export async function addMediaToStep(
                 ? Math.round(duration)
                 : null,
             clientUuid: file.clientUuid ?? null,
+            caption: normalizeCaption(file.caption),
           }),
         );
       } catch (error) {

@@ -16,6 +16,7 @@ struct TripView: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dismiss) private var dismiss
     @State private var trip: Components.Schemas.TripDetail?
     @State private var staleSince: Date?
     @State private var error: String?
@@ -43,6 +44,11 @@ struct TripView: View {
     @State private var showingReaders = false
     @State private var muted = false
     @State private var confirmingUnfollow = false
+    @State private var confirmingDelete = false
+    /// The trip's name, typed to confirm deleting it – like on the web.
+    @State private var deleteConfirmation = ""
+    /// Something the user did failed while the trip is on screen.
+    @State private var actionError: String?
     /// Steps this reader's views were already reported for.
     @State private var reportedViews: Set<Int> = []
 
@@ -253,7 +259,14 @@ struct TripView: View {
                 Toggle(isOn: Binding(get: { !muted }, set: { setMuted(!$0) })) {
                     Label(isAuthor ? "Notify about comments" : "Notify about new steps", systemImage: "bell")
                 }
-                if !isAuthor {
+                if isAuthor {
+                    Section {
+                        Button("Delete trip …", systemImage: "trash", role: .destructive) {
+                            deleteConfirmation = ""
+                            confirmingDelete = true
+                        }
+                    }
+                } else {
                     Button("Stop following", systemImage: "person.badge.minus", role: .destructive) {
                         confirmingUnfollow = true
                     }
@@ -302,6 +315,22 @@ struct TripView: View {
                         self.trip?.share = share
                     }
                 }
+            }
+            .alert("Delete this trip?", isPresented: gate($confirmingDelete, active)) {
+                TextField("Name of the trip", text: $deleteConfirmation)
+                Button("Delete", role: .destructive) { Task { await deleteTrip() } }
+                    .disabled(!deleteConfirmed)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("All its steps, photos and comments will be gone for good. Type “\(trip?.title ?? "")” to confirm.")
+            }
+            .alert(
+                "Something went wrong",
+                isPresented: gate(Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } }), active)
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(actionError ?? "")
             }
             .confirmationDialog(
                 "Stop following this trip?",
@@ -385,7 +414,28 @@ struct TripView: View {
             try await model.client(for: account).deleteComment(id: comment.id)
             await refresh()
         } catch {
-            self.error = ErrorText.message(for: error)
+            actionError = ErrorText.message(for: error)
+        }
+    }
+
+    private var deleteConfirmed: Bool {
+        guard let trip else { return false }
+        return deleteConfirmation.trimmingCharacters(in: .whitespaces) == trip.title.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Needs a connection, like every change to what the server has ([D19]).
+    private func deleteTrip() async {
+        guard deleteConfirmed else { return }
+        do {
+            try await model.client(for: account).deleteTrip(id: tripID)
+            try? model.cache.removeTrip(tripID, for: account.id)
+            await model.uploads.removeAll(for: account.id, tripID: tripID)
+            model.tripListRevision += 1
+            dismiss()
+        } catch let api as APIError where api.isUnauthorized {
+            model.signedOutByServer(account)
+        } catch {
+            actionError = ErrorText.message(for: error)
         }
     }
 
@@ -420,7 +470,7 @@ struct TripView: View {
             if let url = target.url(in: updated.share) { ShareSheet.present(url) }
             await refresh()
         } catch {
-            self.error = ErrorText.message(for: error)
+            actionError = ErrorText.message(for: error)
         }
     }
 

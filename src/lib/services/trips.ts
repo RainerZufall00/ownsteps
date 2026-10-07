@@ -44,6 +44,15 @@ export async function deleteTripConfirmed(tripId: number, confirmTitle: string) 
   await deleteTrip(tripId);
 }
 
+/**
+ * Deletes the trip including its photos, without a typed title: the app asks
+ * for it itself before calling (`DELETE /api/v1/trips/{id}`).
+ */
+export async function removeTrip(tripId: number) {
+  await requireTrip(tripId);
+  await deleteTrip(tripId);
+}
+
 /** Only photos of the same trip can become its cover. */
 export async function setCoverPhoto(tripId: number, photoId: number) {
   const trip = await requireTrip(tripId);

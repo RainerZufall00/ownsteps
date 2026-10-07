@@ -1,6 +1,8 @@
 import "server-only";
 
 import { ServiceError } from "@/lib/errors";
+import { reverseGeocode } from "@/lib/geocode";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locales";
 import { withDate } from "@/lib/format";
 import { setPhotoCaption } from "@/lib/photos";
 import { parseInput, stepInput } from "@/lib/schemas";
@@ -74,6 +76,8 @@ export async function createStepFromApp(
     occurredAt?: string;
     publish: boolean;
   },
+  /** Language of a place name looked up from the coordinates. */
+  language: Locale = DEFAULT_LOCALE,
 ) {
   await requireTrip(tripId);
   if (input.clientUuid) {
@@ -85,7 +89,13 @@ export async function createStepFromApp(
   }
 
   const body = input.body.trim();
-  const placeName = input.placeName?.trim() || null;
+  let placeName = input.placeName?.trim() || null;
+  let countryCode: string | null = null;
+  // A position without a name (the device couldn't look it up, e.g.
+  // offline): named here, the same way as photos' positions are.
+  if (!placeName && input.lat != null && input.lon != null) {
+    ({ placeName, countryCode } = await reverseGeocode(input.lat, input.lon, language));
+  }
   if (input.publish && !body && !placeName) throw new ServiceError("step_empty");
 
   const step = await createStep({
@@ -95,6 +105,7 @@ export async function createStepFromApp(
     clientUuid: input.clientUuid ?? null,
     body,
     placeName,
+    countryCode,
     lat: input.lat ?? null,
     lon: input.lon ?? null,
     occurredAt: input.occurredAt ? Date.parse(input.occurredAt) : undefined,

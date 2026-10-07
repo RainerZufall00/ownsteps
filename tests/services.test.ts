@@ -408,7 +408,7 @@ describe("brakes", () => {
     expect((await authenticate({ email: "b@example.com", password: "long enough pw" }, "ip-new")).email).toBe(
       "b@example.com",
     );
-  });
+  }, 30_000); // 11 bcrypt comparisons plus two hashes – over 5 s on a busy runner
 
   it("brakes guessing a share password per trip", async () => {
     const { unlockShare } = await import("@/lib/services/share");

@@ -115,6 +115,7 @@ public struct PendingUpload: QueueRecord, Hashable, Sendable, Identifiable {
     public var createdAt: Date
     /// The Share Extension's background session, while it runs the upload.
     public var sessionID: String?
+    public var caption: String?
 
     public var id: String { clientUUID }
     public var isVideo: Bool { mime.hasPrefix("video/") }
@@ -139,6 +140,7 @@ public struct PendingUpload: QueueRecord, Hashable, Sendable, Identifiable {
         case photoID = "photo_id"
         case createdAt = "created_at"
         case sessionID = "session_id"
+        case caption
     }
 }
 

@@ -203,6 +203,13 @@ export function buildOpenApiDocument() {
           requestBody: jsonBody(tripPatchSchema),
           responses: { "200": ok(tripSchema) },
         }),
+        delete: op({
+          operationId: "deleteTrip",
+          summary: "Delete the trip with all its steps, photos and comments (authors)",
+          security: secured,
+          requestParams: { path: idPath("tripId") },
+          responses: { "204": noContent },
+        }),
       },
       "/api/v1/trips/{tripId}/cover": {
         post: op({

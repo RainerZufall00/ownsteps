@@ -19,10 +19,21 @@ public enum MediaPreparation {
     public struct Prepared: Sendable {
         public let media: UploadQueue.NewMedia
         public let captureDate: Date?
+        /// Where it was taken, from the file or the library – a candidate
+        /// for the step's place.
+        public let latitude: Double?
+        public let longitude: Double?
 
-        public init(media: UploadQueue.NewMedia, captureDate: Date?) {
+        public init(media: UploadQueue.NewMedia, captureDate: Date?, coordinate: CLLocationCoordinate2D? = nil) {
             self.media = media
             self.captureDate = captureDate
+            latitude = coordinate?.latitude
+            longitude = coordinate?.longitude
+        }
+
+        public var coordinate: CLLocationCoordinate2D? {
+            guard let latitude, let longitude else { return nil }
+            return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         }
 
         /// Deletes the files again, e.g. when the user cancels.
@@ -52,18 +63,25 @@ public enum MediaPreparation {
         }
         return Prepared(
             media: .init(file: file, thumbnail: thumbnail, mime: "image/jpeg", assetID: assetID),
-            captureDate: captureDate(in: data, timeZone: timeZone) ?? fallbackDate
+            captureDate: captureDate(in: data, timeZone: timeZone) ?? fallbackDate,
+            // The JPEG, because it carries the library's location when the
+            // original file had none.
+            coordinate: location(in: jpeg)
         )
     }
 
     /// A video file, reduced to 1080p unless `original`, with poster frame
-    /// and preview. Takes ownership of `url`.
+    /// and preview. Takes ownership of `url`. `location` comes from the
+    /// library; without it, the recording location in the file is used.
     public static func prepareVideo(
         at url: URL,
         original: Bool,
         fallbackDate: Date? = nil,
+        location: CLLocation? = nil,
         assetID: String? = nil
     ) async throws -> Prepared {
+        // Read before exporting, which may not carry the metadata over.
+        let recordedAt = location == nil ? await recordingLocation(of: AVURLAsset(url: url)) : nil
         var file = url
         var mime = url.pathExtension.lowercased() == "mov" ? "video/quicktime" : "video/mp4"
         if !original {
@@ -93,8 +111,35 @@ public enum MediaPreparation {
                 file: file, poster: poster, thumbnail: thumbnail, mime: mime,
                 durationMs: duration, assetID: assetID
             ),
-            captureDate: fallbackDate ?? recorded
+            captureDate: fallbackDate ?? recorded,
+            coordinate: location?.coordinate ?? recordedAt
         )
+    }
+
+    /// The recording location a camera writes into a video (ISO 6709, e.g.
+    /// "+60.3913+005.3221+012.000/").
+    static func recordingLocation(of asset: AVAsset) async -> CLLocationCoordinate2D? {
+        guard let metadata = try? await asset.load(.commonMetadata),
+              let item = AVMetadataItem.metadataItems(from: metadata, filteredByIdentifier: .commonIdentifierLocation).first,
+              let value = try? await item.load(.stringValue)
+        else { return nil }
+        return coordinate(iso6709: value)
+    }
+
+    static func coordinate(iso6709 value: String) -> CLLocationCoordinate2D? {
+        // Signed numbers one after the other: latitude, longitude, altitude.
+        var numbers: [Double] = []
+        var current = ""
+        for character in value + "/" {
+            if character.isNumber || character == "." {
+                current.append(character)
+                continue
+            }
+            if let number = Double(current) { numbers.append(number) }
+            current = character == "+" || character == "-" ? String(character) : ""
+        }
+        guard numbers.count >= 2, abs(numbers[0]) <= 90, abs(numbers[1]) <= 180 else { return nil }
+        return CLLocationCoordinate2D(latitude: numbers[0], longitude: numbers[1])
     }
 
     public static func temporaryFile(_ pathExtension: String) -> URL {

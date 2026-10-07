@@ -3,7 +3,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createUser } from "@/lib/auth";
+import { UPLOAD_DIR } from "@/db";
 import { MAX_IMAGE_BYTES } from "@/lib/limits";
+import { getPhoto } from "@/lib/photos";
 import { TMP_DIR } from "@/lib/multipart";
 import { pkceChallenge } from "@/lib/crypto";
 import { createAuthCode } from "@/lib/tokens";
@@ -257,6 +259,7 @@ describe("authors", () => {
       const form = new FormData();
       form.set("file", new File([new Uint8Array(jpeg)], "bergen.jpg", { type: "image/jpeg" }));
       form.set("clientUuid", "photo-uuid-1");
+      form.set("caption", "  The harbour at dawn  ");
       return call("POST", "/api/v1/steps/{id}/media", {
         token,
         params: { id: step.json.id },
@@ -267,6 +270,7 @@ describe("authors", () => {
     const first = await upload();
     expect(first.status).toBe(201);
     expect(first.json.step.lat).toBeCloseTo(60.39, 2);
+    expect(first.json.photo.caption).toBe("The harbour at dawn");
     const second = await upload();
     expect(second.json.photo.id).toBe(first.json.photo.id);
 
@@ -286,6 +290,43 @@ describe("authors", () => {
       form: new FormData(),
     });
     expect(noFile.json.code).toBe("no_file");
+  });
+
+  it("deletes a trip with its steps and photo files", async () => {
+    const token = await signIn();
+    const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Norway" } });
+    const step = await call("POST", "/api/v1/trips/{id}/steps", {
+      token,
+      params: { id: trip.json.id },
+      body: { publish: false },
+    });
+    const form = new FormData();
+    form.set("file", new File([new Uint8Array(await makeJpeg(100, 100))], "a.jpg", { type: "image/jpeg" }));
+    const upload = await call("POST", "/api/v1/steps/{id}/media", { token, params: { id: step.json.id }, form });
+    const photo = (await getPhoto(upload.json.photo.id))!;
+    expect(fs.existsSync(path.join(UPLOAD_DIR, photo.storageKey))).toBe(true);
+
+    const deleted = await call("DELETE", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } });
+    expect(deleted.status).toBe(204);
+    expect((await call("GET", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } })).status).toBe(404);
+    // ON DELETE CASCADE only removes rows – the files must go too.
+    expect(fs.existsSync(path.join(UPLOAD_DIR, photo.storageKey))).toBe(false);
+    const again = await call("DELETE", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } });
+    expect(again.status).toBe(404);
+  });
+
+  it("names a step from its coordinates when the app couldn't", async () => {
+    const token = await signIn();
+    const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Norway" } });
+    const { json } = await call("POST", "/api/v1/trips/{id}/steps", {
+      token,
+      params: { id: trip.json.id },
+      body: { body: "Fjords", lat: 60.39, lon: 5.32 },
+    });
+    // Without a MapTiler key there's nobody to ask: the step stays nameless
+    // but keeps its position.
+    expect(json.lat).toBeCloseTo(60.39, 2);
+    expect(json.placeName).toBeNull();
   });
 
   it("moves an uploaded video into place and refuses oversized files", async () => {

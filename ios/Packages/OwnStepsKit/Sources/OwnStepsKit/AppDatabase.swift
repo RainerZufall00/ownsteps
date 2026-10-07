@@ -104,6 +104,11 @@ public final class AppDatabase: Sendable {
                 t.primaryKey(["account_id", "asset_id"])
             }
         }
+        migrator.registerMigration("v4_captions") { db in
+            try db.alter(table: "pending_upload") { t in
+                t.add(column: "caption", .text)
+            }
+        }
         return migrator
     }
 }

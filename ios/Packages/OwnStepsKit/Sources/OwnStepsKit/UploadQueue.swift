@@ -27,6 +27,8 @@ public actor UploadQueue {
         public var mime: String
         public var durationMs: Int?
         public var assetID: String?
+        /// Shown below the photo or video; written before uploading.
+        public var caption: String?
 
         public init(
             file: URL,
@@ -34,7 +36,8 @@ public actor UploadQueue {
             thumbnail: URL? = nil,
             mime: String,
             durationMs: Int? = nil,
-            assetID: String? = nil
+            assetID: String? = nil,
+            caption: String? = nil
         ) {
             self.file = file
             self.poster = poster
@@ -42,6 +45,7 @@ public actor UploadQueue {
             self.mime = mime
             self.durationMs = durationMs
             self.assetID = assetID
+            self.caption = caption
         }
     }
 
@@ -337,6 +341,18 @@ public actor UploadQueue {
         let uploads = (try? await database.write { db -> [PendingUpload] in
             let uploads = try PendingUpload.filter(Column("step_client_uuid") == clientUUID).fetchAll(db)
             _ = try PendingStep.deleteOne(db, key: clientUUID)
+            return uploads
+        }) ?? []
+        uploads.forEach(files.removeFiles)
+    }
+
+    /// A deleted trip takes what was still queued for it along.
+    public func removeAll(for accountID: UUID, tripID: Int) async {
+        let uploads = (try? await database.write { db -> [PendingUpload] in
+            let trip = Column("account_id") == accountID.uuidString && Column("trip_id") == tripID
+            let uploads = try PendingUpload.filter(trip).fetchAll(db)
+            try PendingStep.filter(trip).deleteAll(db)
+            try PendingUpload.filter(trip).deleteAll(db)
             return uploads
         }) ?? []
         uploads.forEach(files.removeFiles)

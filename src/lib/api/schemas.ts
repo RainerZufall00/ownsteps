@@ -305,6 +305,7 @@ export const mediaUploadSchema = z
       .optional(),
     durationMs: z.string().meta({ description: "Videos only: length in ms." }).optional(),
     clientUuid: z.string().meta({ description: "Makes retries idempotent." }).optional(),
+    caption: z.string().meta({ description: "Shown below the photo or video." }).optional(),
   })
   .meta({ id: "MediaUpload" });
 

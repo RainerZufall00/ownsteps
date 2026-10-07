@@ -261,6 +261,7 @@ export async function createStep(input: {
   clientUuid?: string | null;
   body?: string;
   placeName?: string | null;
+  countryCode?: string | null;
   lat?: number | null;
   lon?: number | null;
   occurredAt?: number;
@@ -275,6 +276,7 @@ export async function createStep(input: {
       clientUuid: input.clientUuid ?? null,
       body: input.body ?? "",
       placeName: input.placeName ?? null,
+      countryCode: input.countryCode ?? null,
       lat: input.lat ?? null,
       lon: input.lon ?? null,
     })
