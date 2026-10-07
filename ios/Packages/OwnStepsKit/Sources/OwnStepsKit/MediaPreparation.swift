@@ -66,7 +66,7 @@ public enum MediaPreparation {
             captureDate: captureDate(in: data, timeZone: timeZone) ?? fallbackDate,
             // The JPEG, because it carries the library's location when the
             // original file had none.
-            coordinate: location(in: jpeg)
+            coordinate: Self.location(in: jpeg)
         )
     }
 

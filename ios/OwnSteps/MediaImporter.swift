@@ -170,7 +170,7 @@ enum MediaImporter {
 }
 
 /// Photos hands the session over on its own queue; only used afterwards.
-private struct ExportBox: @unchecked Sendable {
+private nonisolated struct ExportBox: @unchecked Sendable {
     let session: AVAssetExportSession
 }
 
