@@ -8,8 +8,9 @@ import UIKit
 /// which is what readers come back for ([E13] – only the display differs,
 /// the data stays chronological). The trip itself isn't a card – it reads
 /// like one more day – but the `TripOverviewBar` above the map; only a trip
-/// without steps shows its cover card here. The cards float over the map,
-/// so they're Liquid Glass, like the panels of Apple's Maps.
+/// without steps shows its cover card here. The cards are solid with a soft
+/// shadow, like the place cards of Apple's Maps: as glass they took on the
+/// map's colors and were hard to read. Glass stays for the small controls.
 struct StepPager: View {
     let account: Account
     let trip: Components.Schemas.TripDetail
@@ -58,7 +59,7 @@ struct StepPager: View {
                             LocalStepCard(account: account, local: local, day: item.day, calendar: calendar)
                                 .padding(18)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                .glassEffect(.regular, in: .rect(cornerRadius: StepPager.cornerRadius))
+                                .cardSurface()
                         }
                     }
                     .pagerCard()
@@ -76,6 +77,14 @@ struct StepPager: View {
         .scrollClipDisabled()
         .frame(height: Self.height)
         .sensoryFeedback(.selection, trigger: focusedItem)
+    }
+}
+
+extension View {
+    /// The solid surface of a card over the map.
+    func cardSurface() -> some View {
+        background(Color(uiColor: .systemBackground), in: .rect(cornerRadius: StepPager.cornerRadius))
+            .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
     }
 }
 
@@ -126,7 +135,7 @@ struct TripCoverCard: View {
         }
         .padding(StepPager.inset)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .glassEffect(.regular, in: .rect(cornerRadius: StepPager.cornerRadius))
+        .cardSurface()
         .accessibilityElement(children: .combine)
     }
 }
@@ -231,7 +240,7 @@ struct StepPreviewCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .multilineTextAlignment(.leading)
         .contentShape(.rect(cornerRadius: StepPager.cornerRadius))
-        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: StepPager.cornerRadius))
+        .cardSurface()
     }
 }
 
@@ -335,26 +344,41 @@ struct StepDetailPager: View {
         let steps = trip.steps
         let index = steps.firstIndex { $0.id == stepID }
         let current = index.map { steps[$0] }
-        TabView(selection: $stepID) {
-            ForEach(steps) { step in
-                StepDetailPage(
-                    account: account,
-                    step: step,
-                    day: start.map { calendar.tripDay(of: step.occurredAt, start: $0) },
-                    calendar: calendar,
-                    pending: queue.uploadsByStepID[step.id] ?? [],
-                    viewCount: showViews ? step.viewCount : nil,
-                    actions: actions,
-                    photoTransition: photoTransition
-                ) { photo in
-                    viewer = ViewerRequest(stepID: step.id, index: photo)
+        // Paging scroll view, not a page-style TabView: that one kept the
+        // status bar free, so the lead photo couldn't reach the top edge.
+        // The bars' height is read before the safe area is ignored, for
+        // pages without a photo.
+        GeometryReader { geometry in
+            let barsHeight = geometry.safeAreaInsets.top
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(steps) { step in
+                        StepDetailPage(
+                            account: account,
+                            step: step,
+                            day: start.map { calendar.tripDay(of: step.occurredAt, start: $0) },
+                            calendar: calendar,
+                            pending: queue.uploadsByStepID[step.id] ?? [],
+                            viewCount: showViews ? step.viewCount : nil,
+                            actions: actions,
+                            photoTransition: photoTransition,
+                            topInset: barsHeight
+                        ) { photo in
+                            viewer = ViewerRequest(stepID: step.id, index: photo)
+                        }
+                        .refreshable { await refresh() }
+                        .frame(width: geometry.size.width)
+                        .id(step.id)
+                    }
                 }
-                .refreshable { await refresh() }
-                .tag(step.id)
+                .scrollTargetLayout()
             }
+            .scrollTargetBehavior(OneStepPaging())
+            .scrollIndicators(.hidden)
+            .scrollPosition(id: Binding(get: { stepID }, set: { if let id = $0 { stepID = id } }))
+            .ignoresSafeArea(edges: .top)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color(uiColor: .systemBackground))
         .navigationTitle(title(of: current, start: start))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -421,8 +445,10 @@ struct StepDetailPager: View {
     }
 }
 
-/// One step as a grouped list, like a detail screen in Apple's apps: the
-/// photos on top, then the text, the facts, and the comments.
+/// One step like a page of a travel journal: the lead photo large on top,
+/// then day, date and place as the heading, the text as body copy, and only
+/// then the other photos, the facts and the comments. Before, a photo grid
+/// filled the screen and the text sat small in a list cell below it.
 struct StepDetailPage: View {
     let account: Account
     let step: Components.Schemas.Step
@@ -433,83 +459,152 @@ struct StepDetailPage: View {
     var viewCount: Int?
     let actions: StepActions
     let photoTransition: Namespace.ID
+    /// Height of status and navigation bar: the lead photo runs under
+    /// them, a page without one starts below them.
+    var topInset: CGFloat = 0
     let openPhoto: (Int) -> Void
 
+    private let columns = [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4)]
+
     var body: some View {
-        List {
-            if !step.photos.isEmpty {
-                Section {
-                    PhotoGrid(account: account, stepID: step.id, photos: step.photos, transition: photoTransition, open: openPhoto)
-                        .listRowInsets(EdgeInsets())
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if let lead = step.photos.first {
+                    photoTile(lead, index: 0, variant: .large)
+                        .frame(height: topInset + 300)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
                 }
-            }
 
-            if !pending.isEmpty {
-                Section {
-                    PendingUploadsView(uploads: pending)
-                }
-            }
+                VStack(alignment: .leading, spacing: 22) {
+                    heading
 
-            if !step.body.isEmpty {
-                Section {
-                    Text(step.body)
-                        .lineSpacing(2)
-                        .textSelection(.enabled)
-                        .padding(.vertical, 4)
-                }
-            }
-
-            Section {
-                LabeledContent {
-                    if let day { Text("Day \(day)") }
-                } label: {
-                    Label(
-                        step.occurredAt.formatted(
-                            Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide).year()
-                        ),
-                        systemImage: "calendar"
-                    )
-                }
-                if let place = step.placeName {
-                    if step.lat != nil && step.lon != nil {
-                        Button { actions.showOnMap(step) } label: {
-                            Label(place, systemImage: "mappin.and.ellipse")
-                        }
-                        .accessibilityHint(Text("Show on map"))
-                    } else {
-                        Label(place, systemImage: "mappin.and.ellipse")
+                    if !step.body.isEmpty {
+                        Text(step.body)
+                            .font(.body)
+                            .lineSpacing(5)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                }
-                if let viewCount {
-                    LabeledContent {
-                        Text("\(viewCount) readers")
-                    } label: {
-                        Label("Seen by", systemImage: "eye")
-                    }
-                }
-            } footer: {
-                if viewCount != nil {
-                    Text("Readers who have seen this step, each counted once.")
-                }
-            }
 
-            Section("Comments") {
-                ForEach(step.comments, id: \.id) { comment in
-                    CommentRow(comment: comment)
-                        .contextMenu {
-                            if actions.isAuthor {
-                                Button("Delete comment", systemImage: "trash", role: .destructive) {
-                                    actions.deleteComment(comment)
-                                }
+                    if !pending.isEmpty {
+                        PendingUploadsView(uploads: pending)
+                    }
+
+                    if step.photos.count > 1 {
+                        LazyVGrid(columns: columns, spacing: 4) {
+                            ForEach(Array(step.photos.enumerated()).dropFirst(), id: \.element.id) { index, photo in
+                                photoTile(photo, index: index, variant: .medium)
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .clipShape(.rect(cornerRadius: 12))
                             }
                         }
+                    }
+
+                    facts
+
+                    comments
                 }
-                Button { actions.comment(step) } label: {
-                    Label("Write a comment", systemImage: "square.and.pencil")
+                .padding(.horizontal, 20)
+                .padding(.top, step.photos.isEmpty ? topInset + 12 : 20)
+                .padding(.bottom, 32)
+            }
+        }
+        .contentMargins(.top, 0, for: .scrollContent)
+        .background(Color(uiColor: .systemBackground))
+    }
+
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                if let day {
+                    Text("Day \(day)")
+                        .foregroundStyle(.tint)
+                    Text("·")
+                }
+                Text(step.occurredAt.formatted(
+                    Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide).year()
+                ))
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+
+            if let place = step.placeName {
+                Text(place)
+                    .font(.largeTitle.bold())
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// The map link and, for authors, who has seen the step.
+    @ViewBuilder private var facts: some View {
+        let onMap = step.placeName != nil && step.lat != nil && step.lon != nil
+        if onMap || viewCount != nil {
+            HStack(spacing: 10) {
+                if onMap {
+                    Button { actions.showOnMap(step) } label: {
+                        Label("Show on map", systemImage: "map")
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                }
+                if let viewCount {
+                    Label("\(viewCount) readers", systemImage: "eye")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(Text("Seen by \(viewCount) readers"))
                 }
             }
         }
-        .listStyle(.insetGrouped)
+    }
+
+    private var comments: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Comments")
+                .font(.title3.bold())
+            ForEach(step.comments, id: \.id) { comment in
+                CommentRow(comment: comment)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.fill.tertiary, in: .rect(cornerRadius: 16))
+                    .contentShape(.contextMenuPreview, .rect(cornerRadius: 16))
+                    .contextMenu {
+                        if actions.isAuthor {
+                            Button("Delete comment", systemImage: "trash", role: .destructive) {
+                                actions.deleteComment(comment)
+                            }
+                        }
+                    }
+            }
+            Button { actions.comment(step) } label: {
+                Label("Write a comment", systemImage: "square.and.pencil")
+            }
+            .padding(.top, 2)
+        }
+        .padding(.top, 8)
+    }
+
+    private func photoTile(_ photo: Components.Schemas.Photo, index: Int, variant: MediaVariant) -> some View {
+        Button { openPhoto(index) } label: {
+            Color.clear
+                .overlay {
+                    RemoteImage(account: account, photo: photo, variant: variant, fallbacks: [.medium, .thumb])
+                }
+                .clipped()
+                .overlay {
+                    if photo.mediaType == .video {
+                        Image(systemName: "play.circle.fill")
+                            .font(.largeTitle)
+                            .foregroundStyle(.white, .black.opacity(0.4))
+                    }
+                }
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .matchedTransitionSource(id: PhotoGrid.transitionID(stepID: step.id, index: index), in: photoTransition)
+        .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(index + 1)")))
     }
 }
 
@@ -532,5 +627,18 @@ struct CommentRow: View {
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Paging that moves one step per swipe at most – plain `.paging` let a
+/// quick swipe fly past the next step.
+struct OneStepPaging: ScrollTargetBehavior {
+    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+        let width = context.containerSize.width
+        guard width > 0 else { return }
+        let current = (context.originalTarget.rect.minX / width).rounded()
+        let proposed = target.rect.minX / width
+        let next = min(max(proposed.rounded(), current - 1), current + 1)
+        target.rect.origin.x = next * width
     }
 }

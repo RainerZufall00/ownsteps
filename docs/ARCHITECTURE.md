@@ -432,14 +432,21 @@ and next step, and going back leaves pager and map at the step reached.
 Photos open from there with a zoom transition and close by swiping down.
 
 The look follows the system rather than the web UI (also 2026-10-06, after
-"it still feels like a PWA"): cards that float over the map are Liquid
-Glass with concentric corners, like the panels of Apple's Maps – no drop
-shadows, no gradient hero; a step's page is a grouped `List` like a detail
-screen in Apple's apps (photos, text, a facts section with date, place →
-map and, for authors, "Seen by", then the comments as rows); actions live
-in the toolbars (⋯ menu top right, previous / comment / next at the
-bottom) and behind touch and hold (deleting a comment, discarding a step
-still on the device) instead of inline text buttons.
+"it still feels like a PWA"): the step cards are solid with a soft shadow,
+like the place cards of Apple's Maps, with concentric corners (changed on
+2026-10-07 – as Liquid Glass they took on the map's colors and were hard to
+read; glass stays for small controls over the map: the overview bar, the
+photo count). A step's page reads like a page of a travel journal (also
+2026-10-07 – the grouped list put a photo grid first and the text small
+below it): the lead photo large and up under the bars, then day, date and
+the place as a large title, the text as body copy, the other photos in two
+columns, "Show on map" and, for authors, the readers, then the comments.
+Pages swipe sideways in a paging scroll view, one step per swipe – a
+page-style `TabView` kept the status bar free, so the photo couldn't reach
+the top. Actions live in the toolbars (⋯ menu top right, previous /
+comment / next at the bottom) and behind touch and hold (deleting a
+comment, discarding a step still on the device) instead of inline text
+buttons.
 
 Two SwiftUI traps from building it: while the step page is pushed, the map
 below it can't present anything, so every sheet and dialog of the trip is

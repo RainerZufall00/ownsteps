@@ -140,7 +140,7 @@ struct TripView: View {
                     SuggestionsCard(count: banner.count, review: banner.review, dismiss: banner.dismiss)
                         .padding(14)
                         .frame(maxWidth: 440, alignment: .leading)
-                        .glassEffect(.regular, in: .rect(cornerRadius: StepPager.cornerRadius))
+                        .cardSurface()
                         .padding(.horizontal, 16)
                 }
                 StepPager(
@@ -160,7 +160,7 @@ struct TripView: View {
         } else if let error {
             ContentUnavailableView("Trip unavailable", systemImage: "exclamationmark.triangle", description: Text(error))
                 .frame(maxHeight: StepPager.height)
-                .glassEffect(.regular, in: .rect(cornerRadius: StepPager.cornerRadius))
+                .cardSurface()
                 .padding(16)
         } else {
             ProgressView()

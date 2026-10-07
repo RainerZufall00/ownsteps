@@ -1253,16 +1253,6 @@
         }
       }
     },
-    "Readers who have seen this step, each counted once.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Leser, die diese Station gesehen haben, jeder einmal gezählt."
-          }
-        }
-      }
-    },
     "Refresh": {
       "localizations": {
         "de": {
@@ -1353,12 +1343,42 @@
         }
       }
     },
-    "Seen by": {
+    "Seen by %lld readers": {
       "localizations": {
         "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gesehen von"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Von %lld Leser gesehen"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Von %lld Lesern gesehen"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Seen by %lld reader"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Seen by %lld readers"
+                }
+              }
+            }
           }
         }
       }
