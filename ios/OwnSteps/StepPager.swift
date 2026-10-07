@@ -321,8 +321,9 @@ struct StepDetailRequest: Identifiable, Hashable {
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
-/// The steps as pushed pages: back with the system's swipe from the edge,
-/// sideways to the previous and next step. Each step is a story.
+/// The steps as pushed pages, one above the other like reels: swiping up
+/// brings the next entry, so moving on to another day is a real scroll and
+/// not just another photo. Each step is a story of its own.
 struct StepDetailPager: View {
     let account: Account
     let trip: Components.Schemas.TripDetail
@@ -334,23 +335,24 @@ struct StepDetailPager: View {
     let refresh: () async -> Void
 
     @Environment(\.dismiss) private var dismiss
-    /// The photo each step is at – kept while paging between steps.
+    /// The photo each step is at – kept while moving between steps.
     @State private var photoIndex: [Int: Int] = [:]
     @State private var commentsFor: CommentsRequest?
     /// Pinching a photo opens it full screen to zoom.
     @State private var viewer: ViewerRequest?
+    @State private var position = ScrollPosition(idType: Int.self)
 
     var body: some View {
         let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.steps.first?.occurredAt)
         let steps = trip.steps
         let current = steps.first { $0.id == stepID }
-        // Paging scroll view, not a page-style TabView: that one kept the
-        // status bar free, so the photos couldn't fill the screen. The bars'
-        // heights are read before the safe area is ignored.
+        // The bars' heights are read before the safe area is ignored: the
+        // photos run under them, the controls stay clear of them.
         GeometryReader { geometry in
             let insets = geometry.safeAreaInsets
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: 0) {
+            let size = CGSize(width: geometry.size.width, height: geometry.size.height + insets.top + insets.bottom)
+            ScrollView(.vertical) {
+                LazyVStack(spacing: 0) {
                     ForEach(steps) { step in
                         StepStoryPage(
                             account: account,
@@ -364,6 +366,7 @@ struct StepDetailPager: View {
                                 set: { photoIndex[step.id] = $0 }
                             ),
                             isCurrent: step.id == stepID,
+                            size: size,
                             insets: insets,
                             next: { advance(from: step, by: 1) },
                             previous: { advance(from: step, by: -1) },
@@ -371,18 +374,29 @@ struct StepDetailPager: View {
                             showOnMap: { actions.showOnMap(step) },
                             zoom: { viewer = ViewerRequest(stepID: step.id, index: photoIndex[step.id] ?? 0) }
                         )
-                        .frame(width: geometry.size.width, height: geometry.size.height + insets.top + insets.bottom)
+                        .frame(width: size.width, height: size.height)
                         .id(step.id)
                     }
                 }
                 .scrollTargetLayout()
             }
-            .scrollTargetBehavior(OneStepPaging())
+            .scrollTargetBehavior(OneStepPaging(axis: .vertical))
             .scrollIndicators(.hidden)
-            .scrollPosition(id: Binding(get: { stepID }, set: { if let id = $0 { stepID = id } }))
+            .scrollPosition($position)
+            // Taken over only once the scroll has settled: reported while a
+            // programmatic scroll was still running, the old step won and
+            // the scroll turned back.
+            .onScrollPhaseChange { _, phase in
+                if phase == .idle, let id = position.viewID(type: Int.self), id != stepID { stepID = id }
+            }
+            .onChange(of: stepID, initial: true) { _, id in
+                if position.viewID(type: Int.self) != id { position.scrollTo(id: id) }
+            }
             .ignoresSafeArea()
         }
         .background(Color.black)
+        .statusBarHidden()
+        .sensoryFeedback(.impact(weight: .light), trigger: stepID)
         .environment(\.colorScheme, .dark)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
@@ -425,13 +439,14 @@ struct StepDetailPager: View {
     }
 
     /// Next or previous photo; past the last or first, on to the next or
-    /// previous step – like stories.
+    /// previous step – which scrolls the whole page, so it's clear a new
+    /// entry begins.
     private func advance(from step: Components.Schemas.Step, by delta: Int) {
         let steps = trip.steps
         let current = min(photoIndex[step.id] ?? 0, max(step.photos.count - 1, 0))
         let target = current + delta
         if target >= 0 && target < step.photos.count {
-            photoIndex[step.id] = target
+            withAnimation(.smooth(duration: 0.3)) { photoIndex[step.id] = target }
             return
         }
         guard let position = steps.firstIndex(where: { $0.id == step.id }) else { return }
@@ -440,7 +455,7 @@ struct StepDetailPager: View {
         let other = steps[neighbor]
         // Going back lands on the previous step's last photo.
         photoIndex[other.id] = delta > 0 ? 0 : max(other.photos.count - 1, 0)
-        withAnimation(.snappy) { stepID = other.id }
+        withAnimation(.smooth(duration: 0.45)) { stepID = other.id }
     }
 }
 
@@ -449,11 +464,12 @@ struct CommentsRequest: Identifiable {
     var id: Int { stepID }
 }
 
-/// One step as a story: its photos one at a time over the whole screen, all
-/// of them equal – none is the step's "title photo". Tapping the right side
-/// goes on, the left side back; bars at the top show where you are. Day,
-/// place and the text stay at the bottom on a dark fade, the photo's caption
-/// above them. A step without photos becomes a text story.
+/// One step as a story: its photos side by side over the whole screen, all
+/// of them equal – none is the step's "title photo". They follow the finger
+/// sideways; a tap on the right goes on, on the left back. Bars at the top
+/// show where you are. Day, place and the start of the text stay at the
+/// bottom on a dark fade, the photo's caption above them; a longer text
+/// opens in a reading sheet. A step without photos becomes a text story.
 struct StepStoryPage: View {
     let account: Account
     let step: Components.Schemas.Step
@@ -464,8 +480,8 @@ struct StepStoryPage: View {
     var viewCount: Int?
     @Binding var index: Int
     let isCurrent: Bool
-    /// Status, navigation and home indicator areas – the photo runs under
-    /// them, the controls stay clear of them.
+    let size: CGSize
+    /// Status, navigation and home indicator areas.
     let insets: EdgeInsets
     let next: () -> Void
     let previous: () -> Void
@@ -473,41 +489,81 @@ struct StepStoryPage: View {
     let showOnMap: () -> Void
     let zoom: () -> Void
 
-    @State private var expanded = false
+    @State private var truncated = false
+    @State private var reading = false
+    @State private var position = ScrollPosition(idType: Int.self)
 
     private var photo: Components.Schemas.Photo? { step.photos.indices.contains(index) ? step.photos[index] : nil }
     private var hasPlace: Bool { step.lat != nil && step.lon != nil }
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                if let photo {
-                    media(photo)
-                        .id(photo.id)
-                        .transition(.opacity)
-                } else {
-                    CoverPlaceholder(seed: step.id, symbolSize: 0)
-                    if !step.body.isEmpty {
-                        Text(step.body)
-                            .font(.title2.weight(.semibold))
-                            .multilineTextAlignment(.center)
-                            .padding(32)
-                            .minimumScaleFactor(0.6)
-                    }
-                }
-                tapZones(width: geometry.size.width)
+        ZStack {
+            if step.photos.isEmpty {
+                textStory
+            } else {
+                photoPager
             }
-            .animation(.easeInOut(duration: 0.2), value: index)
-            .overlay(alignment: .top) { progress.padding(.top, insets.top + 6) }
-            .overlay(alignment: .bottom) { bottom(height: geometry.size.height) }
         }
+        .overlay(alignment: .top) { progress.padding(.top, insets.top + 6) }
+        .overlay(alignment: .bottom) { bottom }
         .foregroundStyle(.white)
         .clipped()
+        .sheet(isPresented: $reading) {
+            StepTextSheet(step: step, day: day, calendar: calendar)
+                .presentationDetents([.medium, .large])
+        }
     }
 
-    // MARK: Photo
+    // MARK: Photos
 
-    private func media(_ photo: Components.Schemas.Photo) -> some View {
+    private var photoPager: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(Array(step.photos.enumerated()), id: \.element.id) { offset, photo in
+                    media(photo, playing: isCurrent && offset == index)
+                        .frame(width: size.width, height: size.height)
+                        .clipped()
+                        .contentShape(.rect)
+                        .gesture(
+                            SpatialTapGesture().onEnded { value in
+                                value.location.x < size.width / 3 ? previous() : next()
+                            },
+                            isEnabled: photo.mediaType != .video
+                        )
+                        .overlay {
+                            if photo.mediaType == .video { videoEdges }
+                        }
+                        .simultaneousGesture(
+                            MagnifyGesture().onEnded { value in
+                                if value.magnification > 1.15 && photo.mediaType == .photo { zoom() }
+                            }
+                        )
+                        .accessibilityElement()
+                        .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(offset + 1)")))
+                        .accessibilityAction(named: Text("Next photo"), next)
+                        .accessibilityAction(named: Text("Previous photo"), previous)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(OneStepPaging(axis: .horizontal))
+        .scrollIndicators(.hidden)
+        .scrollPosition($position)
+        // Like the steps: the photo is taken over once the scroll settled.
+        .onScrollPhaseChange { _, phase in
+            guard phase == .idle, let id = position.viewID(type: Int.self),
+                  let shown = step.photos.firstIndex(where: { $0.id == id }), shown != index
+            else { return }
+            index = shown
+        }
+        .onChange(of: index, initial: true) { _, index in
+            guard step.photos.indices.contains(index) else { return }
+            let id = step.photos[index].id
+            if position.viewID(type: Int.self) != id { position.scrollTo(id: id) }
+        }
+    }
+
+    private func media(_ photo: Components.Schemas.Photo, playing: Bool) -> some View {
         ZStack {
             // The photo itself, blurred, fills what the fitted one leaves.
             Color.clear
@@ -516,42 +572,40 @@ struct StepStoryPage: View {
                 .blur(radius: 40)
                 .overlay(Color.black.opacity(0.35))
             if photo.mediaType == .video {
-                VideoPage(account: account, photo: photo, isCurrent: isCurrent)
+                VideoPage(account: account, photo: photo, isCurrent: playing)
                     .padding(.top, insets.top)
             } else {
                 RemoteImage(account: account, photo: photo, variant: .large, contentMode: .fit, fallbacks: [.medium, .thumb])
             }
         }
-        .accessibilityElement()
-        .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(index + 1)")))
     }
 
-    /// Left third back, the rest on – narrower on videos, which bring
-    /// their own controls in the middle.
-    private func tapZones(width: CGFloat) -> some View {
-        let isVideo = photo?.mediaType == .video
-        return HStack(spacing: 0) {
-            Button(action: previous) { Color.clear.contentShape(.rect) }
-                .frame(width: width * (isVideo ? 0.18 : 0.33))
-                .accessibilityLabel(Text("Previous photo"))
-            Color.clear
-                .allowsHitTesting(!isVideo)
-                .contentShape(.rect)
-                .onTapGesture(perform: next)
-                .accessibilityHidden(true)
-            if isVideo {
-                Button(action: next) { Color.clear.contentShape(.rect) }
-                    .frame(width: width * 0.18)
-                    .accessibilityLabel(Text("Next photo"))
+    /// Videos bring their own controls in the middle; only the edges move on.
+    private var videoEdges: some View {
+        HStack(spacing: 0) {
+            Color.clear.contentShape(.rect).onTapGesture(perform: previous).frame(width: size.width * 0.15)
+            Color.clear.allowsHitTesting(false)
+            Color.clear.contentShape(.rect).onTapGesture(perform: next).frame(width: size.width * 0.15)
+        }
+    }
+
+    /// No photos: the text is the picture, as large as it fits.
+    private var textStory: some View {
+        ZStack {
+            CoverPlaceholder(seed: step.id, symbolSize: 0)
+            if !step.body.isEmpty {
+                ClampedText(text: step.body, lines: 10, truncated: $truncated)
+                    .font(.title3.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 120)
             }
         }
-        .buttonStyle(.plain)
-        .simultaneousGesture(
-            MagnifyGesture().onEnded { value in
-                if value.magnification > 1.15 && photo?.mediaType == .photo { zoom() }
-            }
-        )
-        .accessibilityAction(named: Text("Next photo"), next)
+        .contentShape(.rect)
+        .gesture(SpatialTapGesture().onEnded { value in
+            value.location.x < size.width / 3 ? previous() : next()
+        })
     }
 
     /// One bar per photo, filled up to the one shown.
@@ -566,13 +620,14 @@ struct StepStoryPage: View {
             }
             .padding(.horizontal, 12)
             .shadow(color: .black.opacity(0.3), radius: 2)
+            .animation(.smooth(duration: 0.2), value: index)
             .accessibilityHidden(true)
         }
     }
 
     // MARK: Text
 
-    private func bottom(height: CGFloat) -> some View {
+    private var bottom: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let caption = photo?.caption, !caption.isEmpty {
                 Text(caption)
@@ -580,21 +635,13 @@ struct StepStoryPage: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .background(.black.opacity(0.45), in: .rect(cornerRadius: 16))
+                    .id(photo?.id)
+                    .transition(.opacity)
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    if let day {
-                        Text("Day \(day)")
-                            .foregroundStyle(.tint)
-                        Text("·")
-                    }
-                    Text(step.occurredAt.formatted(
-                        Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
-                    ))
-                }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.8))
+                StepDayLine(day: day, date: step.occurredAt, calendar: calendar)
+                    .foregroundStyle(.white.opacity(0.8))
                 if let place = step.placeName {
                     Text(place)
                         .font(.title.bold())
@@ -603,21 +650,13 @@ struct StepStoryPage: View {
             }
 
             // On a text story the text is the picture already.
-            if photo != nil && !step.body.isEmpty {
-                ScrollView {
-                    Text(step.body)
-                        .font(.body)
-                        .lineSpacing(3)
-                        .lineLimit(expanded ? nil : 3)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                }
-                .scrollDisabled(!expanded)
-                .frame(maxHeight: expanded ? height * 0.4 : nil)
-                .fixedSize(horizontal: false, vertical: !expanded)
-                .contentShape(.rect)
-                .onTapGesture { withAnimation(.snappy) { expanded.toggle() } }
-                .accessibilityHint(Text(expanded ? "Show less" : "Show more"))
+            if !step.photos.isEmpty && !step.body.isEmpty {
+                ClampedText(text: step.body, lines: 3, truncated: $truncated)
+                    .font(.body)
+                    .lineSpacing(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
+                    .onTapGesture { if truncated { reading = true } }
             }
 
             if !pending.isEmpty {
@@ -625,6 +664,11 @@ struct StepStoryPage: View {
             }
 
             HStack(spacing: 10) {
+                if truncated {
+                    Button { reading = true } label: {
+                        Label("Read more", systemImage: "text.alignleft")
+                    }
+                }
                 Button(action: showComments) {
                     Label("\(step.comments.count)", systemImage: "bubble.left")
                         .accessibilityLabel(Text("Comments"))
@@ -635,7 +679,7 @@ struct StepStoryPage: View {
                             .labelStyle(.iconOnly)
                     }
                 }
-                Spacer()
+                Spacer(minLength: 0)
                 if let viewCount {
                     Label("\(viewCount)", systemImage: "eye")
                         .font(.subheadline)
@@ -645,6 +689,7 @@ struct StepStoryPage: View {
             }
             .buttonStyle(.glass)
         }
+        .animation(.smooth(duration: 0.2), value: photo?.id)
         .padding(.horizontal, 20)
         .padding(.top, 60)
         .padding(.bottom, insets.bottom + 12)
@@ -653,14 +698,98 @@ struct StepStoryPage: View {
             LinearGradient(
                 stops: [
                     .init(color: .clear, location: 0),
-                    .init(color: .black.opacity(expanded ? 0.85 : 0.65), location: 0.35),
-                    .init(color: .black.opacity(expanded ? 0.9 : 0.8), location: 1),
+                    .init(color: .black.opacity(0.65), location: 0.35),
+                    .init(color: .black.opacity(0.8), location: 1),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .allowsHitTesting(false)
         }
+    }
+}
+
+/// "Day 3 · Tuesday, 12 May"
+struct StepDayLine: View {
+    let day: Int?
+    let date: Date
+    let calendar: TripCalendar
+    var withYear = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let day {
+                Text("Day \(day)")
+                    .foregroundStyle(.tint)
+                Text("·")
+            }
+            Text(date.formatted(withYear
+                ? Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide).year()
+                : Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide)
+            ))
+        }
+        .font(.subheadline.weight(.semibold))
+    }
+}
+
+/// Text cut to `lines`, telling whether anything was cut – so "Read more"
+/// only shows when there is more.
+struct ClampedText: View {
+    let text: String
+    let lines: Int
+    @Binding var truncated: Bool
+
+    @State private var full: CGFloat = 0
+    @State private var shown: CGFloat = 0
+
+    var body: some View {
+        Text(text)
+            .lineLimit(lines)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                shown = height
+                truncated = full > shown + 1
+            }
+            .background {
+                Text(text)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .hidden()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                        full = height
+                        truncated = full > shown + 1
+                    }
+            }
+    }
+}
+
+/// The whole text of a step, to read at length.
+struct StepTextSheet: View {
+    let step: Components.Schemas.Step
+    let day: Int?
+    let calendar: TripCalendar
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                StepDayLine(day: day, date: step.occurredAt, calendar: calendar, withYear: true)
+                    .foregroundStyle(.secondary)
+                if let place = step.placeName {
+                    Text(place).font(.largeTitle.bold())
+                }
+                Text(step.body)
+                    .font(.body)
+                    .lineSpacing(5)
+                    .textSelection(.enabled)
+                    .padding(.top, 8)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.top, 32)
+            .padding(.bottom, 40)
+        }
+        // Solid for reading at length – a photo shimmering through glass
+        // behind long text was tiring.
+        .presentationBackground(Color(uiColor: .systemBackground))
+        .presentationDragIndicator(.visible)
     }
 }
 
@@ -718,15 +847,18 @@ struct CommentRow: View {
     }
 }
 
-/// Paging that moves one step per swipe at most – plain `.paging` let a
+/// Paging that moves one page per swipe at most – plain `.paging` let a
 /// quick swipe fly past the next step.
 struct OneStepPaging: ScrollTargetBehavior {
+    var axis: Axis = .horizontal
+
     func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
-        let width = context.containerSize.width
-        guard width > 0 else { return }
-        let current = (context.originalTarget.rect.minX / width).rounded()
-        let proposed = target.rect.minX / width
-        let next = min(max(proposed.rounded(), current - 1), current + 1)
-        target.rect.origin.x = next * width
+        let length = axis == .horizontal ? context.containerSize.width : context.containerSize.height
+        guard length > 0 else { return }
+        let origin = axis == .horizontal ? context.originalTarget.rect.minX : context.originalTarget.rect.minY
+        let proposed = axis == .horizontal ? target.rect.minX : target.rect.minY
+        let current = (origin / length).rounded()
+        let next = min(max((proposed / length).rounded(), current - 1), current + 1) * length
+        if axis == .horizontal { target.rect.origin.x = next } else { target.rect.origin.y = next }
     }
 }

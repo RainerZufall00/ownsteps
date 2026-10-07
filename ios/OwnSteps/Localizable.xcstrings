@@ -1263,6 +1263,16 @@
         }
       }
     },
+    "Read more": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiterlesen"
+          }
+        }
+      }
+    },
     "Readers": {
       "localizations": {
         "de": {

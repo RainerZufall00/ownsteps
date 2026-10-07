@@ -15,8 +15,10 @@ where it isn't obvious.
 - App: the step cards over the map are solid instead of see-through glass,
   so they stand out from the map.
 - App: a step opens as a story, like a WhatsApp status – all photos equal
-  and full screen, tap to go on, captions per photo, the text at the
-  bottom. Steps without photos become a text story. Pinch to zoom.
+  and full screen, swiped or tapped through, captions per photo, the text
+  at the bottom. The next entry comes from below, like reels. Long texts
+  get "Read more" with a reading sheet; steps without photos become a text
+  story. Pinch to zoom.
 
 ## [0.1.1] – 2026-10-07
 

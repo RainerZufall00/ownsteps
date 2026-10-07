@@ -439,15 +439,20 @@ read; glass stays for small controls over the map: the overview bar, the
 photo count). A step opens as a **story**, like a WhatsApp status (also
 2026-10-07 – a "title photo" per step, with the others in a grid below,
 made one photo more important than the rest): every photo fills the screen
-in turn over a blurred copy of itself, a tap on the right goes on, on the
-left back, past the last photo on to the next step; bars at the top show
-where you are. Day, place and the text stay at the bottom on a dark fade
-(three lines, a tap opens all of it), the photo's caption above them;
-comments open as a sheet, pinching a photo opens the zoomable viewer. A
-step without photos is a text story on a colored background. Steps swipe
-sideways in a paging scroll view, one per swipe – a page-style `TabView`
-kept the status bar free, so the photos couldn't fill the screen. Videos
-keep their player; only narrow edges of them advance. Actions live in the
+over a blurred copy of itself. Photos page sideways and follow the finger;
+a tap on the right goes on, on the left back. Steps are stacked like reels:
+swiping up brings the next entry, and tapping past the last photo scrolls
+the whole page up to it with a light tick – so a new day is visibly a new
+entry, not just another photo. Bars at the top show where you are. Day,
+place and three lines of text stay at the bottom on a dark fade, the
+photo's caption above them; a longer text gets "Read more", which opens
+the whole text in a solid reading sheet. Comments open as a sheet,
+pinching a photo opens the zoomable viewer, and a step without photos is a
+text story on a colored background. Both pagers move one page per swipe
+and take over the position only once the scroll has settled (`ScrollPosition`
+plus `onScrollPhaseChange`): a position reported while a programmatic
+scroll was still running sent it back to where it started. Videos keep
+their player; only narrow edges of them advance. Actions live in the
 toolbar (⋯ menu top right) and behind touch and hold (deleting a comment,
 discarding a step still on the device) instead of inline text buttons.
 
