@@ -49,6 +49,8 @@ struct TripView: View {
     @State private var deleteConfirmation = ""
     /// Something the user did failed while the trip is on screen.
     @State private var actionError: String?
+    /// A reload waiting for more uploads to finish.
+    @State private var queuedRefresh: Task<Void, Never>?
     /// Steps this reader's views were already reported for.
     @State private var reportedViews: Set<Int> = []
 
@@ -83,9 +85,13 @@ struct TripView: View {
                     trip = cached.value
                 }
                 if let focusStepID {
-                    focusedItem = TimelineItem.id(serverStep: focusStepID)
+                    focusedItem = itemID(forStepID: focusStepID)
                 }
                 await refresh()
+                // Without a cached copy the step's card is only known now.
+                if let focusStepID {
+                    focusedItem = itemID(forStepID: focusStepID)
+                }
             }
             .task(id: tripID) { await watchQueue() }
     }
@@ -178,7 +184,7 @@ struct TripView: View {
                         set: { id in
                             openStepID = id
                             // Going back leaves the pager and the map at this step.
-                            focusedItem = TimelineItem.id(serverStep: id)
+                            focusedItem = itemID(forStepID: id)
                         }
                     ),
                     refresh: refresh
@@ -202,7 +208,7 @@ struct TripView: View {
     /// The pager moved to another card: the map shows where it was.
     private func followPager(to id: String?) {
         guard let trip else { return }
-        let step = trip.steps.first { TimelineItem.id(serverStep: $0.id) == id }
+        let step = step(forItem: id)
         if mapSelection != step?.id { mapSelection = step?.id }
         withAnimation(.smooth(duration: 0.9)) {
             camera = step.flatMap(TripMapView.camera(for:)) ?? TripMapView.overview(of: trip)
@@ -212,7 +218,7 @@ struct TripView: View {
     /// A marker was tapped: the pager brings its card.
     private func followMap(to stepID: Int?) {
         guard let stepID else { return }
-        let id = TimelineItem.id(serverStep: stepID)
+        let id = itemID(forStepID: stepID)
         // Already there when the pager itself caused the selection.
         guard focusedItem != id else { return }
         withAnimation { focusedItem = id }
@@ -220,15 +226,25 @@ struct TripView: View {
 
     private func showOnMap(_ step: Components.Schemas.Step) {
         detail = nil
-        focusedItem = TimelineItem.id(serverStep: step.id)
+        focusedItem = TimelineItem.id(of: step)
         mapSelection = step.id
+    }
+
+    /// The pager card of a server step.
+    private func itemID(forStepID id: Int) -> String {
+        trip?.steps.first { $0.id == id }.map(TimelineItem.id(of:)) ?? TimelineItem.id(serverStepID: id)
+    }
+
+    /// The server step behind a pager card, if it is one.
+    private func step(forItem id: String?) -> Components.Schemas.Step? {
+        guard let id else { return nil }
+        return trip?.steps.first { TimelineItem.id(of: $0) == id }
     }
 
     /// The step a reader is looking at – on its page or in the pager.
     private var shownStepID: Int? {
         if detail != nil { return openStepID }
-        guard let focusedItem, let trip else { return nil }
-        return trip.steps.first { TimelineItem.id(serverStep: $0.id) == focusedItem }?.id
+        return step(forItem: focusedItem)?.id
     }
 
     /// Tells the server a reader saw a step, so the authors see how often
@@ -483,14 +499,33 @@ struct TripView: View {
                 let now = Set(snapshot.localSteps.map(\.id))
                     .union(snapshot.uploadsByStepID.values.flatMap { $0.map(\.id) })
                     .union(snapshot.localSteps.flatMap { $0.uploads.map(\.id) })
-                let finished = !pending.subtracting(now).isEmpty
-                    || snapshot.localSteps.count < queue.localSteps.count
-                queue = snapshot
+                let uploaded = !pending.subtracting(now).isEmpty
                 pending = now
-                if finished { await refresh() }
+                if snapshot.localSteps.count < queue.localSteps.count {
+                    // A step reached the server: fetch it before the local
+                    // card goes, so the card doesn't vanish and come back –
+                    // that jolted the pager and the map under the user.
+                    queuedRefresh?.cancel()
+                    await refresh()
+                    queue = snapshot
+                } else {
+                    queue = snapshot
+                    if uploaded { scheduleRefresh() }
+                }
             }
         } catch {
             // The observation only ends with the view.
+        }
+    }
+
+    /// Photos finish in bursts; one reload after the last of them does.
+    /// Reloading after each one rebuilt map and pager many times a second.
+    private func scheduleRefresh() {
+        queuedRefresh?.cancel()
+        queuedRefresh = Task {
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            await refresh()
         }
     }
 
@@ -582,15 +617,22 @@ struct TimelineItem: Identifiable {
     let date: Date
     var day: Int?
 
-    /// Doubles as the scroll position, which the map follows.
+    /// Doubles as the scroll position, which the map follows. A step written
+    /// in the app keeps its card when it reaches the server: both carry the
+    /// step's client UUID, so the pager doesn't lose its place.
     var id: String {
         switch kind {
-        case .server(let step): Self.id(serverStep: step.id)
-        case .local(let local): "local-\(local.id)"
+        case .server(let step): Self.id(of: step)
+        case .local(let local): Self.id(clientUUID: local.step.clientUUID)
         }
     }
 
-    static func id(serverStep: Int) -> String { "server-\(serverStep)" }
+    static func id(of step: Components.Schemas.Step) -> String {
+        step.clientUuid.map(id(clientUUID:)) ?? id(serverStepID: step.id)
+    }
+
+    static func id(serverStepID: Int) -> String { "server-\(serverStepID)" }
+    static func id(clientUUID: String) -> String { "step-\(clientUUID)" }
     /// The trip's own card in front of the steps.
     static let coverID = "cover"
 

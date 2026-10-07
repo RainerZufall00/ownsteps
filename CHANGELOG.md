@@ -28,6 +28,10 @@ where it isn't obvious.
   flooded the main thread with view updates; it's now passed on once per
   percent. Converting photos to JPEG no longer runs on the main thread
   either, which froze the composer for a second or two per photo.
+  The trip also reloaded after every single finished photo, rebuilding map
+  and cards each time, and a new step's card vanished and came back when it
+  reached the server; now one reload follows a burst of uploads and the
+  card keeps its place.
 
 ### Changed
 

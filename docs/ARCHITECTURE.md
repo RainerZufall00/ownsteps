@@ -608,7 +608,10 @@ Three concurrency traps (the app target runs on the main actor by
 default): **upload progress** must be thinned out – URLSession reports
 every few kilobytes, and passing each report to the UI flooded the main
 thread until iOS killed the app (`0x8BADF00D`); `BackgroundUploader` passes
-on whole percents only. **Heavy work** like converting a 48 MP HEIC must be
+on whole percents only, and the trip reloads once after a burst of finished
+uploads, not after each. A step written on the device keeps its pager card
+when it reaches the server (both are keyed by the step's client UUID), so
+the pager doesn't jump under the user. **Heavy work** like converting a 48 MP HEIC must be
 moved off explicitly (`@concurrent`), or it runs on the main thread.
 And **closures handed to Photos or NSItemProvider** must not be written in a
 main-actor function: those frameworks call back on their own queues, and
