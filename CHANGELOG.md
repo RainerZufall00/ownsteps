@@ -10,6 +10,8 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.3.0] – 2026-10-08
+
 ### Added
 
 - Map and place names without a MapTiler key: the map comes from
@@ -126,7 +128,8 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/RainerZufall00/ownsteps/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/RainerZufall00/ownsteps/releases/tag/v0.1.0
