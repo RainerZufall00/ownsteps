@@ -14,11 +14,12 @@ where it isn't obvious.
 
 - Keep a trip: download it as an offline album – a ZIP with one page, all
   photos and videos, texts, captions, comments and a map of the route,
-  that opens in any browser without a server. In the trip settings and in
-  the app's trip menu.
+  that opens in any browser without a server. In the trip settings, on the
+  web and in the app.
 - Send a trip to Immich as an album. Each photo's description holds its
   caption, the day and place, and the day's text on its first photo.
-  Connect Immich in the settings (address and API key). Needs migration
+  Connect Immich in the settings, on the web or in the app (address and API
+  key). Needs migration
   `0006_immich`, applied on startup.
 
 ### Changed

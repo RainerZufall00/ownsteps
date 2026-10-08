@@ -1253,8 +1253,13 @@ text shouldn't get lost on the way into a photo library.
   them; ZIP64 only past 4 GB. No dependency for ~200 lines of a simple
   format; tests read archives back, and `unzip`, Python and macOS Archive
   Utility accepted both kinds.
+- **Where**: in the web, the trip settings page ("Keep it"); in the app, a
+  trip settings sheet from the trip menu (2026-10-08 – it's needed once, at
+  the end of a trip, so it doesn't sit in the menu itself).
 - **Immich** (`export/immich.ts`): each user connects their own Immich in
-  the settings (address plus API key; the key is checked against
+  the settings – web or app (`/api/v1/me/immich`; an exception to [D21]'s
+  "account matters on the web", asked for because the app is where the
+  trip ends) – (address plus API key; the key is checked against
   `/api/users/me` and stored sealed with AES-GCM under the app secret). The
   export runs in the background on the server – it has the originals –
   and web and app poll its progress (in memory; a restart forgets it, the

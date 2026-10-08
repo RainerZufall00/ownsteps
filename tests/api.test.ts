@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createUser } from "@/lib/auth";
 import { UPLOAD_DIR } from "@/db";
 import { MAX_IMAGE_BYTES } from "@/lib/limits";
@@ -727,5 +727,45 @@ describe("export", () => {
       const denied = await call("GET", route, { token: redeemed.json.token, params: { id: trip.id } });
       expect(denied.json.code, route).toBe("author_only");
     }
+  });
+});
+
+describe("Immich connection", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("lets authors connect, read and forget their Immich", async () => {
+    const token = await signIn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL, init: RequestInit = {}) => {
+        const ok = new Headers(init.headers).get("x-api-key") === "good-key";
+        return String(input) === "https://photos.example.com/api/users/me" && ok
+          ? Response.json({ name: "Mia" })
+          : Response.json({}, { status: 401 });
+      }),
+    );
+
+    const before = await call("GET", "/api/v1/me/immich", { token });
+    expect(before.json).toMatchObject({ connected: false, url: null });
+
+    const wrong = await call("PUT", "/api/v1/me/immich", {
+      token,
+      body: { url: "photos.example.com", apiKey: "bad" },
+    });
+    expect(wrong.json.code).toBe("immich_key_invalid");
+
+    const connected = await call("PUT", "/api/v1/me/immich", {
+      token,
+      body: { url: "photos.example.com", apiKey: "good-key" },
+    });
+    expect(connected.json).toEqual({
+      connected: true,
+      url: "https://photos.example.com",
+      name: "Mia",
+      problem: null,
+    });
+
+    expect((await call("DELETE", "/api/v1/me/immich", { token })).status).toBe(204);
+    expect((await call("GET", "/api/v1/me/immich", { token })).json.connected).toBe(false);
   });
 });

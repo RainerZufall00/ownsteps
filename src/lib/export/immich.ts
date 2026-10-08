@@ -295,3 +295,15 @@ export function immichStatus(user: User, tripId: number, locale: Locale, t: Dict
     error: job?.error ? fill(t.errors[job.error.code], job.error.params) : null,
   };
 }
+
+/** The connection as web settings and app show it. */
+export async function immichConnectionInfo(user: User, locale: Locale, t: Dictionary) {
+  const account = await immichAccount(user);
+  return {
+    connected: account !== null,
+    url: account?.url ?? null,
+    name: account?.name || null,
+    problem: account?.problem ? fill(t.errors[account.problem]) : null,
+  };
+}
+

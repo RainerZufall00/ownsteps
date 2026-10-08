@@ -311,6 +311,25 @@ export const immichStatusSchema = z
   })
   .meta({ id: "ImmichStatus" });
 
+export const immichConnectionSchema = z
+  .object({
+    connected: z.boolean(),
+    /** The Immich address, once connected. */
+    url: z.string().nullable(),
+    /** The Immich account the key belongs to. */
+    name: z.string().nullable(),
+    /** Why the stored connection doesn't work right now, in the request's language. */
+    problem: z.string().nullable(),
+  })
+  .meta({ id: "ImmichConnection" });
+
+export const immichConnectSchema = z
+  .object({
+    url: z.string().min(1).max(500),
+    apiKey: z.string().min(1).max(500),
+  })
+  .meta({ id: "ImmichConnect" });
+
 export const mediaUploadSchema = z
   .object({
     file: z.string().meta({ format: "binary", description: "Photo or video, one per request." }),

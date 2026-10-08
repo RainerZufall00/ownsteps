@@ -9,6 +9,8 @@ import {
   commentCreateSchema,
   commentSchema,
   coverUploadSchema,
+  immichConnectSchema,
+  immichConnectionSchema,
   immichStatusSchema,
   infoSchema,
   meSchema,
@@ -171,6 +173,27 @@ export function buildOpenApiDocument() {
           summary: "Who the token belongs to",
           security: secured,
           responses: { "200": ok(meSchema) },
+        }),
+      },
+      "/api/v1/me/immich": {
+        get: op({
+          operationId: "getImmichConnection",
+          summary: "The author's Immich connection, checked against Immich (authors)",
+          security: secured,
+          responses: { "200": ok(immichConnectionSchema) },
+        }),
+        put: op({
+          operationId: "connectImmich",
+          summary: "Connect Immich: address and API key, checked before they're stored (authors)",
+          security: secured,
+          requestBody: jsonBody(immichConnectSchema),
+          responses: { "200": ok(immichConnectionSchema) },
+        }),
+        delete: op({
+          operationId: "disconnectImmich",
+          summary: "Forget the Immich connection (authors)",
+          security: secured,
+          responses: { "204": noContent },
         }),
       },
       "/api/v1/trips": {

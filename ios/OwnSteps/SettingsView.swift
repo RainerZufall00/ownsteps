@@ -29,6 +29,13 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        if account.kind == .author {
+                            NavigationLink {
+                                ImmichSettingsView(account: account)
+                            } label: {
+                                Label("Immich", systemImage: "photo.on.rectangle.angled")
+                            }
+                        }
                         Button("Sign out", role: .destructive) { accountToSignOut = account }
                     }
                 }

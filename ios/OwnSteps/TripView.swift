@@ -53,7 +53,7 @@ struct TripView: View {
     @State private var queuedRefresh: Task<Void, Never>?
     /// Steps this reader's views were already reported for.
     @State private var reportedViews: Set<Int> = []
-    @State private var export = TripExport()
+    @State private var showingTripSettings = false
 
     /// Readers follow one trip and only read and comment ([D17]).
     private var isAuthor: Bool { account.kind == .author }
@@ -63,7 +63,7 @@ struct TripView: View {
     var body: some View {
         // While a step page is open, sheets and dialogs are presented from
         // there – the map below it can't present anything.
-        presentations(mapLayer.tripExportStatus(export), active: detail == nil)
+        presentations(mapLayer, active: detail == nil)
             .toolbar { toolbar }
             .navigationTitle(trip?.title ?? "")
             .navigationBarTitleDisplayMode(.inline)
@@ -292,14 +292,6 @@ struct TripView: View {
                     Button("Share trip …", systemImage: "square.and.arrow.up") { share(.trip) }
                     Button("Readers", systemImage: "person.2") { showingReaders = true }
                     Button("Photo suggestions", systemImage: "photo.stack") { Task { await reviewSuggestions() } }
-                    Section {
-                        Button("Export album", systemImage: "square.and.arrow.down.on.square") {
-                            Task { await export.exportAlbum(client: model.client(for: account), tripID: tripID) }
-                        }
-                        Button("Send to Immich", systemImage: "photo.on.rectangle.angled") {
-                            Task { await export.sendToImmich(client: model.client(for: account), tripID: tripID) }
-                        }
-                    }
                 }
                 Button("Refresh", systemImage: "arrow.clockwise") { Task { await refresh() } }
                 Toggle(isOn: Binding(get: { !muted }, set: { setMuted(!$0) })) {
@@ -307,6 +299,7 @@ struct TripView: View {
                 }
                 if isAuthor {
                     Section {
+                        Button("Trip settings", systemImage: "gearshape") { showingTripSettings = true }
                         Button("Delete trip …", systemImage: "trash", role: .destructive) {
                             deleteConfirmation = ""
                             confirmingDelete = true
@@ -417,6 +410,9 @@ struct TripView: View {
             }
             .sheet(item: gate($editing, active)) { step in
                 EditStepView(account: account, step: step) { Task { await refresh() } }
+            }
+            .sheet(isPresented: gate($showingTripSettings, active)) {
+                TripSettingsView(account: account, tripID: tripID)
             }
             .sheet(isPresented: gate($editingTrip, active)) {
                 if let trip {

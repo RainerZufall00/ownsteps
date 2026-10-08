@@ -37,3 +37,29 @@ extension ServerClient {
         }
     }
 }
+
+extension ServerClient {
+    // MARK: Immich connection
+
+    public func immichConnection() async throws -> Components.Schemas.ImmichConnection {
+        switch try await client.getImmichConnection() {
+        case .ok(let response): return try response.body.json
+        case .default(let status, let response): throw problem(response.body, status: status)
+        }
+    }
+
+    /// Checks address and key against Immich (on the server) and stores them.
+    public func connectImmich(url: String, apiKey: String) async throws -> Components.Schemas.ImmichConnection {
+        switch try await client.connectImmich(body: .json(.init(url: url, apiKey: apiKey))) {
+        case .ok(let response): return try response.body.json
+        case .default(let status, let response): throw problem(response.body, status: status)
+        }
+    }
+
+    public func disconnectImmich() async throws {
+        switch try await client.disconnectImmich() {
+        case .noContent: return
+        case .default(let status, let response): throw problem(response.body, status: status)
+        }
+    }
+}

@@ -107,12 +107,12 @@
         }
       }
     },
-    "%lld photos and videos are in the album.": {
+    "%lld photos and videos are in Immich.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld Fotos und Videos sind im Album."
+            "value": "%lld Fotos und Videos sind in Immich."
           }
         }
       }
@@ -280,6 +280,36 @@
     "+%lld": {
       "shouldTranslate": false
     },
+    "A ZIP with one page and all photos and videos, the text, the captions and a map of the route. It opens in any browser, also offline.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine ZIP-Datei mit einer Seite und allen Fotos und Videos, den Texten, Bildbeschreibungen und einer Karte der Route. Sie öffnet sich in jedem Browser, auch offline."
+          }
+        }
+      }
+    },
+    "API key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "API-Schlüssel"
+          }
+        }
+      }
+    },
+    "Account": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konto"
+          }
+        }
+      }
+    },
     "Add": {
       "localizations": {
         "de": {
@@ -316,6 +346,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fotos oder Videos hinzufügen"
+          }
+        }
+      }
+    },
+    "Address": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse"
           }
         }
       }
@@ -440,12 +480,32 @@
         }
       }
     },
-    "Connect your Immich server in the OwnSteps settings on the web first.": {
+    "Connect": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Verbinde zuerst deinen Immich-Server in den OwnSteps-Einstellungen im Web."
+            "value": "Verbinden"
+          }
+        }
+      }
+    },
+    "Connect Immich": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immich verbinden"
+          }
+        }
+      }
+    },
+    "Connected as": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbunden als"
           }
         }
       }
@@ -456,6 +516,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Weiter"
+          }
+        }
+      }
+    },
+    "Create the key in Immich under Account settings → API keys. It needs to upload assets, change them and manage albums – \"All\" is simplest.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den Schlüssel erstellst du in Immich unter Kontoeinstellungen → API-Schlüssel. Er muss Medien hochladen, ändern und Alben verwalten dürfen – „Alle“ ist am einfachsten."
+          }
+        }
+      }
+    },
+    "Creates an album in Immich. Each photo keeps its caption; the day and place go with every photo, the day's text with its first one.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Legt in Immich ein Album an. Jedes Foto behält seine Beschreibung; Tag und Ort stehen an jedem Foto, der Tagestext am ersten des Tages."
           }
         }
       }
@@ -566,6 +646,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diesen Beitrag verwerfen? Er ist noch nicht auf dem Server."
+          }
+        }
+      }
+    },
+    "Disconnect": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trennen"
           }
         }
       }
@@ -750,12 +840,22 @@
         }
       }
     },
-    "Immich isn't connected": {
+    "Immich": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Immich ist nicht verbunden"
+            "value": "Immich"
+          }
+        }
+      }
+    },
+    "Immich address and API key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immich-Adresse und API-Schlüssel"
           }
         }
       }
@@ -1050,6 +1150,16 @@
         }
       }
     },
+    "Offline album": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline-Album"
+          }
+        }
+      }
+    },
     "Offline · as of %@": {
       "localizations": {
         "de": {
@@ -1080,12 +1190,12 @@
         }
       }
     },
-    "Open in Immich": {
+    "Open album in Immich": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "In Immich öffnen"
+            "value": "Album in Immich öffnen"
           }
         }
       }
@@ -1279,16 +1389,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fotos werden vorbereitet …"
-          }
-        }
-      }
-    },
-    "Preparing the album …": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Album wird erstellt …"
           }
         }
       }
@@ -1493,6 +1593,16 @@
         }
       }
     },
+    "Send again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut senden"
+          }
+        }
+      }
+    },
     "Send invitation": {
       "localizations": {
         "de": {
@@ -1513,32 +1623,12 @@
         }
       }
     },
-    "Sending %lld of %lld to Immich …": {
+    "Sending %lld of %lld …": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sende %1$lld von %2$lld an Immich …"
-          }
-        }
-      }
-    },
-    "Sending to Immich …": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wird an Immich gesendet …"
-          }
-        }
-      }
-    },
-    "Sent to Immich": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "An Immich gesendet"
+            "value": "Sende %1$lld von %2$lld …"
           }
         }
       }
@@ -1763,16 +1853,6 @@
         }
       }
     },
-    "Something went wrong.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Etwas ist schiefgelaufen."
-          }
-        }
-      }
-    },
     "Start a trip, then add steps with photos as you go.": {
       "localizations": {
         "de": {
@@ -1789,6 +1869,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Startdatum"
+          }
+        }
+      }
+    },
+    "Starting …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gestartet …"
           }
         }
       }
@@ -1849,16 +1939,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erzähl von diesem Tag …"
-          }
-        }
-      }
-    },
-    "That didn't work": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Das hat nicht geklappt"
           }
         }
       }
@@ -1949,6 +2029,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Die Datei ist nicht mehr auf dem Gerät."
+          }
+        }
+      }
+    },
+    "The key is stored encrypted on your OwnSteps server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Schlüssel wird verschlüsselt auf deinem OwnSteps-Server gespeichert."
           }
         }
       }
@@ -2233,6 +2323,16 @@
         }
       }
     },
+    "Trip settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reiseeinstellungen"
+          }
+        }
+      }
+    },
     "Trip unavailable": {
       "localizations": {
         "de": {
@@ -2509,6 +2609,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dein Reisetagebuch auf deinem eigenen Server."
+          }
+        }
+      }
+    },
+    "https://photos.example.com": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "https://fotos.example.com"
           }
         }
       }
