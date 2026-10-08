@@ -462,9 +462,11 @@ struct CommentsRequest: Identifiable {
 
 /// One step as a story: its photos side by side over the whole screen, all
 /// of them equal – none is the step's "title photo". They follow the finger
-/// sideways; a tap on the right goes on, on the left back. Bars at the top
-/// show where you are. Day, place and the start of the text stay at the
-/// bottom on a dark fade, the photo's caption above them; a longer text
+/// sideways; a tap on the right goes on, on the left back. Each layer has
+/// its own place, so it's clear what belongs to what: day and place at the
+/// top under the bars, like the sender of a status – they stay while
+/// swiping; the photo's caption as a note that changes with the photo; the
+/// day's text below it, set apart by a line – it stays too. A longer text
 /// opens in a reading sheet. A step without photos becomes a text story.
 struct StepStoryPage: View {
     let account: Account
@@ -499,7 +501,7 @@ struct StepStoryPage: View {
                 photoPager
             }
         }
-        .overlay(alignment: .top) { progress.padding(.top, insets.top + 6) }
+        .overlay(alignment: .top) { top }
         .overlay(alignment: .bottom) { bottom }
         .foregroundStyle(.white)
         .clipped()
@@ -629,7 +631,7 @@ struct StepStoryPage: View {
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.horizontal, 32)
-                    .padding(.bottom, 120)
+                    .padding(.vertical, 110)
             }
         }
         .contentShape(.rect)
@@ -657,30 +659,67 @@ struct StepStoryPage: View {
 
     // MARK: Text
 
-    private var bottom: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let caption = photo?.caption, !caption.isEmpty {
-                Text(caption)
-                    .font(.callout.weight(.medium))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.black.opacity(0.45), in: .rect(cornerRadius: 16))
-                    .id(photo?.id)
-                    .transition(.opacity)
-            }
+    private var caption: String? {
+        guard let caption = photo?.caption?.trimmingCharacters(in: .whitespacesAndNewlines), !caption.isEmpty
+        else { return nil }
+        return caption
+    }
 
-            VStack(alignment: .leading, spacing: 4) {
+    /// Bars, then day and place – the step's sender, standing still while
+    /// the photos move.
+    private var top: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            progress
+            VStack(alignment: .leading, spacing: 2) {
                 StepDayLine(day: day, date: step.occurredAt, calendar: calendar)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.85))
                 if let place = step.placeName {
                     Text(place)
-                        .font(.title.bold())
+                        .font(.title2.bold())
                         .lineLimit(2)
                 }
+            }
+            .padding(.horizontal, 20)
+            .shadow(color: .black.opacity(0.35), radius: 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+        }
+        .padding(.top, insets.top + 6)
+        .padding(.bottom, 40)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            LinearGradient(colors: [.black.opacity(0.6), .clear], startPoint: .top, endPoint: .bottom)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private var bottom: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // The photo's own note: changes with the photo, set like a
+            // caption under a print rather than like a heading.
+            if let caption {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "photo")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .accessibilityHidden(true)
+                    Text(caption)
+                        .italic()
+                        .lineLimit(4)
+                }
+                .font(.callout)
+                .foregroundStyle(.white.opacity(0.92))
+                .id(photo?.id)
+                .transition(.opacity)
             }
 
             // On a text story the text is the picture already.
             if !step.photos.isEmpty && !step.body.isEmpty {
+                if caption != nil {
+                    Rectangle()
+                        .fill(.white.opacity(0.25))
+                        .frame(height: 0.5)
+                }
                 ClampedText(text: step.body, lines: 3) { reading = true }
                     .font(.body)
                     .lineSpacing(3)
