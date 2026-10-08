@@ -424,7 +424,10 @@ not a card – as the first one it read like one more day, and reaching the
 overview meant scrolling to the far left – but a glass bar at the top of
 the map (`TripOverviewBar`: cover, dates, steps and photos) that frames the
 whole route when tapped. Only a trip without steps shows its cover card in
-the pager. Swiping the cards
+the pager. Above the cards runs a blue day bar (`DayTrack`, 2026-10-08,
+after Polarsteps): filled by time up to the step in view, with "Day n" on
+its end; dragging along it scrubs through the steps, and cards and map
+follow. Swiping the cards
 flies the map to the step (with a selection tick), a tapped marker brings
 its card. A tapped card **pushes** the step's page (`StepDetailPager`), with
 the system back button and edge swipe; sideways it pages on to the previous
@@ -440,10 +443,13 @@ photo count). A step opens as a **story**, like a WhatsApp status (also
 2026-10-07 – a "title photo" per step, with the others in a grid below,
 made one photo more important than the rest): every photo fills the screen
 over a blurred copy of itself. Photos page sideways and follow the finger;
-a tap on the right goes on, on the left back. Steps are stacked like reels:
-swiping up brings the next entry, and tapping past the last photo scrolls
-the whole page up to it with a light tick – so a new day is visibly a new
-entry, not just another photo. Bars at the top show where you are. Day,
+a tap on the right goes on, on the left back – within the step only.
+Steps are stacked like reels: only swiping up or down changes the day
+(2026-10-08: tapping past the last photo used to scroll on to the next day,
+which felt like landing there by accident; now it gives a soft knock). The
+photo pager uses the system's `.paging` with a 20 pt black gap between
+photos and a blurred backdrop that stays put and cross-fades, like the
+Photos app. Bars at the top show where you are. Day,
 place and three lines of text stay at the bottom on a dark fade, the
 photo's caption above them; a longer text gets "Read more", which opens
 the whole text in a solid reading sheet. Comments open as a sheet,

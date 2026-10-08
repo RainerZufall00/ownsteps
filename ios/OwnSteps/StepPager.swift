@@ -341,6 +341,8 @@ struct StepDetailPager: View {
     /// Pinching a photo opens it full screen to zoom.
     @State private var viewer: ViewerRequest?
     @State private var position = ScrollPosition(idType: Int.self)
+    /// A soft knock when tapping past the first or last photo.
+    @State private var edgeBump = 0
 
     var body: some View {
         let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.steps.first?.occurredAt)
@@ -397,6 +399,7 @@ struct StepDetailPager: View {
         .background(Color.black)
         .statusBarHidden()
         .sensoryFeedback(.impact(weight: .light), trigger: stepID)
+        .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.5), trigger: edgeBump)
         .environment(\.colorScheme, .dark)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
@@ -438,24 +441,17 @@ struct StepDetailPager: View {
         }
     }
 
-    /// Next or previous photo; past the last or first, on to the next or
-    /// previous step – which scrolls the whole page, so it's clear a new
-    /// entry begins.
+    /// Next or previous photo within the step. Days change only by swiping
+    /// up and down – tapping past the last photo used to land in the next
+    /// day without noticing.
     private func advance(from step: Components.Schemas.Step, by delta: Int) {
-        let steps = trip.steps
         let current = min(photoIndex[step.id] ?? 0, max(step.photos.count - 1, 0))
         let target = current + delta
         if target >= 0 && target < step.photos.count {
-            withAnimation(.smooth(duration: 0.3)) { photoIndex[step.id] = target }
-            return
+            photoIndex[step.id] = target
+        } else {
+            edgeBump += 1
         }
-        guard let position = steps.firstIndex(where: { $0.id == step.id }) else { return }
-        let neighbor = position + delta
-        guard steps.indices.contains(neighbor) else { return }
-        let other = steps[neighbor]
-        // Going back lands on the previous step's last photo.
-        photoIndex[other.id] = delta > 0 ? 0 : max(other.photos.count - 1, 0)
-        withAnimation(.smooth(duration: 0.45)) { stepID = other.id }
     }
 }
 
@@ -516,61 +512,95 @@ struct StepStoryPage: View {
 
     // MARK: Photos
 
+    /// Black between photos while swiping, like the Photos app.
+    private static let gap: CGFloat = 20
+
+    /// Paged like the Photos app: one photo per swipe with the system's own
+    /// paging, a gap between photos, and the blurred backdrop standing
+    /// still and fading instead of sliding along.
     private var photoPager: some View {
-        ScrollView(.horizontal) {
-            LazyHStack(spacing: 0) {
-                ForEach(Array(step.photos.enumerated()), id: \.element.id) { offset, photo in
-                    media(photo, playing: isCurrent && offset == index)
-                        .frame(width: size.width, height: size.height)
-                        .clipped()
-                        .contentShape(.rect)
-                        .gesture(
-                            SpatialTapGesture().onEnded { value in
-                                value.location.x < size.width / 3 ? previous() : next()
-                            },
-                            isEnabled: photo.mediaType != .video
-                        )
-                        .overlay {
-                            if photo.mediaType == .video { videoEdges }
-                        }
-                        .simultaneousGesture(
-                            MagnifyGesture().onEnded { value in
-                                if value.magnification > 1.15 && photo.mediaType == .photo { zoom() }
-                            }
-                        )
-                        .accessibilityElement()
-                        .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(offset + 1)")))
-                        .accessibilityAction(named: Text("Next photo"), next)
-                        .accessibilityAction(named: Text("Previous photo"), previous)
+        ZStack {
+            backdrop
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(Array(step.photos.enumerated()), id: \.element.id) { offset, photo in
+                        page(photo, offset: offset)
+                            .frame(width: size.width, height: size.height)
+                            .clipped()
+                            // The gap sits after each photo, outside the screen at rest.
+                            .padding(.trailing, Self.gap)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .frame(width: size.width + Self.gap)
+            .frame(width: size.width, alignment: .leading)
+            .scrollTargetBehavior(.paging)
+            .scrollIndicators(.hidden)
+            .scrollPosition($position)
+            // Taken over once the scroll has settled, like the steps.
+            .onScrollPhaseChange { _, phase in
+                guard phase == .idle, let id = position.viewID(type: Int.self),
+                      let shown = step.photos.firstIndex(where: { $0.id == id }), shown != index
+                else { return }
+                index = shown
+            }
+            .onChange(of: index, initial: true) { old, index in
+                guard step.photos.indices.contains(index) else { return }
+                let id = step.photos[index].id
+                guard position.viewID(type: Int.self) != id else { return }
+                if old == index {
+                    position.scrollTo(id: id)
+                } else {
+                    withAnimation(.smooth(duration: 0.35)) { position.scrollTo(id: id) }
                 }
             }
-            .scrollTargetLayout()
-        }
-        .scrollTargetBehavior(OneStepPaging(axis: .horizontal))
-        .scrollIndicators(.hidden)
-        .scrollPosition($position)
-        // Like the steps: the photo is taken over once the scroll settled.
-        .onScrollPhaseChange { _, phase in
-            guard phase == .idle, let id = position.viewID(type: Int.self),
-                  let shown = step.photos.firstIndex(where: { $0.id == id }), shown != index
-            else { return }
-            index = shown
-        }
-        .onChange(of: index, initial: true) { _, index in
-            guard step.photos.indices.contains(index) else { return }
-            let id = step.photos[index].id
-            if position.viewID(type: Int.self) != id { position.scrollTo(id: id) }
         }
     }
 
+    /// The shown photo, blurred, behind everything – it fades from photo to
+    /// photo instead of sliding with them.
+    private var backdrop: some View {
+        Color.black
+            .overlay {
+                if let photo {
+                    RemoteImage(account: account, photo: photo, variant: .thumb)
+                        .blur(radius: 40)
+                        .opacity(0.55)
+                        .id(photo.id)
+                        .transition(.opacity)
+                }
+            }
+            .clipped()
+            .animation(.easeInOut(duration: 0.35), value: photo?.id)
+            .allowsHitTesting(false)
+    }
+
+    private func page(_ photo: Components.Schemas.Photo, offset: Int) -> some View {
+        media(photo, playing: isCurrent && offset == index)
+            .contentShape(.rect)
+            .gesture(
+                SpatialTapGesture().onEnded { value in
+                    value.location.x < size.width / 3 ? previous() : next()
+                },
+                isEnabled: photo.mediaType != .video
+            )
+            .overlay {
+                if photo.mediaType == .video { videoEdges }
+            }
+            .simultaneousGesture(
+                MagnifyGesture().onEnded { value in
+                    if value.magnification > 1.15 && photo.mediaType == .photo { zoom() }
+                }
+            )
+            .accessibilityElement()
+            .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(offset + 1)")))
+            .accessibilityAction(named: Text("Next photo"), next)
+            .accessibilityAction(named: Text("Previous photo"), previous)
+    }
+
     private func media(_ photo: Components.Schemas.Photo, playing: Bool) -> some View {
-        ZStack {
-            // The photo itself, blurred, fills what the fitted one leaves.
-            Color.clear
-                .overlay { RemoteImage(account: account, photo: photo, variant: .thumb) }
-                .clipped()
-                .blur(radius: 40)
-                .overlay(Color.black.opacity(0.35))
+        Group {
             if photo.mediaType == .video {
                 VideoPage(account: account, photo: photo, isCurrent: playing)
                     .padding(.top, insets.top)
@@ -578,6 +608,7 @@ struct StepStoryPage: View {
                 RemoteImage(account: account, photo: photo, variant: .large, contentMode: .fit, fallbacks: [.medium, .thumb])
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// Videos bring their own controls in the middle; only the edges move on.

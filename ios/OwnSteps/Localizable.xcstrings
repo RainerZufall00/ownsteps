@@ -2103,6 +2103,16 @@
         }
       }
     },
+    "Trip progress": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reiseverlauf"
+          }
+        }
+      }
+    },
     "Trip unavailable": {
       "localizations": {
         "de": {

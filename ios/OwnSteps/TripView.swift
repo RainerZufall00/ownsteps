@@ -109,7 +109,7 @@ struct TripView: View {
             }
             // Frames the route in what the cards leave free, and keeps the
             // map's controls above them.
-            .safeAreaPadding(.bottom, StepPager.height + 8)
+            .safeAreaPadding(.bottom, StepPager.height + DayTrack.height + 18)
             // Room for the overview bar, so the route isn't framed under it.
             .safeAreaPadding(.top, trip?.steps.isEmpty == false ? 56 : 0)
             pager
@@ -122,6 +122,17 @@ struct TripView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
             }
+        }
+    }
+
+    /// The bar runs to the entered end date – the end of that day – or to
+    /// the last step, whichever is later.
+    private func tripEnd(_ trip: Components.Schemas.TripDetail, last: Date?) -> Date? {
+        let entered = calendar.date(fromCalendarDay: trip.endDate)
+            .flatMap { calendar.calendar.date(byAdding: .day, value: 1, to: $0) }
+        switch (entered, last) {
+        case let (entered?, last?): return max(entered, last)
+        default: return entered ?? last
         }
     }
 
@@ -142,6 +153,16 @@ struct TripView: View {
                         .frame(maxWidth: 440, alignment: .leading)
                         .cardSurface()
                         .padding(.horizontal, 16)
+                }
+                let items = TimelineItem.items(of: trip, queue: queue, calendar: calendar)
+                if !items.isEmpty {
+                    DayTrack(
+                        items: items,
+                        start: calendar.tripStart(startDate: trip.startDate, firstStepAt: items.first?.date),
+                        end: tripEnd(trip, last: items.last?.date),
+                        focusedItem: $focusedItem
+                    )
+                    .padding(.horizontal, 24)
                 }
                 StepPager(
                     account: account,
