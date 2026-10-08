@@ -1551,24 +1551,23 @@ Verified (production build, real HTTP requests):
 
 Not verified – be careful when building on these:
 
-- **The published image hasn't been built yet.** The development environment
-  couldn't run Docker (missing permissions on the socket); the image was only
-  built on the maintainer's server (amd64), where `deploy.sh` did that until
-  2026-10-06. Since then `.github/workflows/docker.yml` builds amd64 and
-  arm64 on every version tag – the first run, and arm64 at all, are still
-  to be watched.
+- **The published image was never run.** `.github/workflows/docker.yml`
+  built amd64 and arm64 successfully for v0.1.0, v0.1.1 and v0.2.0, but no
+  container from those images was started here (no Docker in the
+  development environment) – the first real start is on the maintainer's
+  server.
 - **The rendered map image was never seen.** The test browser renders no
   frames, so MapLibre's render loop never starts. Marker creation and delivery
   of all map data are checked, the rendering itself isn't.
 - **OIDC never ran against a real instance.** The flow is built to spec but
   untested.
-- **The app's trip screen of 2026-10-06 was never compiled or run.** It
-  was written in an environment without Xcode: the glass cards, the pushed
-  step page with sideways paging, the cover card, the view counts and the
-  refreshed cover after editing a trip. Build it and try it on a device
-  before relying on it – especially where the pager opens, whether the map
-  follows the cards, and sheets presented from the step page.
-- Automated tests (`npm test`) cover access control, the image pipeline and sign-in basics – not the route handlers or the UI yet.
+- **The app's trip screen** (pager, day bar, step story) was compiled and
+  run in the iPhone simulator against the dev server (2026-10-07/08) and
+  installed on an iPhone and an iPad; swipe feel and scrolling are only
+  as good as synthetic gestures can tell.
+- **The Immich export never ran against a real Immich** – only against a
+  fake in the tests and Immich's published API descriptions ([E18]).
+- Automated tests (`npm test`) cover access control, the image pipeline, sign-in basics, the `/api/v1` routes and the exports – not the web UI.
 
 ---
 

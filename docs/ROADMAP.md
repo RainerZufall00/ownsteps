@@ -99,13 +99,13 @@ architecture doc and the phase is ticked off here.
   - redeem the invite via `ownsteps://`
   - several instances in one app
   - `BGAppRefreshTask` plus local notifications for authors and viewers
-- [ ] String Catalogs en/de from day one (up to date through 4e).
+- [x] String Catalogs en/de from day one (kept up to date with every app change).
 - [x] **4f Feedback from first use (requested and built 2026-10-06):**
   - View counts per step for authors, web and app (D28, [E17]).
   - Polarsteps-style trip screen in the app: map on top, steps as glass
     cards side by side, a tapped card pushes the step's page with sideways
-    paging; made more iOS-native the same day (D29). **Not compiled or run
-    yet** – written without Xcode; build it and check it on a device.
+    paging; made more iOS-native the same day (D29). Written without Xcode;
+    compiled, fixed and run in the simulator and on devices on 2026-10-07.
   - Bug fixed: the app showed no cover. The trip screen had no place for it
     (now the first card), and after choosing a new cover the list card kept
     the old image or none until a pull to refresh.
@@ -123,7 +123,7 @@ architecture doc and the phase is ticked off here.
 - [x] Web i18n (en default, de): cookie switch plus `Accept-Language`, no locale URLs, see [E16] in ARCHITECTURE.md (2026-10-05).
 - [ ] Maps and geocoding without a key (D24).
 - [x] `LICENSE` (AGPL-3.0) at the root, `ios/LICENSE` (MPL-2.0) (2026-10-06).
-- [ ] English README: quick start, example `docker-compose.yml`, backup, upgrade, OIDC setup.
+- [x] English README: quick start, example `docker-compose.yml`, backup, upgrade, OIDC setup.
 - [x] GHCR image for amd64 and arm64, semver tags, `CHANGELOG.md`. The workflow (`.github/workflows/docker.yml`) runs on `v*.*.*` tags; `v0.1.0` is the first (2026-10-06). Still open: making the package public on GitHub, together with the repo. Installations update with `docker compose pull` – `deploy.sh` (git pull and build on the server) is gone.
 - [x] `SECURITY.md`, `CONTRIBUTING.md` (2026-10-06). Reports go through GitHub's private vulnerability reporting – switch it on in the repository settings when going public.
 - [ ] Demo instance for App Review, then App Store submission. Put the App Store ID into the Smart App Banner.
