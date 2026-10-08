@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { OSM_TILE_ORIGIN, usesOsmFallback } from "@/lib/map-sources";
+import { OPENFREEMAP_ORIGIN, usesOpenFreeMap } from "@/lib/map-sources";
 
 /**
  * Lean access log (in Next 16 this layer is called "proxy"). Next logs nothing
@@ -32,14 +32,14 @@ export function proxy(request: NextRequest) {
  * their chunks). Styles stay 'unsafe-inline': React renders `style`
  * attributes, which nonces don't cover. MapLibre needs blob: for its worker
  * and for sprite images; photo placeholders are data: URIs. Map data comes
- * through our own /api/map – only the OpenStreetMap fallback, used without a
- * MapTiler key, loads its tiles from their server.
+ * through our own /api/map – only OpenFreeMap, used without a MapTiler key,
+ * serves its tiles, fonts and sprites from its own origin.
  */
 function contentSecurityPolicy(nonce: string) {
   const dev = process.env.NODE_ENV === "development";
-  // Without a MapTiler key the map loads OpenStreetMap tiles directly
-  // (MapLibre fetches them, so connect-src as well as img-src).
-  const tiles = usesOsmFallback() ? ` ${OSM_TILE_ORIGIN}` : "";
+  // Without a MapTiler key MapLibre loads OpenFreeMap's tiles, fonts and
+  // sprites directly (fetched, so connect-src as well as img-src).
+  const tiles = usesOpenFreeMap() ? ` ${OPENFREEMAP_ORIGIN}` : "";
   return [
     "default-src 'self'",
     // React's dev tooling evaluates code; production doesn't.

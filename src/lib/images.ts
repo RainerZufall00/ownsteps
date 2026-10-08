@@ -6,6 +6,7 @@ import path from "node:path";
 import exifr from "exifr";
 import sharp from "sharp";
 import { UPLOAD_DIR } from "@/db";
+import { envFlag } from "./config-check";
 
 const VARIANTS = {
   thumb: { width: 480, quality: 70 },
@@ -23,7 +24,7 @@ export function isVariant(value: string): value is VariantName {
 export const DEFAULT_VIDEO_MIME = "video/mp4";
 
 /** Keeping originals costs space but preserves the full resolution. */
-const KEEP_ORIGINALS = process.env.KEEP_ORIGINALS !== "false";
+const KEEP_ORIGINALS = envFlag(process.env.KEEP_ORIGINALS, true);
 
 export function photoDir(storageKey: string) {
   return path.join(UPLOAD_DIR, storageKey);

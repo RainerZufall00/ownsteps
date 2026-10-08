@@ -116,12 +116,12 @@ architecture doc and the phase is ticked off here.
 - [x] `APP_SECRET`: refuse to start with a weak value, and document how to generate one. (Missing stays allowed: one is generated into the data directory.)
 - [x] Review of the whole repo and app (2026-10-05). Fixed: guests need the share token (comments were possible on every shared trip via sequential IDs), no open redirect after OIDC sign-in, the map proxy only forwards map assets, a password change is braked and signs out other web sessions, the entrypoint drops root's groups, uploads stream to disk, images are decoded once, orphaned upload files and covers are removed, the OSM fallback map works under the CSP, and the app keeps unsent steps across signing in again or being signed out by the server.
 - [x] Rest of the reviews (2026-10-05): locked share pages and their link preview show neither title, summary nor cover; `docker-entrypoint.js` no longer follows symlinks when fixing ownership; a password change also signs out all app devices; map attributions are sanitized against the maplibre v5 advisory (O4).
-- [ ] Review defaults and env vars, and fail with clear startup errors.
+- [x] Review defaults and env vars, and fail with clear startup errors (2026-10-08, `src/lib/config-check.ts`).
 - [ ] Check HEIC handling in the web upload path (sharp prebuilds likely cannot decode HEVC-HEIC).
 
 ### Phase 6 – Release prep
 - [x] Web i18n (en default, de): cookie switch plus `Accept-Language`, no locale URLs, see [E16] in ARCHITECTURE.md (2026-10-05).
-- [ ] Maps and geocoding without a key (D24).
+- [x] Maps and geocoding without a key (D24, 2026-10-08): OpenFreeMap, Photon, Nominatim – see [E19].
 - [x] `LICENSE` (AGPL-3.0) at the root, `ios/LICENSE` (MPL-2.0) (2026-10-06).
 - [x] English README: quick start, example `docker-compose.yml`, backup, upgrade, OIDC setup.
 - [x] GHCR image for amd64 and arm64, semver tags, `CHANGELOG.md`. The workflow (`.github/workflows/docker.yml`) runs on `v*.*.*` tags; `v0.1.0` is the first (2026-10-06). Still open: making the package public on GitHub, together with the repo. Installations update with `docker compose pull` – `deploy.sh` (git pull and build on the server) is gone.

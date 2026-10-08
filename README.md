@@ -42,15 +42,23 @@ set in `.env` or sign-in runs through OIDC).
 
 ## Setting up the map
 
-OwnSteps uses MapTiler as its map source. The free tier is plenty for private
-use:
+The map and place names work out of the box, without an account anywhere:
 
-1. Create a key at [cloud.maptiler.com](https://cloud.maptiler.com/account/keys/).
-2. Put `MAPTILER_KEY=...` into `.env`.
+- **Map:** [OpenFreeMap](https://openfreemap.org) – free vector maps. Pick a
+  style with `MAP_STYLE=liberty` (default), `bright` or `positron`.
+- **Place names and place search:** OpenStreetMap's
+  [Nominatim](https://nominatim.org) and [Photon](https://photon.komoot.io),
+  at most one request per second each, as their usage policies ask.
 
-The key stays on the server: all map requests go through `/api/map`, so it
-never shows up in shared links. Without a key the app shows a basic
-OpenStreetMap map – it works, but looks considerably plainer.
+With a [MapTiler](https://cloud.maptiler.com/account/keys/) key
+(`MAPTILER_KEY=...` in `.env`, free tier is plenty) both come from MapTiler
+instead, and `MAP_STYLE` takes MapTiler's styles – `hybrid` (satellite with
+labels, the default then), `satellite`, `streets-v2`, `outdoor-v2` … The key
+stays on the server: all map requests go through `/api/map`, so it never
+shows up in shared links.
+
+`GEOCODING=off` keeps every place lookup on your server; place names are then
+typed by hand.
 
 ## Sign-in via OIDC (e.g. Pocket ID)
 
@@ -299,9 +307,8 @@ versions is in [CHANGELOG.md](CHANGELOG.md).
 - **HEIC from iPhones:** Safari usually converts photos to JPEG on upload. If
   that doesn't happen, set *Settings → Camera → Formats* to "Most Compatible"
   on the iPhone.
-- **No geocoding without a MapTiler key:** place names like "Bergen, Norway"
-  are looked up via MapTiler. Without a key the field stays empty and can be
-  filled in by hand.
+- **Place names come from OpenStreetMap or MapTiler:** coordinates from your
+  photos are sent to one of them to name the place, unless `GEOCODING=off`.
 
 ## License
 

@@ -620,7 +620,7 @@ describe("client address", () => {
   });
 
   it("refuses a weak APP_SECRET", async () => {
-    const { appSecretProblem } = await import("@/lib/env");
+    const { appSecretProblem } = await import("@/lib/config-check");
     expect(appSecretProblem(undefined)).toBeNull();
     expect(appSecretProblem("")).toBeNull();
     expect(appSecretProblem("change-me")).toMatch(/openssl rand/);

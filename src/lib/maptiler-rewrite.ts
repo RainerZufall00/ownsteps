@@ -20,6 +20,31 @@ export function isMapAsset(path: string) {
   return MAP_ASSET_RE.test(decoded) && !decoded.toLowerCase().split("/").includes("static");
 }
 
+/**
+ * What may be fetched from OpenFreeMap through the proxy: a style
+ * (`styles/liberty`) or a tile set's TileJSON (`planet`). Everything else
+ * MapLibre loads from there directly.
+ */
+const OFM_JSON_RE = /^(styles\/[a-z0-9_-]+|[a-z0-9_-]+)$/;
+
+export function isOpenFreeMapJson(path: string) {
+  return OFM_JSON_RE.test(path);
+}
+
+/**
+ * Points the TileJSON references in an OpenFreeMap style (`"url":
+ * "https://tiles.openfreemap.org/planet"`) at our proxy, so their
+ * attributions get cleaned too. Tile, font and sprite URLs (with
+ * placeholders or paths) stay direct.
+ */
+export function rewriteOpenFreeMapJson(text: string, origin: string, ofmOrigin: string) {
+  const escaped = ofmOrigin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(
+    new RegExp(`("url"\\s*:\\s*")${escaped}/([a-z0-9_-]+)"`, "g"),
+    (_full, prefix: string, tileset: string) => `${prefix}${origin}/api/map/ofm/${tileset}"`,
+  );
+}
+
 /** Removes the API key from a forwarded URL query. */
 function stripKey(query: string) {
   return query

@@ -10,6 +10,22 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Added
+
+- Map and place names without a MapTiler key: the map comes from
+  OpenFreeMap (`MAP_STYLE=liberty`, `bright` or `positron`), place search
+  and names from OpenStreetMap (Photon, Nominatim). Before, the map was a
+  plain OpenStreetMap layer and steps got no place names. With a key,
+  nothing changes. `GEOCODING=off` keeps every lookup on your server.
+
+### Changed
+
+- The settings in `.env` are checked at startup. A wrong value – a typo in
+  true/false, half an OIDC setup, a password sign-in switched off without
+  OIDC, a public address with a path – stops OwnSteps with a message that
+  names the setting; leftovers from the template are warned about.
+  Switches accept true/false, yes/no and 1/0.
+
 ## [0.2.0] – 2026-10-08
 
 ### Added

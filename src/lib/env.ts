@@ -3,35 +3,8 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "@/db";
+import { appSecretProblem, envFlag } from "./config-check";
 import { randomToken } from "./crypto";
-
-/** What `openssl rand -base64 32` produces is 44 characters. */
-const MIN_SECRET_LENGTH = 32;
-
-/**
- * Why the configured `APP_SECRET` can't be used, or null if it's fine or
- * unset. Checked at startup (instrumentation.ts), which refuses to run
- * with a weak one rather than quietly falling back to another secret.
- */
-export function appSecretProblem(value = process.env.APP_SECRET): string | null {
-  const secret = value?.trim();
-  if (!secret) return null;
-  if (secret.length < MIN_SECRET_LENGTH || new Set(secret).size < 8) {
-    return (
-      `APP_SECRET is too weak (at least ${MIN_SECRET_LENGTH} random characters). ` +
-      "Generate one with: openssl rand -base64 32 – or leave it empty to have one generated."
-    );
-  }
-  return null;
-}
-
-/** Startup check: a configured but weak secret stops the server. */
-export function exitOnWeakAppSecret() {
-  const problem = appSecretProblem();
-  if (!problem) return;
-  console.error(`[start] ${problem}`);
-  process.exit(1);
-}
 
 /**
  * Signing secret for share cookies. Comes from the environment; otherwise one
@@ -69,16 +42,17 @@ export function appSecret() {
 }
 
 export const MAPTILER_KEY = process.env.MAPTILER_KEY?.trim() ?? "";
-// Satellite imagery with subtle labels – photos and route stand out better on
-// it than on a street map.
+// With MapTiler: satellite imagery with subtle labels – photos and route
+// stand out better on it than on a street map. Without a key the map comes
+// from OpenFreeMap, which has street styles only (`mapStyleName`).
 export const MAP_STYLE = process.env.MAP_STYLE?.trim() || "hybrid";
+
 export const SITE_NAME = process.env.SITE_NAME?.trim() || "OwnSteps";
 export const PUBLIC_URL = process.env.PUBLIC_URL?.trim().replace(/\/$/, "") ?? "";
 /**
  * `PASSWORD_LOGIN=false` switches password sign-in off everywhere (web and
  * app), for instances that only use OIDC. Initial setup is unaffected.
  */
-export const PASSWORD_LOGIN =
-  process.env.PASSWORD_LOGIN?.trim().toLowerCase() !== "false";
+export const PASSWORD_LOGIN = envFlag(process.env.PASSWORD_LOGIN, true);
 /** Numeric App Store ID of the iOS app; enables the Smart App Banner. */
 export const APP_STORE_ID = process.env.APP_STORE_ID?.trim() ?? "";

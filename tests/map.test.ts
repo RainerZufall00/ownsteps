@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { isMapAsset, sanitizeAttribution, sanitizeAttributions } from "@/lib/maptiler-rewrite";
 
 describe("map proxy allowlist", () => {
@@ -73,5 +73,56 @@ describe("attribution sanitizing", () => {
     expect(clean.sources.tiles.attribution).toBe("Map");
     expect(clean.glyphs).toBe("https://x.example/fonts/{fontstack}/{range}.pbf");
     expect(sanitizeAttributions("not json")).toBe("not json");
+  });
+});
+
+describe("OpenFreeMap without a key", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("only proxies styles and TileJSON", async () => {
+    const { isOpenFreeMapJson } = await import("@/lib/maptiler-rewrite");
+    for (const path of ["styles/liberty", "planet", "natural_earth"]) expect(isOpenFreeMapJson(path), path).toBe(true);
+    for (const path of ["planet/20261004/1/2/3.pbf", "fonts/Noto/0-255.pbf", "../etc", "styles/../x", ""]) {
+      expect(isOpenFreeMapJson(path), path).toBe(false);
+    }
+  });
+
+  it("serves the style with TileJSON pointed back at the proxy and attributions cleaned", async () => {
+    const style = {
+      sources: {
+        openmaptiles: { type: "vector", url: "https://tiles.openfreemap.org/planet" },
+        shaded: { type: "raster", tiles: ["https://tiles.openfreemap.org/natural_earth/{z}/{x}/{y}.png"] },
+      },
+      glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    };
+    const tilejson = {
+      tiles: ["https://tiles.openfreemap.org/planet/2026/{z}/{x}/{y}.pbf"],
+      attribution: '<a href="https://openfreemap.org">OpenFreeMap</a><img src=x onerror=alert(1)>',
+    };
+    const fetched: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        fetched.push(String(input));
+        return Response.json(String(input).endsWith("/planet") ? tilejson : style);
+      }),
+    );
+    const { GET } = await import("@/app/api/map/[...path]/route");
+
+    const styleResponse = await GET(new Request("http://localhost:2555/api/map/ofm/styles/liberty"));
+    const served = await styleResponse.json();
+    expect(served.sources.openmaptiles.url).toBe("http://localhost:2555/api/map/ofm/planet");
+    // Tiles and fonts stay direct.
+    expect(served.sources.shaded.tiles[0]).toBe("https://tiles.openfreemap.org/natural_earth/{z}/{x}/{y}.png");
+    expect(served.glyphs).toBe(style.glyphs);
+
+    const tileResponse = await GET(new Request("http://localhost:2555/api/map/ofm/planet"));
+    const cleaned = await tileResponse.json();
+    expect(cleaned.attribution).not.toContain("onerror");
+    expect(cleaned.attribution).toContain("OpenFreeMap");
+    expect(fetched).toEqual(["https://tiles.openfreemap.org/styles/liberty", "https://tiles.openfreemap.org/planet"]);
+
+    const refused = await GET(new Request("http://localhost:2555/api/map/ofm/planet/1/2/3.pbf"));
+    expect(refused.status).toBe(400);
   });
 });

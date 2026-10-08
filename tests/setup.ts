@@ -6,6 +6,8 @@ import { cookieStore, resetCookies } from "./helpers/cookie-jar";
 
 // A fresh data directory per test file, set before `@/db` is first imported.
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "ownsteps-test-"));
+// No place lookups against real services; the geocoding test turns them on.
+process.env.GEOCODING = "off";
 
 vi.mock("next/headers", () => ({
   cookies: async () => cookieStore,

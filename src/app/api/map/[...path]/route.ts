@@ -1,7 +1,10 @@
 import { MAPTILER_KEY, PUBLIC_URL } from "@/lib/env";
+import { OPENFREEMAP_ORIGIN } from "@/lib/map-sources";
 import {
   isMapAsset,
+  isOpenFreeMapJson,
   rewriteMapTilerJson,
+  rewriteOpenFreeMapJson,
   sanitizeAttributions,
   UPSTREAM,
 } from "@/lib/maptiler-rewrite";
@@ -13,9 +16,7 @@ import { publicOrigin } from "@/lib/origin";
  * publicly shared trips would otherwise expose it to every visitor.
  */
 export async function GET(request: Request) {
-  if (!MAPTILER_KEY) {
-    return new Response("No map source configured", { status: 503 });
-  }
+  if (!MAPTILER_KEY) return openFreeMap(request);
 
   // There used to be a block against "Sec-Fetch-Site: cross-site" here. It
   // achieved nothing – anyone omitting the header got through anyway – but it
@@ -84,3 +85,36 @@ export async function GET(request: Request) {
     },
   });
 }
+
+/**
+ * Without a key: OpenFreeMap's style and TileJSON, with their attributions
+ * cleaned and the TileJSON references pointed back here. Tiles, fonts and
+ * sprites MapLibre fetches from OpenFreeMap directly.
+ */
+async function openFreeMap(request: Request) {
+  const incoming = new URL(request.url);
+  const path = incoming.pathname.slice("/api/map/ofm/".length);
+  if (!incoming.pathname.startsWith("/api/map/ofm/") || !isOpenFreeMapJson(path)) {
+    return new Response("Invalid target", { status: 400 });
+  }
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${OPENFREEMAP_ORIGIN}/${path}`, {
+      headers: { Accept: "application/json" },
+      next: { revalidate: 60 * 60 },
+    });
+  } catch {
+    return new Response("Map source unreachable", { status: 502 });
+  }
+  if (!upstream.ok) {
+    return new Response(`Map source responded with ${upstream.status}`, { status: 502 });
+  }
+  const text = sanitizeAttributions(
+    rewriteOpenFreeMapJson(await upstream.text(), publicOrigin(request, PUBLIC_URL), OPENFREEMAP_ORIGIN),
+  );
+  // Short-lived: TileJSON names the current tile build, which changes.
+  return new Response(text, {
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
+  });
+}
+

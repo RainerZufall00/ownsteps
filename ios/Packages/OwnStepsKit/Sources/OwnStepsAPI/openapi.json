@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OwnSteps API",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "description": "API for the OwnSteps apps. Authors authenticate with a device token (`osa_…`), readers with a viewer token (`osv_…`) for one trip. Only additive changes happen within v1."
   },
   "paths": {

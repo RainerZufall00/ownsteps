@@ -6,6 +6,7 @@ import { cookieOptions } from "./cookies";
 import { pkceChallenge, randomToken } from "./crypto";
 import { PUBLIC_URL } from "./env";
 import { publicOrigin } from "./origin";
+import { envFlag } from "./config-check";
 
 /** Short-lived cookie holding state, PKCE verifier and the login target. */
 const OIDC_FLOW_COOKIE = "ownsteps_oidc";
@@ -46,7 +47,7 @@ export const oidcEnabled = Boolean(
  * verified – only for providers that never send `email_verified` although
  * every address on them is checked.
  */
-const TRUST_UNVERIFIED_EMAIL = process.env.OIDC_TRUST_EMAIL?.trim().toLowerCase() === "true";
+const TRUST_UNVERIFIED_EMAIL = envFlag(process.env.OIDC_TRUST_EMAIL, false);
 
 /**
  * Whether the address may be used to find or create an account. An

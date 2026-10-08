@@ -784,7 +784,7 @@ line almost always got stuck there.
 
 `getMapStyle()` (`src/lib/map.ts`) is resolved **on the server** and returns
 either the proxy URL `/api/map/maps/<style>/style.json` (if a `MAPTILER_KEY`
-is set) or an embedded OpenStreetMap raster style as a fallback.
+is set) or `/api/map/ofm/styles/<style>` for OpenFreeMap ([E19]).
 
 The proxy (`/api/map/[...path]`) forwards requests to `api.maptiler.com` and
 only appends the key there. It is public – share links need the map – so it
@@ -1277,6 +1277,31 @@ text shouldn't get lost on the way into a photo library.
 - The Immich address is fetched by the server – an author can make the
   server call any URL. Accepted: every account is trusted ([E2]).
 
+### [E19] Maps and place names without a key
+
+Decided as D24, built on 2026-10-08. A fresh instance should have a real
+map and place names without anyone signing up anywhere.
+
+- **Map: OpenFreeMap** (`liberty`, `bright`, `positron`) – free vector
+  tiles without a key or rate limit. Style and TileJSON go through our
+  proxy (`/api/map/ofm/…`) for the same reason MapTiler's do: their
+  `attribution` HTML must pass `sanitizeAttributions` before maplibre v5
+  sees it ([E9]); the style's TileJSON references are rewritten to the
+  proxy (`rewriteOpenFreeMapJson`). Tiles, fonts and sprites come straight
+  from `tiles.openfreemap.org`, which the CSP then allows. Satellite maps
+  need MapTiler; a MapTiler `MAP_STYLE` without a key falls back to
+  `liberty` (with a startup warning, except for the template's `hybrid`).
+- **Place search: Photon**, made for search-as-you-type (Nominatim's policy
+  forbids autocomplete). **Names from coordinates: Nominatim** at town
+  level (`zoom=10`), named from `city`/`town`/`village` – not the district
+  Nominatim puts first in cities.
+- Both get an identifying User-Agent (version, project, `PUBLIC_URL`) and
+  at most one request per second per service, queued in the process
+  (`throttled` in `geocode.ts`); responses are cached by Next's fetch
+  cache. `GEOCODING=off` sends nothing anywhere.
+- The album's still map keeps OpenStreetMap's raster tiles without a key
+  (OpenFreeMap has no raster tiles) – a dozen tiles once per export.
+
 ---
 
 ## 12. Pitfalls
@@ -1556,9 +1581,9 @@ Not verified – be careful when building on these:
   container from those images was started here (no Docker in the
   development environment) – the first real start is on the maintainer's
   server.
-- **The rendered map image was never seen.** The test browser renders no
-  frames, so MapLibre's render loop never starts. Marker creation and delivery
-  of all map data are checked, the rendering itself isn't.
+- **The MapTiler map was never seen rendered** (no key in development). The
+  OpenFreeMap map was (2026-10-08): labels, route, markers and attribution
+  in the browser pane, no CSP errors.
 - **OIDC never ran against a real instance.** The flow is built to spec but
   untested.
 - **The app's trip screen** (pager, day bar, step story) was compiled and

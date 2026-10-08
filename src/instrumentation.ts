@@ -4,9 +4,11 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
-  // A weak secret makes share unlocks forgeable – better not to start at all.
-  const { exitOnWeakAppSecret } = await import("./lib/env");
-  exitOnWeakAppSecret();
+  // A wrong setting – a weak secret, a half OIDC setup, a typo in a switch –
+  // stops the server with a clear message before anything else runs.
+  // Imported before anything that opens the database.
+  const { checkConfigOrExit } = await import("./lib/config-check");
+  checkConfigOrExit();
 
   const { seedAdminFromEnv } = await import("./lib/auth");
   const { cleanupStaleDrafts } = await import("./lib/trips");
