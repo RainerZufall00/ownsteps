@@ -128,6 +128,7 @@ erDiagram
     trips ||--o{ photos : owns
     steps ||--o{ photos : shows
     steps ||--o{ step_views : "seen by"
+    trips ||--o{ immich_albums : "sent to"
 
     users {
         int id PK
@@ -136,6 +137,8 @@ erDiagram
         text password_hash "NULL for OIDC-only accounts"
         text oidc_subject UK "sub from the ID token"
         text avatar_url
+        text immich_url "optional, for the Immich export"
+        text immich_api_key "sealed with the app secret"
     }
     trips {
         int id PK
@@ -186,6 +189,11 @@ erDiagram
         int step_id PK
         text viewer PK "device:<id> or web:<hash>"
         int created_at
+    }
+    immich_albums {
+        int trip_id PK
+        int user_id PK
+        text album_id "the album in that user's Immich"
     }
 ```
 
@@ -1221,6 +1229,48 @@ it – in the web timeline and in the app. Readers never see the numbers.
   without a CORS preflight), and counts only published steps of that trip.
   Someone with the link who wants to inflate the numbers can still do so –
   accepted, it only fools the authors about their own audience.
+
+### [E18] Keeping a trip: offline album and Immich
+
+Decided on 2026-10-08. A finished trip should outlive the server, and the
+text shouldn't get lost on the way into a photo library.
+
+- **The offline album** (`src/lib/export/album.ts`) is a ZIP with one
+  folder: `index.html`, `map.jpg` and `media/`. One static page with inline
+  CSS and no JavaScript – it opens in any browser, offline, in twenty
+  years. Steps run **oldest first**, like a book ([E13] is about following
+  along). Photos go in as the `large` variant (2400 px WebP): enough for a
+  screen at a fraction of the originals' size; videos as uploaded.
+- **The map is a still image**, rendered at export time
+  (`export/route-map.ts`): tiles fetched once (MapTiler if a key is set,
+  else OpenStreetMap with an identifying User-Agent, four at a time),
+  stitched with sharp, the route and numbered markers drawn on top – the
+  same numbers as the step headings. Without tiles the route is drawn on a
+  plain background; an interactive map would need the internet forever.
+- **The ZIP is written by hand** (`src/lib/zip.ts`), stored, not
+  compressed – media are compressed already. Each file is read twice (CRC,
+  then bytes) so the headers carry real sizes and every unzip tool reads
+  them; ZIP64 only past 4 GB. No dependency for ~200 lines of a simple
+  format; tests read archives back, and `unzip`, Python and macOS Archive
+  Utility accepted both kinds.
+- **Immich** (`export/immich.ts`): each user connects their own Immich in
+  the settings (address plus API key; the key is checked against
+  `/api/users/me` and stored sealed with AES-GCM under the app secret). The
+  export runs in the background on the server – it has the originals –
+  and web and app poll its progress (in memory; a restart forgets it, the
+  album in Immich stays). Uploads send `deviceAssetId`/`deviceId`, which
+  Immich v1/v2 require and v3 ignores; checked against the published
+  OpenAPI of v1.132, v2.0, v2.7 and v3.3 – but never against a real Immich.
+- **Text in Immich**: one description per photo, so the photo's caption
+  comes first, then "Day 8 · Porto · Saturday, May 9, 2026" on every photo,
+  and the day's text only on its first photo – a chapter, not a
+  repetition. Photos without GPS or capture time get the step's. Steps
+  without photos have nowhere to go in Immich; the album has them.
+- **Sending again updates** the album remembered in `immich_albums`
+  (one per trip and user) and lets Immich's checksum dedup find the photos
+  already there; if the album was deleted in Immich, a new one is made.
+- The Immich address is fetched by the server – an author can make the
+  server call any URL. Accepted: every account is trusted ([E2]).
 
 ---
 

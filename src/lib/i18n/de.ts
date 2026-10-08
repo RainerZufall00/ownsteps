@@ -266,6 +266,48 @@ export const de: Dictionary = {
     signOut: "Abmelden",
   },
 
+  exportTrip: {
+    heading: "Aufbewahren",
+    text: "Nimm die Reise mit – als Album, das in jedem Browser aufgeht, auch offline, oder in deine Immich-Mediathek.",
+    album: "Album herunterladen",
+    albumHint:
+      "Eine ZIP-Datei mit einer Seite und allen Fotos und Videos, den Texten, Bildbeschreibungen und einer Karte der Route. Entpacken und index.html öffnen.",
+    immich: "An Immich senden",
+    immichHint:
+      "Legt in Immich ein Album an. Jedes Foto behält seine Beschreibung; Tag und Ort stehen an jedem Foto, der Tagestext am ersten des Tages.",
+    immichNotConnected: "Verbinde zuerst Immich in den Einstellungen.",
+    immichConnect: "Zu den Einstellungen",
+    immichRunning: "Sende {done} von {total} …",
+    immichStarting: "Wird gestartet …",
+    immichDone: "Fertig – {total} Fotos und Videos sind in Immich.",
+    immichOpen: "Album in Immich öffnen",
+    immichAgain: "Erneut senden",
+    immichFailed: "Das hat nicht geklappt: {error}",
+  },
+
+  album: {
+    exportedOn: "Aus OwnSteps exportiert am {date}.",
+    days: { one: "{count} Tag", other: "{count} Tage" },
+    comments: "Kommentare",
+    mapCredit: "Karte",
+    noSteps: "Diese Reise hat noch keine Stationen.",
+  },
+
+  immich: {
+    heading: "Immich",
+    text: "Verbinde deinen Immich-Server, um Reisen dorthin als Alben zu senden – mit Bildbeschreibungen und dem Tagestext in der Beschreibung jedes Fotos.",
+    url: "Immich-Adresse",
+    urlPlaceholder: "https://fotos.example.com",
+    apiKey: "API-Schlüssel",
+    apiKeyHint:
+      "Erstellst du in Immich unter Kontoeinstellungen → API-Schlüssel. Er muss Medien hochladen, ändern und Alben verwalten dürfen – „Alle“ ist am einfachsten.",
+    connect: "Verbinden",
+    connecting: "Wird geprüft …",
+    connected: "Verbunden mit {url} als {name}.",
+    disconnect: "Trennen",
+    keyStored: "Der Schlüssel wird verschlüsselt auf diesem Server gespeichert.",
+  },
+
   share: {
     lockedTitle: "Geschützte Reise",
     lockedText: "Diese Reise ist mit einem Passwort geschützt.",
@@ -283,6 +325,11 @@ export const de: Dictionary = {
   },
 
   errors: {
+    immich_not_connected: "Immich ist noch nicht verbunden.",
+    immich_url_invalid: "Das ist keine Web-Adresse (https://…).",
+    immich_unreachable: "Immich ist unter dieser Adresse nicht erreichbar.",
+    immich_key_invalid: "Immich hat den API-Schlüssel nicht akzeptiert – oder ihm fehlen Rechte.",
+    immich_failed: "Immich hat mit einem Fehler geantwortet ({status}).",
     not_signed_in: "Nicht angemeldet.",
     trip_not_found: "Reise nicht gefunden.",
     step_not_found: "Beitrag nicht gefunden.",

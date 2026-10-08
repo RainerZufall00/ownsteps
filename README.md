@@ -9,6 +9,9 @@ follow along gets a secret link – no account, no sign-up.
 - **Your photos stay with you** – nothing is handed to third parties; images
   are only served to signed-in users or holders of a valid share link.
 - **One container, one file** – SQLite plus a folder of images, that's it.
+- **Keep it** – download a trip as an offline album (one page with all photos,
+  texts and a map, no server needed), or send it to your Immich with the text
+  in each photo's description.
 
 > The user interface speaks English and German. It follows the browser's
 > language; a switch in the settings, on the sign-in page and on shared trips

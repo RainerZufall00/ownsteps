@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { failure } from "@/lib/action-result";
 import { destroySession, requireUser } from "@/lib/auth";
+import { connectImmich, disconnectImmich } from "@/lib/export/immich";
 import { accountFields, formString } from "@/lib/form-data";
 import { clientAddress } from "@/lib/rate-limit";
 import { addAccount, changePassword } from "@/lib/services/accounts";
@@ -59,4 +60,25 @@ export async function changePasswordAction(
   // The device list shows the signed-out app devices as gone.
   revalidatePath("/settings");
   return { ok: true };
+}
+
+/** Checks the Immich address and key against Immich and stores them. */
+export async function connectImmichAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireUser();
+  try {
+    await connectImmich(user, { url: formString(formData, "url"), apiKey: formString(formData, "apiKey") });
+  } catch (error) {
+    return failure(error);
+  }
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function disconnectImmichAction() {
+  const user = await requireUser();
+  await disconnectImmich(user);
+  revalidatePath("/settings");
 }

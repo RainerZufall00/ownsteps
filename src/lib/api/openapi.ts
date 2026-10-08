@@ -9,6 +9,7 @@ import {
   commentCreateSchema,
   commentSchema,
   coverUploadSchema,
+  immichStatusSchema,
   infoSchema,
   meSchema,
   mediaUploadSchema,
@@ -259,6 +260,38 @@ export function buildOpenApiDocument() {
           requestParams: { path: idPath("tripId") },
           requestBody: jsonBody(stepViewsSchema),
           responses: { "204": noContent },
+        }),
+      },
+      "/api/v1/trips/{tripId}/export": {
+        get: op({
+          operationId: "exportAlbum",
+          summary:
+            "The trip as an offline album: a ZIP with index.html, the photos, videos, texts and a map (authors)",
+          security: secured,
+          requestParams: { path: idPath("tripId") },
+          responses: {
+            "200": {
+              description: "ZIP archive",
+              content: { "application/zip": { schema: z.string().meta({ format: "binary" }) } },
+            },
+          },
+        }),
+      },
+      "/api/v1/trips/{tripId}/immich": {
+        get: op({
+          operationId: "immichStatus",
+          summary: "Progress of sending the trip to the author's Immich (authors)",
+          security: secured,
+          requestParams: { path: idPath("tripId") },
+          responses: { "200": ok(immichStatusSchema) },
+        }),
+        post: op({
+          operationId: "startImmichExport",
+          summary:
+            "Send the trip to the author's Immich as an album; runs in the background (authors)",
+          security: secured,
+          requestParams: { path: idPath("tripId") },
+          responses: { "202": ok(immichStatusSchema, "Started") },
         }),
       },
       "/api/v1/steps/{stepId}": {

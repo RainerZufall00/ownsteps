@@ -8,8 +8,11 @@ import { getI18n } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/text";
 import { listApiTokens } from "@/lib/tokens";
 import { OIDC_BUTTON_LABEL, oidcEnabled } from "@/lib/oidc";
-import { logoutAction, revokeDeviceAction } from "./actions";
+import { immichAccount } from "@/lib/export/immich";
+import { messageFor } from "@/lib/messages";
+import { disconnectImmichAction, logoutAction, revokeDeviceAction } from "./actions";
 import AddUserForm from "./AddUserForm";
+import ImmichForm from "./ImmichForm";
 import PasswordForm from "./PasswordForm";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,7 @@ export default async function SettingsPage() {
   const { locale, t } = await getI18n();
   const accounts = await listUsers();
   const devices = user ? await listApiTokens(user.id) : [];
+  const immich = user ? await immichAccount(user) : null;
 
   return (
     <main className="mx-auto max-w-2xl px-4 pb-20 pt-5">
@@ -98,6 +102,31 @@ export default async function SettingsPage() {
               </ListRow>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="card mt-5 p-6">
+        <h2 className="text-lg font-semibold">{t.immich.heading}</h2>
+        <p className="mb-4 mt-1.5 text-[15px] text-ink-soft">{t.immich.text}</p>
+        {immich && !immich.problem ? (
+          <div className="space-y-3">
+            <p className="text-[15px] font-medium text-sea">
+              {fill(t.immich.connected, { url: immich.url, name: immich.name })}
+            </p>
+            <p className="text-[13px] text-ink-faint">{t.immich.keyStored}</p>
+            <form action={disconnectImmichAction}>
+              <button type="submit" className="btn btn-ghost px-4 py-2 text-sm">
+                {t.immich.disconnect}
+              </button>
+            </form>
+          </div>
+        ) : (
+          <>
+            {immich?.problem && (
+              <p className="mb-4 text-sm font-medium text-accent">{messageFor(locale, immich.problem)}</p>
+            )}
+            <ImmichForm url={immich?.url} />
+          </>
         )}
       </section>
 

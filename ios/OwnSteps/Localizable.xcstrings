@@ -107,6 +107,16 @@
         }
       }
     },
+    "%lld photos and videos are in the album.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Fotos und Videos sind im Album."
+          }
+        }
+      }
+    },
     "%lld photos from this trip aren't in it yet.": {
       "localizations": {
         "de": {
@@ -430,6 +440,16 @@
         }
       }
     },
+    "Connect your Immich server in the OwnSteps settings on the web first.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbinde zuerst deinen Immich-Server in den OwnSteps-Einstellungen im Web."
+          }
+        }
+      }
+    },
     "Continue": {
       "localizations": {
         "de": {
@@ -610,6 +630,16 @@
         }
       }
     },
+    "Export album": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Album exportieren"
+          }
+        }
+      }
+    },
     "Finding your location …": {
       "localizations": {
         "de": {
@@ -716,6 +746,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ausblenden"
+          }
+        }
+      }
+    },
+    "Immich isn't connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immich ist nicht verbunden"
           }
         }
       }
@@ -1040,6 +1080,16 @@
         }
       }
     },
+    "Open in Immich": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Immich öffnen"
+          }
+        }
+      }
+    },
     "Open in the browser": {
       "localizations": {
         "de": {
@@ -1229,6 +1279,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fotos werden vorbereitet …"
+          }
+        }
+      }
+    },
+    "Preparing the album …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Album wird erstellt …"
           }
         }
       }
@@ -1439,6 +1499,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Einladung senden"
+          }
+        }
+      }
+    },
+    "Send to Immich": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An Immich senden"
+          }
+        }
+      }
+    },
+    "Sending %lld of %lld to Immich …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sende %1$lld von %2$lld an Immich …"
+          }
+        }
+      }
+    },
+    "Sending to Immich …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird an Immich gesendet …"
+          }
+        }
+      }
+    },
+    "Sent to Immich": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An Immich gesendet"
           }
         }
       }
@@ -1663,6 +1763,16 @@
         }
       }
     },
+    "Something went wrong.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etwas ist schiefgelaufen."
+          }
+        }
+      }
+    },
     "Start a trip, then add steps with photos as you go.": {
       "localizations": {
         "de": {
@@ -1739,6 +1849,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erzähl von diesem Tag …"
+          }
+        }
+      }
+    },
+    "That didn't work": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das hat nicht geklappt"
           }
         }
       }

@@ -12,6 +12,7 @@ const PATTERNS: Record<
     dateLocale: DateLocale;
     short: string;
     weekday: string;
+    weekdayYear: string;
     /** Same month: "July 1–20, 2026" / "1.–20. Juli 2026". */
     sameMonth: [string, string];
     /** Same year: "Jul 1 – Aug 3, 2026" / "1. Jul – 3. Aug 2026". */
@@ -22,6 +23,7 @@ const PATTERNS: Record<
     dateLocale: enUS,
     short: "MMM d, yyyy",
     weekday: "EEEE, MMMM d",
+    weekdayYear: "EEEE, MMMM d, yyyy",
     sameMonth: ["MMMM d", "d, yyyy"],
     sameYear: ["MMM d", "MMM d, yyyy"],
   },
@@ -29,6 +31,7 @@ const PATTERNS: Record<
     dateLocale: de,
     short: "d. MMM yyyy",
     weekday: "EEEE, d. MMMM",
+    weekdayYear: "EEEE, d. MMMM yyyy",
     sameMonth: ["d.", "d. MMMM yyyy"],
     sameYear: ["d. MMM", "d. MMM yyyy"],
   },
@@ -44,6 +47,11 @@ export function formatDateShort(ms: number, locale: Locale) {
 
 export function formatWeekday(ms: number, locale: Locale) {
   return formatIn(locale, new Date(ms), PATTERNS[locale].weekday);
+}
+
+/** "Saturday, May 9, 2026" – for exports, which outlive the trip's year. */
+export function formatWeekdayYear(ms: number, locale: Locale) {
+  return formatIn(locale, new Date(ms), PATTERNS[locale].weekdayYear);
 }
 
 /** Value for <input type="date"> in local time. */

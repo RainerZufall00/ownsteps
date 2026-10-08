@@ -48,6 +48,11 @@ export const ERROR_STATUS = {
   too_many_attempts: 429,
   comment_not_found: 404,
   viewer_not_found: 404,
+  immich_not_connected: 400,
+  immich_url_invalid: 400,
+  immich_unreachable: 502,
+  immich_key_invalid: 400,
+  immich_failed: 502,
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_STATUS;

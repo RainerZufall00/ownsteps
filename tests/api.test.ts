@@ -707,3 +707,25 @@ describe("OIDC hand-over", () => {
     expect(reused.json.code).toBe("auth_code_invalid");
   });
 });
+
+describe("export", () => {
+  it("gives authors the album and Immich status, and readers neither", async () => {
+    const { token, trip } = await sharedTrip();
+    const album = await call("GET", "/api/v1/trips/{id}/export", { token, params: { id: trip.id } });
+    expect(album.status).toBe(200);
+    expect(album.headers.get("content-type")).toBe("application/zip");
+
+    const status = await call("GET", "/api/v1/trips/{id}/immich", { token, params: { id: trip.id } });
+    expect(status.json).toMatchObject({ connected: false, state: "idle" });
+    const start = await call("POST", "/api/v1/trips/{id}/immich", { token, params: { id: trip.id } });
+    expect(start.json.code).toBe("immich_not_connected");
+
+    const redeemed = await call("POST", "/api/v1/viewers/redeem", {
+      body: { shareLink: trip.share.url, name: "Grandma" },
+    });
+    for (const route of ["/api/v1/trips/{id}/export", "/api/v1/trips/{id}/immich"]) {
+      const denied = await call("GET", route, { token: redeemed.json.token, params: { id: trip.id } });
+      expect(denied.json.code, route).toBe("author_only");
+    }
+  });
+});

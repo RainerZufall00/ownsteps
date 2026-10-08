@@ -5,6 +5,8 @@ import ListRow, { RowAction } from "@/components/ListRow";
 import ShareQr from "@/components/ShareQr";
 import { appJoinLink } from "@/lib/app-link";
 import { formatDateShort } from "@/lib/format";
+import { requireUser } from "@/lib/auth";
+import { immichStatus } from "@/lib/export/immich";
 import { getI18n } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/text";
 import { pageOrigin, shareUrl as shareUrlFor } from "@/lib/share";
@@ -12,6 +14,7 @@ import { listViewerDevices } from "@/lib/tokens";
 import { getTrip } from "@/lib/trips";
 import { removeAllViewersAction, removeViewerAction } from "../../../actions";
 import DeleteTripForm from "./DeleteTripForm";
+import ImmichExport from "./ImmichExport";
 import RotateShareForm from "./RotateShareForm";
 import ShareSettings from "./ShareSettings";
 import TripDetailsForm from "./TripDetailsForm";
@@ -36,6 +39,7 @@ export default async function TripSettingsPage({
   const shareUrl = shareUrlFor(await pageOrigin(), trip.shareToken);
   const viewers = await listViewerDevices(trip.id);
   const { locale, t } = await getI18n();
+  const user = await requireUser();
 
   return (
     <main className="mx-auto max-w-2xl px-4 pb-20 pt-5">
@@ -132,6 +136,23 @@ export default async function TripSettingsPage({
           startDate={trip.startDate ?? ""}
           endDate={trip.endDate ?? ""}
         />
+      </section>
+
+      <section className="card mt-5 p-6">
+        <h2 className="text-lg font-semibold">{t.exportTrip.heading}</h2>
+        <p className="mt-1.5 text-[15px] text-ink-soft">{t.exportTrip.text}</p>
+
+        <div className="mt-5">
+          <a href={`/api/trips/${trip.id}/export`} download className="btn btn-secondary">
+            {t.exportTrip.album}
+          </a>
+          <p className="mt-2 text-[13px] text-ink-faint">{t.exportTrip.albumHint}</p>
+        </div>
+
+        <div className="mt-6 border-t border-line pt-5">
+          <ImmichExport tripId={trip.id} initial={immichStatus(user, trip.id, locale, t)} />
+          <p className="mt-2 text-[13px] text-ink-faint">{t.exportTrip.immichHint}</p>
+        </div>
       </section>
 
       <section className="mt-5 rounded-3xl border border-line p-6">

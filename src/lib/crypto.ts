@@ -34,3 +34,33 @@ export function safeEqual(given: string, expected: string) {
   const b = Buffer.from(expected);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+
+function sealingKey(secret: string, purpose: string) {
+  return crypto.createHash("sha256").update(`${purpose}:${secret}`).digest();
+}
+
+/**
+ * A secret stored for later use (an API key of another service), encrypted
+ * with AES-256-GCM under a key derived from the app secret – a copy of the
+ * database alone doesn't reveal it.
+ */
+export function sealSecret(secret: string, purpose: string, plaintext: string) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", sealingKey(secret, purpose), iv);
+  const data = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  return ["v1", iv, cipher.getAuthTag(), data].map((part) => (typeof part === "string" ? part : part.toString("base64url"))).join(".");
+}
+
+/** The inverse of `sealSecret`; null if it was sealed under another secret or tampered with. */
+export function openSecret(secret: string, purpose: string, sealed: string) {
+  const [version, iv, tag, data] = sealed.split(".");
+  if (version !== "v1" || !iv || !tag || data === undefined) return null;
+  try {
+    const decipher = crypto.createDecipheriv("aes-256-gcm", sealingKey(secret, purpose), Buffer.from(iv, "base64url"));
+    decipher.setAuthTag(Buffer.from(tag, "base64url"));
+    return Buffer.concat([decipher.update(Buffer.from(data, "base64url")), decipher.final()]).toString("utf8");
+  } catch {
+    return null;
+  }
+}
+

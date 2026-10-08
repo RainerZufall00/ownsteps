@@ -173,6 +173,19 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       );
     `,
   },
+  {
+    name: "0006_immich",
+    sql: `
+      ALTER TABLE users ADD COLUMN immich_url TEXT;
+      ALTER TABLE users ADD COLUMN immich_api_key TEXT;
+      CREATE TABLE IF NOT EXISTS immich_albums (
+        trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        album_id TEXT NOT NULL,
+        PRIMARY KEY (trip_id, user_id)
+      );
+    `,
+  },
 ];
 
 function isBusyError(error: unknown) {

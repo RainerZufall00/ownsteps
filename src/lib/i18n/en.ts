@@ -270,6 +270,48 @@ export const en = {
     signOut: "Sign out",
   },
 
+  exportTrip: {
+    heading: "Keep it",
+    text: "Take the trip with you – as an album that opens in any browser, also offline, or into your Immich library.",
+    album: "Download album",
+    albumHint:
+      "A ZIP with one page and all photos and videos, the text, the captions and a map of the route. Unpack it and open index.html.",
+    immich: "Send to Immich",
+    immichHint:
+      "Creates an album in Immich. Each photo keeps its caption; the day and place go with every photo, the day's text with its first one.",
+    immichNotConnected: "Connect Immich in the settings first.",
+    immichConnect: "Go to settings",
+    immichRunning: "Sending {done} of {total} …",
+    immichStarting: "Starting …",
+    immichDone: "Done – {total} photos and videos are in Immich.",
+    immichOpen: "Open album in Immich",
+    immichAgain: "Send again",
+    immichFailed: "That didn't work: {error}",
+  },
+
+  album: {
+    exportedOn: "Exported from OwnSteps on {date}.",
+    days: { one: "{count} day", other: "{count} days" },
+    comments: "Comments",
+    mapCredit: "Map",
+    noSteps: "This trip has no steps yet.",
+  },
+
+  immich: {
+    heading: "Immich",
+    text: "Connect your Immich server to send trips there as albums – with captions and the day's text in each photo's description.",
+    url: "Immich address",
+    urlPlaceholder: "https://photos.example.com",
+    apiKey: "API key",
+    apiKeyHint:
+      "Create one in Immich under Account settings → API keys. It needs to upload assets, change them and manage albums – \"All\" is simplest.",
+    connect: "Connect",
+    connecting: "Checking …",
+    connected: "Connected to {url} as {name}.",
+    disconnect: "Disconnect",
+    keyStored: "The key is stored encrypted on this server.",
+  },
+
   share: {
     lockedTitle: "Protected trip",
     lockedText: "This trip is protected with a password.",
@@ -284,6 +326,11 @@ export const en = {
   },
 
   errors: {
+    immich_not_connected: "Immich isn't connected yet.",
+    immich_url_invalid: "That isn't a web address (https://…).",
+    immich_unreachable: "Immich can't be reached at that address.",
+    immich_key_invalid: "Immich didn't accept the API key – or it lacks permissions.",
+    immich_failed: "Immich answered with an error ({status}).",
     not_signed_in: "Not signed in.",
     trip_not_found: "Trip not found.",
     step_not_found: "Step not found.",

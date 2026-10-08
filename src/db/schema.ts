@@ -19,6 +19,10 @@ export const users = sqliteTable("users", {
   /** `sub` from the ID token, stable even if the email changes. */
   oidcSubject: text("oidc_subject").unique(),
   avatarUrl: text("avatar_url"),
+  /** The user's Immich server, for sending trips there as albums. */
+  immichUrl: text("immich_url"),
+  /** Its API key, sealed with the app secret (`sealSecret`). */
+  immichApiKey: text("immich_api_key"),
   createdAt: integer("created_at").notNull().default(now),
 });
 
@@ -239,3 +243,18 @@ export type Comment = typeof comments.$inferSelect;
 export type Trip = typeof trips.$inferSelect;
 export type Step = typeof steps.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
+
+/** The Immich album a trip went to, per user – sending again updates it. */
+export const immichAlbums = sqliteTable(
+  "immich_albums",
+  {
+    tripId: integer("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    albumId: text("album_id").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tripId, t.userId] })],
+);

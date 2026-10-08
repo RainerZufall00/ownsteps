@@ -296,6 +296,21 @@ export const stepViewsSchema = z
   })
   .meta({ id: "StepViews" });
 
+export const immichStatusSchema = z
+  .object({
+    /** Whether this author connected Immich (done in the web settings). */
+    connected: z.boolean(),
+    state: z.enum(["idle", "running", "done", "failed"]),
+    /** Photos and videos sent so far, of `total`. */
+    done: z.number().int(),
+    total: z.number().int(),
+    /** The album in Immich, once done. */
+    albumUrl: z.string().nullable(),
+    /** Why it failed, in the request's language. */
+    error: z.string().nullable(),
+  })
+  .meta({ id: "ImmichStatus" });
+
 export const mediaUploadSchema = z
   .object({
     file: z.string().meta({ format: "binary", description: "Photo or video, one per request." }),
