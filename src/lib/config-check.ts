@@ -174,7 +174,7 @@ export function configProblems(env: Env, options: { dataDir?: string } = {}) {
   }
 
   // Data directory
-  const dataDir = options.dataDir ?? path.resolve(env.DATA_DIR ?? "./data");
+  const dataDir = options.dataDir ?? path.resolve(/* turbopackIgnore: true */ env.DATA_DIR ?? "./data");
   try {
     fs.mkdirSync(dataDir, { recursive: true });
     fs.accessSync(dataDir, fs.constants.W_OK);
