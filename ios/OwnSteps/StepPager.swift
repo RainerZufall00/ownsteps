@@ -464,10 +464,11 @@ struct CommentsRequest: Identifiable {
 /// of them equal – none is the step's "title photo". They follow the finger
 /// sideways; a tap on the right goes on, on the left back. Each layer has
 /// its own place, so it's clear what belongs to what: day and place at the
-/// top under the bars, like the sender of a status – they stay while
-/// swiping; the photo's caption as a note that changes with the photo; the
-/// day's text below it, set apart by a line – it stays too. A longer text
-/// opens in a reading sheet. A step without photos becomes a text story.
+/// top under the bars, like the sender of a status, and the day's text at
+/// the bottom – both stay while swiping. The photo sits between them, never
+/// under them (a portrait photo would otherwise run behind the text), with
+/// its caption right below it, moving along with it. A longer text opens
+/// in a reading sheet. A step without photos becomes a text story.
 struct StepStoryPage: View {
     let account: Account
     let step: Components.Schemas.Step
@@ -489,6 +490,10 @@ struct StepStoryPage: View {
 
     @State private var reading = false
     @State private var position = ScrollPosition(idType: Int.self)
+    /// Heights of the day header and the text below – the photos keep clear
+    /// of both.
+    @State private var topHeight: CGFloat = 0
+    @State private var bottomHeight: CGFloat = 0
 
     private var photo: Components.Schemas.Photo? { step.photos.indices.contains(index) ? step.photos[index] : nil }
     private var hasPlace: Bool { step.lat != nil && step.lon != nil }
@@ -578,7 +583,30 @@ struct StepStoryPage: View {
     }
 
     private func page(_ photo: Components.Schemas.Photo, offset: Int) -> some View {
-        media(photo, playing: isCurrent && offset == index)
+        VStack(spacing: 12) {
+            media(photo, playing: isCurrent && offset == index)
+                .aspectRatio(Self.aspectRatio(of: photo), contentMode: .fit)
+            if let caption = Self.caption(of: photo) {
+                // The photo's own note, set like a caption under a print.
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "photo")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .accessibilityHidden(true)
+                    Text(caption)
+                        .italic()
+                        .lineLimit(4)
+                }
+                .font(.callout)
+                .foregroundStyle(.white.opacity(0.92))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+            }
+        }
+        .padding(.top, topHeight + 4)
+        .padding(.bottom, bottomHeight + 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(.rect)
             .gesture(
                 SpatialTapGesture().onEnded { value in
@@ -604,7 +632,6 @@ struct StepStoryPage: View {
         Group {
             if photo.mediaType == .video {
                 VideoPage(account: account, photo: photo, isCurrent: playing)
-                    .padding(.top, insets.top)
             } else {
                 RemoteImage(account: account, photo: photo, variant: .large, contentMode: .fit, fallbacks: [.medium, .thumb])
             }
@@ -631,7 +658,8 @@ struct StepStoryPage: View {
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.horizontal, 32)
-                    .padding(.vertical, 110)
+                    .padding(.top, topHeight + 16)
+                    .padding(.bottom, bottomHeight + 16)
             }
         }
         .contentShape(.rect)
@@ -659,10 +687,14 @@ struct StepStoryPage: View {
 
     // MARK: Text
 
-    private var caption: String? {
-        guard let caption = photo?.caption?.trimmingCharacters(in: .whitespacesAndNewlines), !caption.isEmpty
+    private static func caption(of photo: Components.Schemas.Photo) -> String? {
+        guard let caption = photo.caption?.trimmingCharacters(in: .whitespacesAndNewlines), !caption.isEmpty
         else { return nil }
         return caption
+    }
+
+    private static func aspectRatio(of photo: Components.Schemas.Photo) -> CGFloat? {
+        photo.width > 0 && photo.height > 0 ? CGFloat(photo.width) / CGFloat(photo.height) : nil
     }
 
     /// Bars, then day and place – the step's sender, standing still while
@@ -685,8 +717,9 @@ struct StepStoryPage: View {
             .accessibilityAddTraits(.isHeader)
         }
         .padding(.top, insets.top + 6)
-        .padding(.bottom, 40)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { topHeight = $0 }
         .background {
             LinearGradient(colors: [.black.opacity(0.6), .clear], startPoint: .top, endPoint: .bottom)
                 .allowsHitTesting(false)
@@ -695,31 +728,8 @@ struct StepStoryPage: View {
 
     private var bottom: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // The photo's own note: changes with the photo, set like a
-            // caption under a print rather than like a heading.
-            if let caption {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: "photo")
-                        .font(.footnote)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .accessibilityHidden(true)
-                    Text(caption)
-                        .italic()
-                        .lineLimit(4)
-                }
-                .font(.callout)
-                .foregroundStyle(.white.opacity(0.92))
-                .id(photo?.id)
-                .transition(.opacity)
-            }
-
             // On a text story the text is the picture already.
             if !step.photos.isEmpty && !step.body.isEmpty {
-                if caption != nil {
-                    Rectangle()
-                        .fill(.white.opacity(0.25))
-                        .frame(height: 0.5)
-                }
                 ClampedText(text: step.body, lines: 3) { reading = true }
                     .font(.body)
                     .lineSpacing(3)
@@ -754,20 +764,13 @@ struct StepStoryPage: View {
         }
         .animation(.smooth(duration: 0.2), value: photo?.id)
         .padding(.horizontal, 20)
-        .padding(.top, 60)
+        .padding(.top, 12)
         .padding(.bottom, insets.bottom + 12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bottomHeight = $0 }
         .background {
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: .black.opacity(0.65), location: 0.35),
-                    .init(color: .black.opacity(0.8), location: 1),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .allowsHitTesting(false)
+            LinearGradient(colors: [.clear, .black.opacity(0.5)], startPoint: .top, endPoint: .bottom)
+                .allowsHitTesting(false)
         }
     }
 }
