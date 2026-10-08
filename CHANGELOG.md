@@ -17,7 +17,7 @@ where it isn't obvious.
 - App: a step opens as a story, like a WhatsApp status – all photos equal
   and full screen, swiped or tapped through, captions per photo, the text
   at the bottom. The next entry comes from below, like reels. Long texts
-  get "Read more" with a reading sheet; steps without photos become a text
+  end in "… more" and open in a reading sheet; steps without photos become a text
   story. Pinch to zoom. Days change only by swiping up and down; photos
   swipe like in the Photos app.
 - App: a blue day bar above the step cards shows how far into the trip the

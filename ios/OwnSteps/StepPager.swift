@@ -485,7 +485,6 @@ struct StepStoryPage: View {
     let showOnMap: () -> Void
     let zoom: () -> Void
 
-    @State private var truncated = false
     @State private var reading = false
     @State private var position = ScrollPosition(idType: Int.self)
 
@@ -625,7 +624,7 @@ struct StepStoryPage: View {
         ZStack {
             CoverPlaceholder(seed: step.id, symbolSize: 0)
             if !step.body.isEmpty {
-                ClampedText(text: step.body, lines: 10, truncated: $truncated)
+                ClampedText(text: step.body, lines: 10) { reading = true }
                     .font(.title3.weight(.semibold))
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
@@ -682,12 +681,11 @@ struct StepStoryPage: View {
 
             // On a text story the text is the picture already.
             if !step.photos.isEmpty && !step.body.isEmpty {
-                ClampedText(text: step.body, lines: 3, truncated: $truncated)
+                ClampedText(text: step.body, lines: 3) { reading = true }
                     .font(.body)
                     .lineSpacing(3)
+                    .foregroundStyle(.white.opacity(0.9))
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(.rect)
-                    .onTapGesture { if truncated { reading = true } }
             }
 
             if !pending.isEmpty {
@@ -695,11 +693,6 @@ struct StepStoryPage: View {
             }
 
             HStack(spacing: 10) {
-                if truncated {
-                    Button { reading = true } label: {
-                        Label("Read more", systemImage: "text.alignleft")
-                    }
-                }
                 Button(action: showComments) {
                     Label("\(step.comments.count)", systemImage: "bubble.left")
                         .accessibilityLabel(Text("Comments"))
@@ -763,32 +756,70 @@ struct StepDayLine: View {
     }
 }
 
-/// Text cut to `lines`, telling whether anything was cut – so "Read more"
-/// only shows when there is more.
+/// Text cut to `lines`. When anything was cut, the last line fades out
+/// and ends in a bold "… more", like captions in Instagram or WhatsApp,
+/// and the whole text opens `more` – a separate button in the row below
+/// was easy to miss.
 struct ClampedText: View {
     let text: String
     let lines: Int
-    @Binding var truncated: Bool
+    let more: () -> Void
 
     @State private var full: CGFloat = 0
     @State private var shown: CGFloat = 0
+    @State private var lineHeight: CGFloat = 0
+    @State private var moreWidth: CGFloat = 0
+
+    private var truncated: Bool { full > shown + 1 }
+
+    /// Paragraphs run on in the preview, or "more" could end up on an empty
+    /// line between them; the reading sheet keeps them.
+    private var flowing: String {
+        text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }.joined(separator: " ")
+    }
 
     var body: some View {
-        Text(text)
+        Text(flowing)
             .lineLimit(lines)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-                shown = height
-                truncated = full > shown + 1
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { shown = $0 }
             .background {
-                Text(text)
+                Text(flowing)
                     .fixedSize(horizontal: false, vertical: true)
                     .hidden()
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-                        full = height
-                        truncated = full > shown + 1
-                    }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { full = $0 }
+                Text(verbatim: "X")
+                    .hidden()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { lineHeight = $0 }
             }
+            .mask {
+                if truncated {
+                    VStack(spacing: 0) {
+                        Rectangle()
+                        HStack(spacing: 0) {
+                            Rectangle()
+                            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                                .frame(width: 40)
+                            Color.clear.frame(width: moreWidth)
+                        }
+                        .frame(height: lineHeight)
+                    }
+                } else {
+                    Rectangle()
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if truncated {
+                    (Text(verbatim: "… ") + Text("more").fontWeight(.bold))
+                        .foregroundStyle(.white)
+                        .fixedSize()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { moreWidth = $0 }
+                }
+            }
+            .contentShape(.rect)
+            .onTapGesture { if truncated { more() } }
+            .accessibilityAction(named: Text("Read more")) { if truncated { more() } }
     }
 }
 

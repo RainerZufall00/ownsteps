@@ -451,8 +451,12 @@ photo pager uses the system's `.paging` with a 20 pt black gap between
 photos and a blurred backdrop that stays put and cross-fades, like the
 Photos app. Bars at the top show where you are. Day,
 place and three lines of text stay at the bottom on a dark fade, the
-photo's caption above them; a longer text gets "Read more", which opens
-the whole text in a solid reading sheet. Comments open as a sheet,
+photo's caption above them; a longer text fades out at the end of its
+third line into a bold "… more", like captions in Instagram or WhatsApp,
+and tapping the text opens all of it in a solid reading sheet (2026-10-08 –
+a "Read more" button in the row below was easy to miss). The preview runs
+paragraphs together, or "more" could land on an empty line; the sheet
+keeps them. Comments open as a sheet,
 pinching a photo opens the zoomable viewer, and a step without photos is a
 text story on a colored background. Both pagers move one page per swipe
 and take over the position only once the scroll has settled (`ScrollPosition`
