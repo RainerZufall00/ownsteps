@@ -10,6 +10,8 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.4.0] – 2026-10-09
+
 ### Added
 
 - Android app (`android/`): native Kotlin and Jetpack Compose with Material 3,
@@ -148,7 +150,8 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/RainerZufall00/ownsteps/compare/v0.1.0...v0.1.1
