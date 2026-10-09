@@ -310,6 +310,19 @@ per request and slip past every brake. Directly exposed servers set
 limits still apply. Limiters live on `globalThis` by name: Server Actions and
 route handlers may end up in different bundles but must count together.
 
+**The port stays open on every interface by default, and OwnSteps can't tell
+when the proxy is skipped.** With `BIND_ADDRESS=0.0.0.0` on a server with a
+public IP – Docker publishes ports past ufw – anyone can reach the app without
+the proxy and write `X-Forwarded-For` themselves; the per-account and per-trip
+brakes still hold. The default stays `0.0.0.0` like in most self-hosted
+projects, so a setup without a proxy works out of the box; `.env.example` and
+the README say when to use `127.0.0.1`. Two warnings were considered and
+dropped: one at startup would fire for every fresh copy of the template,
+firewalled or not; one for requests arriving without `X-Forwarded-For` can't
+work, because Next fills in that header (and `X-Forwarded-Host`, `-Proto`,
+`-Port`) from the socket before any of our code runs – a request that skipped
+the proxy looks like any other.
+
 ### Headers and CSP
 
 `next.config.ts` sets `nosniff`, `Referrer-Policy: same-origin` (share links

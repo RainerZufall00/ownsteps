@@ -132,6 +132,9 @@ BIND_ADDRESS=127.0.0.1
 ```
 
 in `.env` so the port is only reachable locally and not open to the network.
+This matters even behind a firewall: Docker publishes ports past ufw. If the
+proxy runs on another server, allow the port only from it in your provider's
+firewall instead.
 
 **Proxy as a container in a bridge network** (Traefik, nginx-proxy-manager):
 attach both containers to the same network and use the container name
