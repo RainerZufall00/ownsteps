@@ -23,10 +23,6 @@ updates:
     cooldown:
       default-days: 5
     ignore:
-      # v6 breaks the map after bundling without an error message, see [E9]
-      # in docs/ARCHITECTURE.md. Lift only after checking the map in a browser.
-      - dependency-name: maplibre-gl
-        versions: [">=6"]
       # Follows the Node version of the Docker image (node:22), not the latest.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]

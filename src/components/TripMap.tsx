@@ -6,6 +6,7 @@ import {
   MapLibreMap,
   Marker,
   NavigationControl,
+  setWorkerUrl,
   type GeoJSONSource,
   type StyleSpecification,
 } from "maplibre-gl";
@@ -14,6 +15,11 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useI18n } from "@/lib/i18n/client";
 import { fill } from "@/lib/i18n/text";
 import { useMediaBase } from "./media-context";
+
+// MapLibre would look for its worker next to its own bundled chunk, where none
+// exists. `new URL(…, import.meta.url)` makes the bundler copy the worker into
+// _next/static/media and hand back its address. See [E9].
+setWorkerUrl(new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).href);
 
 export type MapStep = {
   id: number;
