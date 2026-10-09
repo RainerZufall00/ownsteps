@@ -5,10 +5,19 @@ All notable changes to OwnSteps. The format follows
 [Semantic Versioning](https://semver.org/): a new major version means you
 have to do something when updating – read its notes first.
 
-Server and iOS app share one history; entries say which part they concern
+Server and apps share one history; entries say which part they concern
 where it isn't obvious.
 
 ## [Unreleased]
+
+### Added
+
+- Android app (`android/`): native Kotlin and Jetpack Compose with Material 3,
+  Android 10 and newer, English and German. Same features as the iOS app –
+  several servers, OIDC or password sign-in, following trips as a reader,
+  map with step cards and stories, writing steps offline with an upload queue,
+  sharing photos from other apps, photo suggestions, readers and invitations,
+  notifications, album export and Immich. Needs Google Play Services.
 
 ## [0.3.0] – 2026-10-08
 

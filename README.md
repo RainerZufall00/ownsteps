@@ -88,7 +88,7 @@ web UI and the app alike.
 
 ## API and app
 
-The iOS app talks to `/api/v1`, a versioned REST API with bearer tokens. The
+The iOS app ([ios/](ios/README.md)) and the Android app ([android/](android/README.md)) talk to `/api/v1`, a versioned REST API with bearer tokens. The
 description is served at `/api/v1/openapi.json`; `/api/v1/info` tells clients
 which sign-in methods and features the server offers. Signed-in app devices
 show up under *Settings* and can be signed out there; readers who follow a
@@ -315,4 +315,5 @@ versions is in [CHANGELOG.md](CHANGELOG.md).
 The server and web UI are free software under the
 [GNU Affero General Public License v3.0](LICENSE): if you run a modified
 version for others, you have to offer them its source code. The iOS app in
-`ios/` is under the [Mozilla Public License 2.0](ios/LICENSE).
+`ios/` and the Android app in `android/` are under the
+[Mozilla Public License 2.0](ios/LICENSE).

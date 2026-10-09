@@ -15,7 +15,7 @@ architecture doc and the phase is ticked off here.
 | D3 | Project language | **English** for code, comments, docs and new commits (supersedes [E11]). Existing git history stays German. |
 | D4 | UI languages | Web and app in **English and German**, default **English**. Web: `Accept-Language` plus a manual switch (cookie). App: String Catalogs, iOS per-app language. |
 | D5 | Order of work | English switch → tests → API → iOS app → code review → release prep → open source |
-| D6 | App technology | **Native SwiftUI**, iOS only (Android is not a goal), **iOS 26** minimum |
+| D6 | App technology | **Native SwiftUI**, **iOS 26** minimum. (Was "iOS only"; Android followed as D30.) |
 | D7 | App storage | **GRDB** (SQLite, explicit migrations) |
 | D8 | App map | **Apple MapKit**, no MapTiler in the app |
 | D9 | App distribution | **Public App Store**. The user enters the server URL. No central infrastructure run by the maintainer. |
@@ -38,6 +38,7 @@ architecture doc and the phase is ticked off here.
 | D26 | Transport | App: **HTTPS only**, plus `NSAllowsLocalNetworking` for LAN instances |
 | D27 | Polarsteps import | **After** the release, filed as a "help wanted" issue |
 | D28 | View counts | Authors see per step how many **readers** saw it (each counted once: app device, or share-link visitor by cookie); authors aren't counted, readers don't see the numbers. Seen = on screen for a second. Not in the change log. Details in [E17]. (Was O5.) |
+| D30 | Android app | **Native Kotlin + Jetpack Compose, Material 3**, Android 10 (API 29) minimum, in `android/` under MPL-2.0 (added 2026-10-08). Same scope as the iOS app (D21, D22) on the same `/api/v1` – no server changes. For phones **with Google Play Services** (decided 2026-10-09): fused location for "My location", the system geocoder for place names. The map stays MapLibre with **OpenFreeMap** – Google Maps would need a key from a Google Cloud account. Its own media-store picker, because the system photo picker strips GPS. Uploads and background refresh through **WorkManager**, tokens encrypted with a **Keystore** key, cache and queue in **Room**. |
 | D29 | App trip screen | Like Polarsteps: map fills the screen, steps as **horizontal glass cards** below it (trip card with cover first, then oldest → newest, opening on the newest), a tapped card **pushes the step's page** (grouped list, actions in the toolbars) with sideways paging. Same layout on iPhone and iPad. The vertical timeline is gone. System idioms over web ones: no drop shadows or gradient heroes, no inline text buttons. (Was O6.) |
 
 ---
@@ -109,6 +110,15 @@ architecture doc and the phase is ticked off here.
   - Bug fixed: the app showed no cover. The trip screen had no place for it
     (now the first card), and after choosing a new cover the list card kept
     the old image or none until a pull to refresh.
+
+### Phase 4g – Android app (`android/`, D30)
+- [x] Gradle project (AGP 9, Kotlin 2.4, Compose BOM), en/de strings, MPL-2.0.
+- [x] Everything of 4a–4f: server address and sign-in (OIDC via Custom Tab, password), several servers, trip list, trip screen (map, cards, day track), step stories, offline copy, upload queue with client UUIDs, HEIC → JPEG, video to 1080p, share target, photo suggestions, readers and invitations, comments, view counts, notifications from the change feed, trip settings (album export, Immich).
+- [x] JVM unit tests, including a contract test against `openapi.json`; lint clean.
+- [x] Run in the emulator against a local server (2026-10-08): sign-in, trip, story, comments, composer with GPS photos, upload, share target, place picker, German, dark mode.
+- [x] Story like the iOS app since 2026-10-08: day and place at the top, the photo between header and text, its caption right under it (2026-10-09).
+- [ ] Try OIDC against a real instance, uploads of large videos on a device, background refresh over a day.
+- [ ] Release signing and store listing (Play and/or F-Droid) – open.
 
 ### Phase 5 – Code review ("strangers run this now")
 - [x] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices (2026-10-02). Fixed: brakes on every password check (per address from the right end of `X-Forwarded-For`, plus per account and per trip), share passwords ≥ 8 characters, OIDC only matches verified emails, security headers and a nonce CSP, readers signed out on a new link or password. Accepted: setup stays open until the first account exists.

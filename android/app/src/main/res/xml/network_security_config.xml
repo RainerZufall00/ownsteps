@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  HTTPS everywhere, plain HTTP only inside the local network ([D26]). Android
+  can't name address ranges here, so the rule lives in ServerAddress: the app
+  only ever talks to a normalized server address, and that refuses plain HTTP
+  for anything but localhost, .local names and private addresses.
+-->
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <base-config cleartextTrafficPermitted="true" tools:ignore="InsecureBaseConfiguration">
+        <trust-anchors>
+            <certificates src="system" />
+            <!-- Self-hosted servers sometimes use their own CA, installed by the user. -->
+            <certificates src="user" tools:ignore="AcceptsUserCertificates" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

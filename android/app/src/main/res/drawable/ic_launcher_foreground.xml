@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A pin over a dotted route, on the adaptive icon's 108 dp canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30c-8.8,0 -16,7.2 -16,16c0,12 16,28 16,28s16,-16 16,-28c0,-8.8 -7.2,-16 -16,-16zM54,52a6,6 0,1 1,0 -12a6,6 0,1 1,0 12z" />
+    <path
+        android:fillColor="#B3FFFFFF"
+        android:pathData="M35,80a3,3 0 1,0 6,0a3,3 0 1,0 -6,0zM44.5,80a2.5,2.5 0 1,0 5.0,0a2.5,2.5 0 1,0 -5.0,0zM58.5,80a2.5,2.5 0 1,0 5.0,0a2.5,2.5 0 1,0 -5.0,0zM67,80a3,3 0 1,0 6,0a3,3 0 1,0 -6,0z" />
+</vector>

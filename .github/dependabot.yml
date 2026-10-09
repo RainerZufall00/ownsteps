@@ -1,0 +1,110 @@
+# Weekly dependency updates for the server, the Docker image, the workflows and
+# both apps. Minor and patch updates arrive as one grouped PR per ecosystem;
+# major updates come one at a time, because they need a real look (see the
+# hard rules in AGENTS.md). Security updates are not grouped and come as soon
+# as an advisory appears.
+#
+# Patch and minor updates of npm and gradle merge by themselves once CI is
+# green (.github/workflows/dependabot-auto-merge.yml). The cooldown holds new
+# releases back for a few days first: hijacked packages are usually noticed
+# and pulled within that time. It doesn't delay security updates.
+version: 2
+
+updates:
+  # Server (Next.js, see package.json)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 5
+    ignore:
+      # v6 breaks the map after bundling without an error message, see [E9]
+      # in docs/ARCHITECTURE.md. Lift only after checking the map in a browser.
+      - dependency-name: maplibre-gl
+        versions: [">=6"]
+      # Follows the Node version of the Docker image (node:22), not the latest.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # Must move together, a mismatch breaks the build or the types.
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      # Own PRs, merged by hand: the tests don't see what breaks in the
+      # browser. Kept out of minor-and-patch so that group can auto-merge.
+      next:
+        patterns: ["next"]
+      maplibre:
+        patterns: ["maplibre-gl"]
+      tailwind:
+        patterns: ["tailwindcss", "@tailwindcss/*"]
+      vitest:
+        patterns: ["vite", "vitest"]
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # Base image of the Dockerfile
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    ignore:
+      # A new Node major is a deliberate decision (together with @types/node),
+      # not a weekly bump.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+
+  # Actions in .github/workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      timezone: Europe/Berlin
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Android app (version catalog in android/gradle/libs.versions.toml and the
+  # Gradle wrapper)
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 5
+    groups:
+      # Kotlin, its compiler plugins and KSP have to fit each other.
+      kotlin:
+        patterns: ["org.jetbrains.kotlin*", "com.google.devtools.ksp*"]
+        exclude-patterns: ["org.jetbrains.kotlinx*"]
+      compose:
+        patterns: ["androidx.compose*"]
+      media3:
+        patterns: ["androidx.media3:*"]
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # iOS app (the Xcode project only references this local package)
+  - package-ecosystem: swift
+    directory: /ios/Packages/OwnStepsKit
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    groups:
+      swift-openapi:
+        patterns: ["*swift-openapi-*"]
+      minor-and-patch:
+        update-types: ["minor", "patch"]

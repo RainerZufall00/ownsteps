@@ -34,7 +34,10 @@ let package = Package(
                 .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
                 .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
                 .product(name: "GRDB", package: "GRDB.swift"),
-            ]
+            ],
+            // Declared explicitly: older SwiftPM (Xcode 26) skips string
+            // catalogs otherwise, and `Bundle.module` doesn't exist.
+            resources: [.process("Localizable.xcstrings")]
         ),
         .testTarget(name: "OwnStepsKitTests", dependencies: ["OwnStepsKit"]),
     ]
