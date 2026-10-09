@@ -24,6 +24,9 @@ struct UploadStatusBar: View {
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
+                    // Under the glass, so the navigation title behind it
+                    // doesn't shine through the text.
+                    .background(.thickMaterial, in: .capsule)
                     .glassEffect(.regular.interactive(), in: .capsule)
                 }
                 .buttonStyle(.plain)
