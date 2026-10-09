@@ -98,7 +98,7 @@ export function configProblems(env: Env, options: { dataDir?: string } = {}) {
     }
   } else if (env.NODE_ENV === "production") {
     warnings.push(
-      "PUBLIC_URL isn't set – share links and the OIDC callback then take the address from each request, which a reverse proxy may not pass on correctly.",
+      "PUBLIC_URL isn't set – share links, the map and the OIDC callback then take the address from each request's Host and X-Forwarded-Host headers, which a reverse proxy may not pass on correctly and a client can set itself. Set it to the address OwnSteps is opened under.",
     );
   }
 

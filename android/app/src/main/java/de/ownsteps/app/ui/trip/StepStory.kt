@@ -1,6 +1,5 @@
 package de.ownsteps.app.ui.trip
 
-import android.view.ViewGroup
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -75,6 +74,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -92,7 +92,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -103,16 +104,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
-import androidx.media3.common.MediaItem
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.okhttp.OkHttpDataSource
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.ui.PlayerView
 import de.ownsteps.app.R
 import de.ownsteps.app.api.Comment
 import de.ownsteps.app.api.Photo
@@ -122,7 +116,6 @@ import de.ownsteps.app.api.Variant
 import de.ownsteps.app.data.Account
 import de.ownsteps.app.data.PendingUpload
 import de.ownsteps.app.data.TripCalendar
-import de.ownsteps.app.model
 import de.ownsteps.app.ui.CoverPlaceholder
 import de.ownsteps.app.ui.Dates
 import de.ownsteps.app.ui.DayLine
@@ -189,7 +182,8 @@ fun StepStory(
                 pending = pending[step.id].orEmpty(),
                 progress = progress,
                 views = if (showViews) step.viewCount else null,
-                isCurrent = page == pager.currentPage,
+                // Not while the viewer is open over it: its videos play there.
+                isCurrent = page == pager.currentPage && zoom == null,
                 index = photoIndex[step.id] ?: 0,
                 onIndex = { photoIndex[step.id] = it },
                 actions = actions,
@@ -275,7 +269,7 @@ private fun StoryPage(
                     }
                 } else {
                     HorizontalPager(pager, Modifier.fillMaxSize(), pageSpacing = 20.dp, key = { photos[it].id }) { page ->
-                        StoryPhoto(account, photos[page], playing = isCurrent && page == pager.currentPage)
+                        StoryPhoto(account, photos[page], playing = isCurrent && page == pager.currentPage) { forward -> go(if (forward) 1 else -1) }
                     }
                 }
             }
@@ -307,12 +301,15 @@ private fun StoryHeader(step: Step, day: Int?, calendar: TripCalendar, count: In
 
 /** A photo or video, as large as it fits, with its caption right under it – set like a note under a print. */
 @Composable
-private fun StoryPhoto(account: Account, photo: Photo, playing: Boolean) {
-    Column(Modifier.fillMaxSize().padding(vertical = 4.dp), verticalArrangement = Arrangement.Center) {
+private fun StoryPhoto(account: Account, photo: Photo, playing: Boolean, onEdgeTap: (forward: Boolean) -> Unit) {
+    Column(Modifier.fillMaxSize().padding(vertical = 4.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         val ratio = if (photo.width > 0 && photo.height > 0) photo.width.toFloat() / photo.height else 1f
-        // Measured after the caption: the photo takes what's left, keeping its shape.
-        val media = Modifier.weight(1f, fill = false).fillMaxWidth().aspectRatio(ratio)
-        if (photo.isVideo) VideoPlayer(account, photo, playing, media)
+        // Measured after the caption: the photo takes what's left, keeping its shape. Not
+        // forced to the full width – a tall one would then overflow its room (cropped as a
+        // photo, and a video's surface isn't even clipped and covered the header).
+        val media = Modifier.weight(1f, fill = false).aspectRatio(ratio)
+        // A video takes the taps on itself for its sound, all but its edges.
+        if (photo.isVideo) StoryVideo(account, photo, playing, media, onEdgeTap)
         else RemoteImage(account, photo, Variant.LARGE, media, ContentScale.Fit, listOf(Variant.MEDIUM, Variant.THUMB))
         photo.caption?.trim()?.takeIf { it.isNotEmpty() }?.let { caption ->
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -342,7 +339,7 @@ private fun PhotoProgress(count: Int, current: Int) {
 }
 
 @Composable
-private fun StoryButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+internal fun StoryButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     FilledTonalIconButton(onClick, colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Color.Black.copy(alpha = 0.35f), contentColor = Color.White)) {
         Icon(icon, label)
     }
@@ -486,11 +483,18 @@ private fun PhotoViewer(account: Account, photos: List<Photo>, startIndex: Int, 
     Dialog(onDismiss, DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         val current by rememberUpdatedState(photos)
         val pager = rememberPagerState(initialPage = startIndex) { current.size }
+        var captionHeight by remember { mutableIntStateOf(0) }
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             HorizontalPager(pager, Modifier.fillMaxSize(), key = { current[it].id }) { page ->
                 val photo = current[page]
-                if (photo.isVideo) VideoPlayer(account, photo, playing = page == pager.currentPage, Modifier.fillMaxSize())
-                else ZoomablePhoto(account, photo)
+                if (photo.isVideo) {
+                    // Clear of the bar on top and the caption below.
+                    StoryVideo(
+                        account, photo, active = page == pager.currentPage,
+                        Modifier.fillMaxSize().statusBarsPadding().padding(top = 56.dp)
+                            .then(if (photo.caption.isNullOrEmpty()) Modifier.navigationBarsPadding() else Modifier.padding(bottom = with(LocalDensity.current) { captionHeight.toDp() })),
+                    )
+                } else ZoomablePhoto(account, photo)
             }
             Row(Modifier.statusBarsPadding().padding(8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (photos.size > 1) Text("${pager.currentPage + 1} / ${photos.size}", color = Color.White, modifier = Modifier.padding(start = 12.dp))
@@ -498,7 +502,7 @@ private fun PhotoViewer(account: Account, photos: List<Photo>, startIndex: Int, 
                 StoryButton(Icons.Filled.Close, stringResource(R.string.close), onDismiss)
             }
             photos.getOrNull(pager.currentPage)?.caption?.takeIf { it.isNotEmpty() }?.let {
-                Surface(color = Color.Black.copy(alpha = 0.5f), shape = RoundedCornerShape(20.dp), modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp)) {
+                Surface(color = Color.Black.copy(alpha = 0.5f), shape = RoundedCornerShape(20.dp), modifier = Modifier.align(Alignment.BottomCenter).onSizeChanged { captionHeight = it.height }.navigationBarsPadding().padding(16.dp)) {
                     Text(it, color = Color.White, modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp), textAlign = TextAlign.Center)
                 }
             }
@@ -524,30 +528,4 @@ private fun ZoomablePhoto(account: Account, photo: Photo) {
             .graphicsLayer { scaleX = shownScale; scaleY = shownScale; translationX = offset.x; translationY = offset.y },
         ContentScale.Fit, listOf(Variant.MEDIUM, Variant.THUMB),
     )
-}
-
-/** Streams a video with the account's token; plays only while it's the one in view. */
-@androidx.annotation.OptIn(UnstableApi::class)
-@Composable
-private fun VideoPlayer(account: Account, photo: Photo, playing: Boolean, modifier: Modifier) {
-    val context = LocalContext.current
-    val model = context.model
-    val player = remember(photo.id) {
-        val client = model.client(account)
-        val source = OkHttpDataSource.Factory(model.http).setDefaultRequestProperties(listOfNotNull(client.authorization?.let { "Authorization" to it }).toMap())
-        ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(source)).build().apply {
-            setMediaItem(MediaItem.fromUri(client.mediaUrl(photo.id, Variant.VIDEO).toString()))
-            prepare()
-        }
-    }
-    LaunchedEffect(playing) { player.playWhenReady = playing }
-    DisposableEffect(player) { onDispose { player.release() } }
-    Box(modifier) {
-        // The poster until the first frame is there.
-        RemoteImage(account, photo, Variant.MEDIUM, Modifier.fillMaxSize(), ContentScale.Fit)
-        AndroidView(
-            factory = { PlayerView(it).apply { this.player = player; layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT) } },
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
 }

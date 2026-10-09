@@ -42,6 +42,10 @@
     <string name="save">Sichern</string>
     <string name="close">Schließen</string>
     <string name="back">Zurück</string>
+    <string name="play_video">Video abspielen</string>
+    <string name="sound_on">Ton einschalten</string>
+    <string name="sound_off">Ton ausschalten</string>
+    <string name="show_playback_controls">Wiedergabesteuerung zeigen</string>
     <string name="delete">Löschen</string>
     <string name="remove">Entfernen</string>
     <string name="retry">Erneut versuchen</string>

@@ -17,6 +17,29 @@ where it isn't obvious.
   on the server, no connection, failed – and briefly "Uploaded". A tap opens
   the trip.
 
+### Changed
+
+- Apps: videos play like stories instead of in the system player. They start
+  by themselves, muted and looping, while they're the page in view, and stop
+  when paged away or in the background; a tap switches the sound, a thin bar
+  shows the position, and a small button opens the full player for
+  scrubbing. The poster shows until the first frame, muted videos don't
+  interrupt music, and with video autoplay (iOS) or animations (Android)
+  switched off a play button waits instead.
+
+### Fixed
+
+- Android: tall photos and videos in a step no longer overflow their room –
+  photos could be cropped, and videos covered the day and place at the top.
+
+### Security
+
+- The warning about a missing `PUBLIC_URL` now also says that the address
+  otherwise comes from headers a client can set. `.env.example` and the
+  README explain that Docker publishes ports past ufw, and when to bind to
+  `127.0.0.1` instead.
+- source-map-js 1.2.2 (GHSA-68fv-2mgg-jv7q). Only used at build time.
+
 ## [0.4.0] – 2026-10-09
 
 ### Added

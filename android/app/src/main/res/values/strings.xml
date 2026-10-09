@@ -43,6 +43,10 @@
     <string name="save">Save</string>
     <string name="close">Close</string>
     <string name="back">Back</string>
+    <string name="play_video">Play video</string>
+    <string name="sound_on">Turn sound on</string>
+    <string name="sound_off">Turn sound off</string>
+    <string name="show_playback_controls">Show playback controls</string>
     <string name="delete">Delete</string>
     <string name="remove">Remove</string>
     <string name="retry">Retry</string>
