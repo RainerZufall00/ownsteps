@@ -58,9 +58,9 @@ function stripKey(query: string) {
  * sprite.json) at our own proxy and strips the API key.
  *
  * The result must be a full address, not a bare path: MapLibre loads the
- * vector tiles in a worker created from a blob. Its `location` is a `blob:`
- * URL and can't serve as a base to resolve `/api/map/…` – the tiles would
- * never arrive.
+ * vector tiles in its worker, which resolves relative addresses against its
+ * own location instead of the page's. Under maplibre-gl v5 that was a `blob:`
+ * URL, which can't serve as a base at all – the tiles never arrived.
  *
  * Deliberately text-based: placeholders like {z}/{x}/{y} or {fontstack} must
  * stay untouched, a URL object would encode the braces.
@@ -74,13 +74,13 @@ export function rewriteMapTilerJson(text: string, origin: string) {
 }
 
 /**
- * maplibre-gl v5 renders source attributions as HTML through a sanitizer
- * that can be tricked (GHSA-jrc7-96c5-q579, fixed only in v6, which we can't
- * use – see AGENTS.md). So every `attribution` in a proxied style or
- * TileJSON is reduced here to plain text and plain `https` links before
- * MapLibre sees it – the workaround the advisory names. The CSP would block
- * the inline handlers such a payload relies on anyway; this is the second
- * line.
+ * MapLibre renders source attributions as HTML through a sanitizer. In v5 it
+ * could be tricked (GHSA-jrc7-96c5-q579, fixed in 6.4.1); we stayed on v5 for
+ * a while (see [E9]) and reduced every `attribution` in a proxied style or
+ * TileJSON to plain text and plain `https` links before MapLibre saw it – the
+ * workaround the advisory names. It stays as a cheap second line behind
+ * MapLibre's own sanitizer and the CSP: attributions only ever need text and
+ * links.
  */
 export function sanitizeAttributions(text: string) {
   let json: unknown;

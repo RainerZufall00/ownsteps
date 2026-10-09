@@ -19,6 +19,17 @@ where it isn't obvious.
   sharing photos from other apps, photo suggestions, readers and invitations,
   notifications, album export and Immich. Needs Google Play Services.
 
+### Changed
+
+- The map runs on maplibre-gl 6 (was 5). Its worker is now a file served
+  from `_next/static/media` instead of a `blob:` URL, so the CSP no longer
+  allows `blob:` workers. Browsers need WebGL 2.
+
+### Security
+
+- maplibre-gl 6 fixes GHSA-jrc7-96c5-q579 (attribution HTML sanitizer
+  bypass), which OwnSteps had only mitigated so far.
+
 ## [0.3.0] – 2026-10-08
 
 ### Added

@@ -59,7 +59,7 @@ export async function GET(request: Request) {
 
   // JSON responses (style.json, tiles.json, sprite.json) contain further
   // MapTiler URLs including the key – those must go through the proxy too.
-  // Their attributions are cleaned for maplibre v5's sanitizer.
+  // Their attributions are reduced to text and links (see sanitizeAttributions).
   if (contentType.includes("json")) {
     const text = await upstream.text();
     const rewritten = sanitizeAttributions(

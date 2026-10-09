@@ -30,8 +30,9 @@ export function proxy(request: NextRequest) {
 /**
  * Scripts only with the request's nonce ('strict-dynamic' lets them load
  * their chunks). Styles stay 'unsafe-inline': React renders `style`
- * attributes, which nonces don't cover. MapLibre needs blob: for its worker
- * and for sprite images; photo placeholders are data: URIs. Map data comes
+ * attributes, which nonces don't cover. MapLibre's worker is a file on our
+ * own origin (see TripMap.tsx); its sprite images need blob:, photo
+ * placeholders are data: URIs. Map data comes
  * through our own /api/map – only OpenFreeMap, used without a MapTiler key,
  * serves its tiles, fonts and sprites from its own origin.
  */
@@ -49,7 +50,7 @@ function contentSecurityPolicy(nonce: string) {
     "media-src 'self' blob:",
     "font-src 'self' data:",
     `connect-src 'self'${tiles}`,
-    "worker-src 'self' blob:",
+    "worker-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

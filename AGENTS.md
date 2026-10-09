@@ -56,8 +56,11 @@ English (default) and German.
 - **Only append to `MIGRATIONS`**, never change an existing entry – running
   installations have long since checked it off. A schema change in
   `schema.ts` always means a new migration entry too.
-- **Keep maplibre-gl on v5.** In v6 the worker path points nowhere after
-  bundling; the map then hangs without an error message.
+- **MapLibre's worker URL is set by hand.** `setWorkerUrl()` in
+  `TripMap.tsx` points at the worker file the bundler copies to
+  `_next/static/media`. Without it maplibre-gl v6 looks for the worker next
+  to its own chunk, gets Next's 404 page and the map stays blank without a
+  visible error (see [E9]). Check map updates in a real browser – CI can't.
 - **The MapTiler key stays on the server.** Map requests go through
   `/api/map/[...path]`, see `src/lib/maptiler-rewrite.ts`.
 - **`src/proxy.ts` must not touch `/api/upload`.** As soon as the proxy sees a

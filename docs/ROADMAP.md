@@ -151,8 +151,7 @@ architecture doc and the phase is ticked off here.
 - ~~**O3 – Changes feed design**~~ – decided: an append-only change log (table `changes`, cursor = `seq`), see ARCHITECTURE.md section 5.
 - ~~**O4 – maplibre-gl advisory vs. [E9]**~~ – mitigated: the only HTML that
   reaches MapLibre is source attribution, and `/api/map` sanitizes it
-  (`sanitizeAttributions`, see [E9]). `npm audit` keeps reporting the
-  advisory until v6; whether a v6 upgrade with a fixed worker URL works is
-  still worth a try – in a real browser.
+  (`sanitizeAttributions`, see [E9]). Resolved for good on 2026-10-09: v6
+  runs with a hand-set worker URL, checked in a real browser.
 - ~~**O5 – What counts as a view**~~ – decided as D28.
 - ~~**O6 – Trip screen layout in the app**~~ – decided as D29.

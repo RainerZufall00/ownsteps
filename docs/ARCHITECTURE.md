@@ -33,7 +33,7 @@ Separate groups run separate instances.
 | Database | SQLite via better-sqlite3 + Drizzle | One file, no second container instance, backup = copy a folder |
 | Images | sharp | Produces the web sizes; prebuilds for Linux available |
 | EXIF | exifr | Reads GPS and capture time, copes with missing and broken metadata |
-| Map | MapLibre GL **v5** | Free library, see decision [E9] on the version |
+| Map | MapLibre GL v6 | Free library; its worker URL is set by hand, see [E9] |
 | Map data | MapTiler via our own proxy | Nice vector look, key stays on the server |
 | Passwords | bcryptjs | Pure JavaScript, no native build problems |
 | OIDC | jose | Only JWKS verification needed, no heavy auth library |
@@ -322,7 +322,8 @@ per request**; Next puts it on its own scripts. That only works for pages
 rendered per request, hence `dynamic = "force-dynamic"` in the root layout.
 Scripts need the nonce ('strict-dynamic' lets them load chunks); styles
 stay `'unsafe-inline'` because React renders `style` attributes, which
-nonces don't cover. MapLibre needs `blob:` for its worker and sprites; map
+nonces don't cover. MapLibre's worker is a file on our own origin
+(`worker-src 'self'`, see [E9]); its sprites need `blob:` in `img-src`; map
 data comes through `/api/map` on our own origin. The one exception is the
 OpenStreetMap fallback without a MapTiler key: its tile server
 (`OSM_TILE_ORIGIN`, `src/lib/map-sources.ts`) is allowed in `img-src` and
@@ -809,9 +810,10 @@ order matters twice:
   `http://…` address on an HTTPS page as mixed content – the map stays empty
   without an error message.
 - **A bare path (`/api/map/…`) isn't enough.** MapLibre loads the vector tiles
-  in a worker created from a blob; its `location` is a `blob:` URL and can't
-  serve as a base for relative addresses. The tiles would never arrive while
-  background and labels were already there – visible as a flat colored area.
+  in its worker, which resolves relative addresses against its own location,
+  not the page's. Under maplibre-gl v5 that was a `blob:` URL that can't serve
+  as a base at all: the tiles never arrived while background and labels were
+  already there – visible as a flat colored area.
 
 That's why `PUBLIC_URL` isn't only for share links but also makes the map
 unambiguous behind a proxy.
@@ -1078,21 +1080,49 @@ finally **tapping the map**.
 The app offers the same as a choice when writing a step – from a photo
 (preselected), my location, on the map – see "The iOS app" in section 5.
 
-### [E9] Pin maplibre-gl to version 5
+### [E9] maplibre-gl v6 with a hand-set worker URL
 v6 derives its worker's address from `import.meta.url`. After bundling, that
 points to a path below `_next/static/chunks/` where no worker lives; Next
 serves its 404 page there, and the browser rejects it as a module script
-("non-JavaScript MIME type"). The map then hangs without any error message.
-v5 ships the worker as a blob and doesn't have the problem. **Before
-upgrading to v6, the map rendering must be checked in a real browser.**
+("non-JavaScript MIME type"). The map then stays blank, and only the console
+says why. MapLibre's migration guide says the same: with a bundler,
+`setWorkerUrl()` is required.
 
-The price is GHSA-jrc7-96c5-q579, an XSS bypass in v5's HTML sanitizer that
-`npm audit` reports as critical; the fix is v6.4.1. The only HTML OwnSteps
-hands to MapLibre is source attribution (no popups, no `setHTML`): the OSM
-fallback's is our own constant, MapTiler's comes through `/api/map`, where
-`sanitizeAttributions` reduces it to text and plain `https` links – the
-workaround the advisory names. The nonce CSP blocks the inline handlers
-such a payload needs on top of that.
+`TripMap.tsx` therefore calls, once at module level:
+
+```ts
+setWorkerUrl(new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).href);
+```
+
+Turbopack treats `new URL(…, import.meta.url)` as an asset reference: it
+copies the worker unchanged to `_next/static/media/maplibre-gl-worker.<hash>.mjs`
+and puts that address into the bundle. The worker file has no imports of its
+own, so a plain copy is enough; Next serves it as `application/javascript`,
+the hash in the name makes it cacheable, and a version bump changes it. Being
+same-origin, it needs no `blob:` in `worker-src`. Side effect: because
+MapLibre itself contains a `new URL(variable, import.meta.url)`, Turbopack
+also copies the rest of `dist/` (dev builds, ~5 MB) to `static/media`. Nobody
+downloads them; they only make the image a little larger.
+
+Verified on 2026-10-09 with v6.13.0 and Next 16.3.8, in `next dev` and in a
+production build under the nonce CSP: tiles, route line and markers, signed
+in and via a share link, OpenFreeMap without a MapTiler key. Not verified
+with a real MapTiler key (none at hand); the worker doesn't care which style
+it loads, and MapTiler's tiles come through `/api/map` on our own origin.
+
+v6's style validation is stricter: OpenFreeMap's `liberty` logs one warning
+(`highway-shield-us-interstate` compares a missing `ref_length`). v5 fell
+back to `false` silently; the map looks the same.
+
+History: OwnSteps stayed on v5 (which ships its worker as a blob) until this
+was solved, at the price of GHSA-jrc7-96c5-q579, an XSS bypass in v5's HTML
+sanitizer fixed in 6.4.1. `sanitizeAttributions` in `/api/map`, which reduces
+source attributions to text and plain `https` links, came from that time and
+stays as a second line.
+
+**Map updates still need a look in a real browser** – the tests only build
+and run vitest, a broken worker URL passes both. Dependabot opens maplibre-gl
+updates as their own PRs and never merges them by itself.
 
 ### [E10] Debian instead of Alpine in the image, install without scripts
 `better-sqlite3` and `sharp` ship ready-made binaries for glibc. On musl at
@@ -1285,7 +1315,7 @@ map and place names without anyone signing up anywhere.
 - **Map: OpenFreeMap** (`liberty`, `bright`, `positron`) – free vector
   tiles without a key or rate limit. Style and TileJSON go through our
   proxy (`/api/map/ofm/…`) for the same reason MapTiler's do: their
-  `attribution` HTML must pass `sanitizeAttributions` before maplibre v5
+  `attribution` HTML must pass `sanitizeAttributions` before MapLibre
   sees it ([E9]); the style's TileJSON references are rewritten to the
   proxy (`rewriteOpenFreeMapJson`). Tiles, fonts and sprites come straight
   from `tiles.openfreemap.org`, which the CSP then allows. Satellite maps
