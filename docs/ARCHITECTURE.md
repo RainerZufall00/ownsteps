@@ -470,10 +470,30 @@ pinching a photo opens the zoomable viewer, and a step without photos is a
 text story on a colored background. Both pagers move one page per swipe
 and take over the position only once the scroll has settled (`ScrollPosition`
 plus `onScrollPhaseChange`): a position reported while a programmatic
-scroll was still running sent it back to where it started. Videos keep
-their player; only narrow edges of them advance. Actions live in the
+scroll was still running sent it back to where it started. Videos play
+like stories (2026-10-09 – with the system player they looked like
+"standard iOS"): see below. Actions live in the
 toolbar (⋯ menu top right) and behind touch and hold (deleting a comment,
 discarding a step still on the device) instead of inline text buttons.
+
+**Story videos** (`StoryVideo`, the same on Android): a video starts by
+itself, muted and looping, while it's the page in view, and stops when paged
+away, when the viewer opens over it, when its page leaves the screen or the
+app goes to the background. There are no system controls: a tap toggles the
+sound for all videos at once (a speaker flashes briefly), the outer fifths
+still page on and back, a hairline shows the position, and a small button
+opens the system player (`AVPlayerViewController`, on Android a `PlayerView`
+with controls in a dialog) for scrubbing; it shares the player, so the story
+goes on from there. The poster (`medium`) stays until the first frame is
+ready, so there's no black box. The player is only created on the first
+play and dropped when the page leaves the screen. Muted, the audio session
+is `.ambient` and Android asks for no audio focus, so the user's music keeps
+playing; with sound it switches to `.playback` or takes focus, and hands it
+back once nothing plays – Media3 keeps the focus while paused, so the app
+drops it itself. With "Auto-Play Video Previews" off (Android: animations
+removed) the poster waits with a play button. On Android a tall item must
+not be forced to the full width: it then overflowed its room, cropped as a
+photo and – since a `SurfaceView` isn't clipped – a video covered the header.
 
 Two SwiftUI traps from building it: while the step page is pushed, the map
 below it can't present anything, so every sheet and dialog of the trip is

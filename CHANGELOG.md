@@ -10,6 +10,21 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Changed
+
+- Apps: videos play like stories instead of in the system player. They start
+  by themselves, muted and looping, while they're the page in view, and stop
+  when paged away or in the background; a tap switches the sound, a thin bar
+  shows the position, and a small button opens the full player for
+  scrubbing. The poster shows until the first frame, muted videos don't
+  interrupt music, and with video autoplay (iOS) or animations (Android)
+  switched off a play button waits instead.
+
+### Fixed
+
+- Android: tall photos and videos in a step no longer overflow their room –
+  photos could be cropped, and videos covered the day and place at the top.
+
 ## [0.4.0] – 2026-10-09
 
 ### Added

@@ -1343,6 +1343,16 @@
         }
       }
     },
+    "Play video": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video abspielen"
+          }
+        }
+      }
+    },
     "Please enter email and password.": {
       "localizations": {
         "de": {
@@ -1739,6 +1749,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Auf der Karte zeigen"
+          }
+        }
+      }
+    },
+    "Show playback controls": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiedergabesteuerung zeigen"
           }
         }
       }
@@ -2369,6 +2389,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Teilen einschalten und Link teilen"
+          }
+        }
+      }
+    },
+    "Turn sound off": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton ausschalten"
+          }
+        }
+      }
+    },
+    "Turn sound on": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton einschalten"
           }
         }
       }

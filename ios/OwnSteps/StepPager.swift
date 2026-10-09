@@ -367,7 +367,8 @@ struct StepDetailPager: View {
                                 get: { min(photoIndex[step.id] ?? 0, max(step.photos.count - 1, 0)) },
                                 set: { photoIndex[step.id] = $0 }
                             ),
-                            isCurrent: step.id == stepID,
+                            // Not while the viewer is open over it: its videos play there.
+                            isCurrent: step.id == stepID && viewer == nil,
                             size: size,
                             insets: insets,
                             next: { advance(from: step, by: 1) },
@@ -608,21 +609,17 @@ struct StepStoryPage: View {
         .padding(.bottom, bottomHeight + 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(.rect)
-            .gesture(
-                SpatialTapGesture().onEnded { value in
-                    value.location.x < size.width / 3 ? previous() : next()
-                },
-                isEnabled: photo.mediaType != .video
-            )
-            .overlay {
-                if photo.mediaType == .video { videoEdges }
-            }
+            // A video takes the taps on itself for its sound, all but its edges.
+            .gesture(SpatialTapGesture().onEnded { value in
+                value.location.x < size.width / 3 ? previous() : next()
+            })
             .simultaneousGesture(
                 MagnifyGesture().onEnded { value in
                     if value.magnification > 1.15 && photo.mediaType == .photo { zoom() }
                 }
             )
-            .accessibilityElement()
+            // A video's own actions (sound, playback controls) stay reachable.
+            .accessibilityElement(children: photo.mediaType == .video ? .combine : .ignore)
             .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(offset + 1)")))
             .accessibilityAction(named: Text("Next photo"), next)
             .accessibilityAction(named: Text("Previous photo"), previous)
@@ -631,21 +628,14 @@ struct StepStoryPage: View {
     private func media(_ photo: Components.Schemas.Photo, playing: Bool) -> some View {
         Group {
             if photo.mediaType == .video {
-                VideoPage(account: account, photo: photo, isCurrent: playing)
+                StoryVideo(account: account, photo: photo, isActive: playing) { forward in
+                    forward ? next() : previous()
+                }
             } else {
                 RemoteImage(account: account, photo: photo, variant: .large, contentMode: .fit, fallbacks: [.medium, .thumb])
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    /// Videos bring their own controls in the middle; only the edges move on.
-    private var videoEdges: some View {
-        HStack(spacing: 0) {
-            Color.clear.contentShape(.rect).onTapGesture(perform: previous).frame(width: size.width * 0.15)
-            Color.clear.allowsHitTesting(false)
-            Color.clear.contentShape(.rect).onTapGesture(perform: next).frame(width: size.width * 0.15)
-        }
     }
 
     /// No photos: the text is the picture, as large as it fits.

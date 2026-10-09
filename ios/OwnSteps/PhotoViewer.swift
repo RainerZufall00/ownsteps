@@ -1,4 +1,3 @@
-import AVKit
 import OwnStepsKit
 import SwiftUI
 
@@ -10,8 +9,16 @@ struct PhotoViewer: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var index = 0
+    @State private var captionHeight: CGFloat = 0
 
     var body: some View {
+        // Read before the pages ignore the safe area.
+        GeometryReader { geometry in
+            pages(insets: geometry.safeAreaInsets)
+        }
+    }
+
+    private func pages(insets: EdgeInsets) -> some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
@@ -19,7 +26,10 @@ struct PhotoViewer: View {
                 ForEach(Array(photos.enumerated()), id: \.element.id) { offset, photo in
                     Group {
                         if photo.mediaType == .video {
-                            VideoPage(account: account, photo: photo, isCurrent: offset == index)
+                            StoryVideo(account: account, photo: photo, isActive: offset == index)
+                                // Clear of the bar on top and the caption below.
+                                .padding(.top, insets.top + 60)
+                                .padding(.bottom, max(insets.bottom, captionHeight))
                         } else {
                             ZoomablePhoto(account: account, photo: photo)
                         }
@@ -32,8 +42,7 @@ struct PhotoViewer: View {
         }
         .overlay(alignment: .top) {
             HStack {
-                // Videos bring their own controls in this corner.
-                if photos.count > 1 && photos[safe: index]?.mediaType != .video {
+                if photos.count > 1 {
                     Text("\(index + 1) / \(photos.count)")
                         .font(.subheadline.weight(.semibold).monospacedDigit())
                         .contentTransition(.numericText())
@@ -65,6 +74,8 @@ struct PhotoViewer: View {
                     .padding(.vertical, 12)
                     .glassEffect(.regular, in: .rect(cornerRadius: 22))
                     .padding()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { captionHeight = $0 }
+                    .onDisappear { captionHeight = 0 }
             }
         }
         .environment(\.colorScheme, .dark)
@@ -123,41 +134,6 @@ struct ZoomablePhoto: View {
         baseScale = 1
         offset = .zero
         baseOffset = .zero
-    }
-}
-
-/// Streams the video with the account's token; pauses when paged away.
-struct VideoPage: View {
-    let account: Account
-    let photo: Components.Schemas.Photo
-    let isCurrent: Bool
-
-    @Environment(AppModel.self) private var model
-    @State private var player: AVPlayer?
-
-    var body: some View {
-        ZStack {
-            if let player {
-                VideoPlayer(player: player)
-            } else {
-                RemoteImage(account: account, photo: photo, variant: .medium, contentMode: .fit)
-            }
-        }
-        .onAppear {
-            let request = model.client(for: account).mediaRequest(photoID: photo.id, variant: .video)
-            guard let url = request.url else { return }
-            // AVPlayer has no public way to add headers; this asset option
-            // is the long-standing, widely used one.
-            let asset = AVURLAsset(
-                url: url,
-                options: ["AVURLAssetHTTPHeaderFieldsKey": request.allHTTPHeaderFields ?? [:]]
-            )
-            player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
-        }
-        .onChange(of: isCurrent) { _, current in
-            if !current { player?.pause() }
-        }
-        .onDisappear { player?.pause() }
     }
 }
 
