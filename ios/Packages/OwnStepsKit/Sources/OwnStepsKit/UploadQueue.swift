@@ -400,6 +400,25 @@ public actor UploadQueue {
             .values(in: database)
     }
 
+    /// Everything on its way, across accounts and trips – for the app-wide
+    /// upload indicator.
+    public nonisolated func observeAll() -> AsyncValueObservation<UploadOverview> {
+        ValueObservation
+            .tracking { db in
+                UploadOverview(
+                    unsentSteps: try PendingStep
+                        .filter(Column("server_step_id") == nil)
+                        .order(Column("created_at"))
+                        .fetchAll(db),
+                    uploads: try PendingUpload
+                        .order(Column("created_at"), Column("sort_index"))
+                        .fetchAll(db)
+                )
+            }
+            .removeDuplicates()
+            .values(in: database)
+    }
+
     /// Library assets already uploaded for an account ([D22]).
     public nonisolated func uploadedAssetIDs(accountID: UUID) throws -> Set<String> {
         try database.read { db in

@@ -483,10 +483,30 @@ pinching a photo opens the zoomable viewer, and a step without photos is a
 text story on a colored background. Both pagers move one page per swipe
 and take over the position only once the scroll has settled (`ScrollPosition`
 plus `onScrollPhaseChange`): a position reported while a programmatic
-scroll was still running sent it back to where it started. Videos keep
-their player; only narrow edges of them advance. Actions live in the
+scroll was still running sent it back to where it started. Videos play
+like stories (2026-10-09 – with the system player they looked like
+"standard iOS"): see below. Actions live in the
 toolbar (⋯ menu top right) and behind touch and hold (deleting a comment,
 discarding a step still on the device) instead of inline text buttons.
+
+**Story videos** (`StoryVideo`, the same on Android): a video starts by
+itself, muted and looping, while it's the page in view, and stops when paged
+away, when the viewer opens over it, when its page leaves the screen or the
+app goes to the background. There are no system controls: a tap toggles the
+sound for all videos at once (a speaker flashes briefly), the outer fifths
+still page on and back, a hairline shows the position, and a small button
+opens the system player (`AVPlayerViewController`, on Android a `PlayerView`
+with controls in a dialog) for scrubbing; it shares the player, so the story
+goes on from there. The poster (`medium`) stays until the first frame is
+ready, so there's no black box. The player is only created on the first
+play and dropped when the page leaves the screen. Muted, the audio session
+is `.ambient` and Android asks for no audio focus, so the user's music keeps
+playing; with sound it switches to `.playback` or takes focus, and hands it
+back once nothing plays – Media3 keeps the focus while paused, so the app
+drops it itself. With "Auto-Play Video Previews" off (Android: animations
+removed) the poster waits with a play button. On Android a tall item must
+not be forced to the full width: it then overflowed its room, cropped as a
+photo and – since a `SurfaceView` isn't clipped – a video covered the header.
 
 Two SwiftUI traps from building it: while the step page is pushed, the map
 below it can't present anything, so every sheet and dialog of the trip is
@@ -540,6 +560,28 @@ the account still exists keeps its ID anyway. Only an explicit sign-out in
 the app discards unsent work.
 Editing, deleting and trip changes go straight to the server and need a
 connection (D19 – offline only creates).
+
+**The upload indicator** (`UploadStatusBar`, Android `UploadStatusPill`) is a
+small capsule at the top, centered in the navigation bar's row, above every
+screen: "Sending …", "Uploading 2/5" with a progress ring, "Processing …",
+"No connection", "2 failed", and "Uploaded" for three seconds. A tap opens
+the trip concerned. It's computed by `UploadStatusTracker` (OwnStepsKit and
+`data/UploadStatus.kt`, the same rules on both) from the whole queue, the
+upload progress and whether the device has a network at all:
+- Rows leave the queue once the server has an upload, so "2/5" remembers
+  every upload seen since the queue was last empty; gone ones count as done.
+  It counts finished ones because iOS sends them side by side.
+- "Processing" is an upload whose bytes are all sent while the answer is
+  still out – the server is resizing and storing it, which takes a while for
+  large photos.
+- A step's `lastError` means the server turned it down (an offline try
+  leaves no trace on the step), an upload's means its last try failed and
+  it waits to try again. So a turned-down step counts as failed and holds
+  its media back; "No connection" comes from the network path, or from an
+  upload's failed try. With a network but an unreachable server, a step
+  stays at "Sending …".
+- The capsule is capped in width (176 pt, 200 dp) so it covers at most the
+  title, never the buttons beside it.
 
 Media are prepared at selection time, so saving is instant: photos become
 JPEG through ImageIO with their metadata (EXIF date, GPS – taken from the

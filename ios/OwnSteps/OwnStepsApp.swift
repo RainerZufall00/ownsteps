@@ -104,6 +104,10 @@ struct RootView: View {
                 TripListView()
             }
         }
+        .overlay(alignment: .top) {
+            UploadStatusBar()
+        }
+        .task { await model.watchUploads() }
         .sheet(item: $model.pendingInvite) { invite in
             FollowView(invite: invite)
         }

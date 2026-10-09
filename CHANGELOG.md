@@ -10,6 +10,28 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Added
+
+- Upload status in the apps: a small capsule at the top shows what's on its
+  way, on every screen – sending, "Uploading 2/5" with progress, processing
+  on the server, no connection, failed – and briefly "Uploaded". A tap opens
+  the trip.
+
+### Changed
+
+- Apps: videos play like stories instead of in the system player. They start
+  by themselves, muted and looping, while they're the page in view, and stop
+  when paged away or in the background; a tap switches the sound, a thin bar
+  shows the position, and a small button opens the full player for
+  scrubbing. The poster shows until the first frame, muted videos don't
+  interrupt music, and with video autoplay (iOS) or animations (Android)
+  switched off a play button waits instead.
+
+### Fixed
+
+- Android: tall photos and videos in a step no longer overflow their room –
+  photos could be cropped, and videos covered the day and place at the top.
+
 ### Security
 
 - The warning about a missing `PUBLIC_URL` now also says that the address
