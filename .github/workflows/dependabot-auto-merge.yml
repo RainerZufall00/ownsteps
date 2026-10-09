@@ -1,0 +1,49 @@
+# Turns on auto-merge for Dependabot's patch and minor updates of the server
+# (npm) and the Android app (gradle). GitHub then merges once "CI passed" is
+# green; a red check leaves the PR open. This needs "Allow auto-merge" in the
+# repository settings and the required check on main – without the latter,
+# auto-merge would merge at once, untested.
+#
+# Stays manual: major updates, the Docker base image, GitHub Actions, the
+# Swift packages (see dependabot.yml), and next, react and maplibre-gl, whose
+# breakage the tests don't catch.
+name: Dependabot auto-merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v2
+
+      - name: Enable auto-merge
+        env:
+          ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          NAMES: ${{ steps.meta.outputs.dependency-names }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          case "$ECOSYSTEM" in
+            npm_and_yarn|gradle) ;;
+            *) echo "Ecosystem $ECOSYSTEM is merged by hand."; exit 0 ;;
+          esac
+          # For a group this is the largest update in it.
+          case "$UPDATE_TYPE" in
+            version-update:semver-patch|version-update:semver-minor) ;;
+            *) echo "Update type '$UPDATE_TYPE' is merged by hand."; exit 0 ;;
+          esac
+          # dependency-names is "a, b, c".
+          for name in next react react-dom maplibre-gl; do
+            if [[ ", $NAMES," == *", $name,"* ]]; then
+              echo "$name is merged by hand."; exit 0
+            fi
+          done
+          gh pr merge --auto --squash "$PR_URL"
