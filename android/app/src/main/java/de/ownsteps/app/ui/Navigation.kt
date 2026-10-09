@@ -4,9 +4,16 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import de.ownsteps.app.work.Notifications
 import androidx.compose.runtime.LaunchedEffect
@@ -107,65 +114,69 @@ fun AppNavigation() {
         navController.navigate(Routes.Trip(route.accountId, route.tripId, route.stepId)) { popUpTo(Routes.Trips) }
     }
 
-    NavHost(navController, startDestination = start) {
-        composable<Routes.Welcome> {
-            WelcomeScreen(onServer = { navController.navigate(Routes.SignIn) }, onFollow = { navController.navigate(Routes.Follow()) })
-        }
-        composable<Routes.SignIn> { SignInScreen(onBack = navController::popBackStack) }
-        composable<Routes.Follow> { entry ->
-            FollowScreen(link = entry.toRoute<Routes.Follow>().link, onClose = navController::popBackStack)
-        }
-        composable<Routes.Trips> { TripListScreen(navController) }
-        composable<Routes.Trip> { entry ->
-            val route = entry.toRoute<Routes.Trip>()
-            WithAccount(route.accountId, navController) { TripScreen(it, route.tripId, route.stepId, navController) }
-        }
-        composable<Routes.TripForm> { entry ->
-            val route = entry.toRoute<Routes.TripForm>()
-            WithAccount(route.accountId, navController) { account ->
-                TripFormScreen(account, route.tripId, onClose = navController::popBackStack) { trip ->
-                    // A new trip opens right away, in place of the form.
-                    if (route.tripId == null) navController.navigate(Routes.Trip(account.id, trip.id)) { popUpTo(Routes.Trips) }
-                    else navController.popBackStack()
-                }
+    Box(Modifier.fillMaxSize()) {
+        NavHost(navController, startDestination = start) {
+            composable<Routes.Welcome> {
+                WelcomeScreen(onServer = { navController.navigate(Routes.SignIn) }, onFollow = { navController.navigate(Routes.Follow()) })
             }
-        }
-        composable<Routes.Composer> { entry ->
-            val route = entry.toRoute<Routes.Composer>()
-            WithAccount(route.accountId, navController) {
-                ComposerScreen(it, route.tripId, route.stepId, route.assetIds.split(",").mapNotNull(String::toLongOrNull), onClose = navController::popBackStack)
+            composable<Routes.SignIn> { SignInScreen(onBack = navController::popBackStack) }
+            composable<Routes.Follow> { entry ->
+                FollowScreen(link = entry.toRoute<Routes.Follow>().link, onClose = navController::popBackStack)
             }
-        }
-        composable<Routes.EditStep> { entry ->
-            val route = entry.toRoute<Routes.EditStep>()
-            WithAccount(route.accountId, navController) { EditStepScreen(it, route.tripId, route.stepId, onClose = navController::popBackStack) }
-        }
-        composable<Routes.Readers> { entry ->
-            val route = entry.toRoute<Routes.Readers>()
-            WithAccount(route.accountId, navController) { ReadersScreen(it, route.tripId, onClose = navController::popBackStack) }
-        }
-        composable<Routes.TripSettings> { entry ->
-            val route = entry.toRoute<Routes.TripSettings>()
-            WithAccount(route.accountId, navController) {
-                TripSettingsScreen(it, route.tripId, onClose = navController::popBackStack, onImmich = { navController.navigate(Routes.Immich(it.id)) })
+            composable<Routes.Trips> { TripListScreen(navController) }
+            composable<Routes.Trip> { entry ->
+                val route = entry.toRoute<Routes.Trip>()
+                WithAccount(route.accountId, navController) { TripScreen(it, route.tripId, route.stepId, navController) }
             }
-        }
-        composable<Routes.Suggestions> { entry ->
-            val route = entry.toRoute<Routes.Suggestions>()
-            WithAccount(route.accountId, navController) { account ->
-                SuggestionsScreen(account, route.tripId, onClose = navController::popBackStack) { chosen ->
-                    navController.navigate(Routes.Composer(account.id, route.tripId, assetIds = chosen.joinToString(","))) {
-                        popUpTo<Routes.Suggestions> { inclusive = true }
+            composable<Routes.TripForm> { entry ->
+                val route = entry.toRoute<Routes.TripForm>()
+                WithAccount(route.accountId, navController) { account ->
+                    TripFormScreen(account, route.tripId, onClose = navController::popBackStack) { trip ->
+                        // A new trip opens right away, in place of the form.
+                        if (route.tripId == null) navController.navigate(Routes.Trip(account.id, trip.id)) { popUpTo(Routes.Trips) }
+                        else navController.popBackStack()
                     }
                 }
             }
+            composable<Routes.Composer> { entry ->
+                val route = entry.toRoute<Routes.Composer>()
+                WithAccount(route.accountId, navController) {
+                    ComposerScreen(it, route.tripId, route.stepId, route.assetIds.split(",").mapNotNull(String::toLongOrNull), onClose = navController::popBackStack)
+                }
+            }
+            composable<Routes.EditStep> { entry ->
+                val route = entry.toRoute<Routes.EditStep>()
+                WithAccount(route.accountId, navController) { EditStepScreen(it, route.tripId, route.stepId, onClose = navController::popBackStack) }
+            }
+            composable<Routes.Readers> { entry ->
+                val route = entry.toRoute<Routes.Readers>()
+                WithAccount(route.accountId, navController) { ReadersScreen(it, route.tripId, onClose = navController::popBackStack) }
+            }
+            composable<Routes.TripSettings> { entry ->
+                val route = entry.toRoute<Routes.TripSettings>()
+                WithAccount(route.accountId, navController) {
+                    TripSettingsScreen(it, route.tripId, onClose = navController::popBackStack, onImmich = { navController.navigate(Routes.Immich(it.id)) })
+                }
+            }
+            composable<Routes.Suggestions> { entry ->
+                val route = entry.toRoute<Routes.Suggestions>()
+                WithAccount(route.accountId, navController) { account ->
+                    SuggestionsScreen(account, route.tripId, onClose = navController::popBackStack) { chosen ->
+                        navController.navigate(Routes.Composer(account.id, route.tripId, assetIds = chosen.joinToString(","))) {
+                            popUpTo<Routes.Suggestions> { inclusive = true }
+                        }
+                    }
+                }
+            }
+            composable<Routes.Settings> {
+                SettingsScreen(onClose = navController::popBackStack, onImmich = { navController.navigate(Routes.Immich(it)) })
+            }
+            composable<Routes.Immich> { entry ->
+                WithAccount(entry.toRoute<Routes.Immich>().accountId, navController) { ImmichScreen(it, onClose = navController::popBackStack) }
+            }
         }
-        composable<Routes.Settings> {
-            SettingsScreen(onClose = navController::popBackStack, onImmich = { navController.navigate(Routes.Immich(it)) })
-        }
-        composable<Routes.Immich> { entry ->
-            WithAccount(entry.toRoute<Routes.Immich>().accountId, navController) { ImmichScreen(it, onClose = navController::popBackStack) }
-        }
+        // Centered in the top app bar's row (64 dp), above every screen.
+        UploadStatusPill(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 14.dp))
     }
 }
 

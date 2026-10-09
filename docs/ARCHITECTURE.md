@@ -528,6 +528,28 @@ the app discards unsent work.
 Editing, deleting and trip changes go straight to the server and need a
 connection (D19 – offline only creates).
 
+**The upload indicator** (`UploadStatusBar`, Android `UploadStatusPill`) is a
+small capsule at the top, centered in the navigation bar's row, above every
+screen: "Sending …", "Uploading 2/5" with a progress ring, "Processing …",
+"No connection", "2 failed", and "Uploaded" for three seconds. A tap opens
+the trip concerned. It's computed by `UploadStatusTracker` (OwnStepsKit and
+`data/UploadStatus.kt`, the same rules on both) from the whole queue, the
+upload progress and whether the device has a network at all:
+- Rows leave the queue once the server has an upload, so "2/5" remembers
+  every upload seen since the queue was last empty; gone ones count as done.
+  It counts finished ones because iOS sends them side by side.
+- "Processing" is an upload whose bytes are all sent while the answer is
+  still out – the server is resizing and storing it, which takes a while for
+  large photos.
+- A step's `lastError` means the server turned it down (an offline try
+  leaves no trace on the step), an upload's means its last try failed and
+  it waits to try again. So a turned-down step counts as failed and holds
+  its media back; "No connection" comes from the network path, or from an
+  upload's failed try. With a network but an unreachable server, a step
+  stays at "Sending …".
+- The capsule is capped in width (176 pt, 200 dp) so it covers at most the
+  title, never the buttons beside it.
+
 Media are prepared at selection time, so saving is instant: photos become
 JPEG through ImageIO with their metadata (EXIF date, GPS – taken from the
 library asset when the file has none) and step down in quality until they

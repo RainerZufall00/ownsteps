@@ -10,6 +10,13 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Added
+
+- Upload status in the apps: a small capsule at the top shows what's on its
+  way, on every screen – sending, "Uploading 2/5" with progress, processing
+  on the server, no connection, failed – and briefly "Uploaded". A tap opens
+  the trip.
+
 ## [0.4.0] – 2026-10-09
 
 ### Added

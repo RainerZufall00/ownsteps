@@ -177,6 +177,13 @@
     <string name="channel_news">New steps and comments</string>
     <string name="channel_uploads">Uploads</string>
     <string name="uploads_running">Sending photos and steps …</string>
+    <string name="upload_status_sending">Sending …</string>
+    <string name="upload_status_uploading">Uploading %1$d/%2$d</string>
+    <string name="upload_status_processing">Processing …</string>
+    <string name="upload_status_offline">No connection</string>
+    <string name="upload_status_failed">%1$d failed</string>
+    <string name="upload_status_done">Uploaded</string>
+    <string name="upload_status_open">Open the trip</string>
     <string name="news_new_step">New step: %1$s</string>
     <string name="news_tap_to_read">Tap to read</string>
     <string name="signed_out_by_server">%1$s signed this device out.</string>
