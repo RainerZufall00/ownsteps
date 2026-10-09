@@ -57,7 +57,9 @@ updates:
       - dependency-name: node
         update-types: ["version-update:semver-major"]
 
-  # Actions in .github/workflows
+  # Actions in .github/workflows. They are pinned to commit SHAs with the
+  # version as a comment – a moved tag can't swap the code that pushes the
+  # image to ghcr.io. Dependabot updates SHA and comment together.
   - package-ecosystem: github-actions
     directory: /
     schedule:
