@@ -18,7 +18,7 @@ English (default) and German.
 > **Read `docs/ARCHITECTURE.md` before larger changes.** It covers the data
 > model, the flows and above all the reasoning behind every decision –
 > including what was deliberately *not* built. `docs/ROADMAP.md` holds the
-> agreed plan for the API, the iOS app and the open source release.
+> agreed plan for the API, the apps and the open source release.
 
 ## Layout
 
@@ -31,6 +31,8 @@ English (default) and German.
   signed-in view and the public share link.
 - `src/app/(app)/` – everything behind sign-in, `src/app/s/[token]/` the share
   link, `src/app/api/` the route handlers.
+- `ios/` – the SwiftUI app, `android/` – the Compose app (see their READMEs).
+  Both only use `/api/v1`; a change there must keep both working.
 
 ## Hard rules
 

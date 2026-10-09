@@ -36,7 +36,8 @@ but they apply to everyone. The ones that trip people up most:
 - **Route handlers check access themselves** – nothing above `src/app/api/`
   does it for them. New `/api/v1` routes also go into
   `src/lib/api/openapi.ts`; afterwards run `npm run openapi:export` so the iOS
-  client is generated from the same description (a test checks both).
+  client is generated from the same description (a test checks both) and the
+  Android contract test checks against it.
 - **No text inline in components.** Every visible string goes into both
   `src/lib/i18n/en.ts` and `de.ts`.
 - **Limits live in `src/lib/limits.ts`** and nowhere else.
@@ -47,6 +48,13 @@ See [ios/README.md](ios/README.md) for building. You need Xcode 26. Logic
 that can be tested belongs in the `OwnStepsKit` package
 (`cd ios/Packages/OwnStepsKit && swift test`); new strings go into the String
 Catalogs with an English and a German entry.
+
+## Android app
+
+See [android/README.md](android/README.md) for building. Logic that can be
+tested stays free of Android classes and gets a JVM test
+(`./gradlew :app:testDebugUnitTest`); `./gradlew :app:lintDebug` stays clean.
+New strings go into `res/values/strings.xml` and `res/values-de/strings.xml`.
 
 ## Pull requests
 
@@ -64,7 +72,7 @@ Catalogs with an English and a German entry.
 ## License
 
 The server and web UI are licensed under the
-[GNU AGPL v3](LICENSE), the iOS app (everything under `ios/`) under the
+[GNU AGPL v3](LICENSE), the apps (everything under `ios/` and `android/`) under the
 [Mozilla Public License 2.0](ios/LICENSE). By contributing you agree that
 your contribution is licensed under the license of the part it changes.
 There's no contributor license agreement.
