@@ -10,6 +10,7 @@ import {
   type GeoJSONSource,
   type StyleSpecification,
 } from "maplibre-gl";
+import type { FeatureCollection } from "geojson";
 import { useEffect, useRef } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useI18n } from "@/lib/i18n/client";
@@ -52,7 +53,7 @@ type Props = {
   focusPoint?: { lat: number; lon: number; key: number } | null;
 };
 
-function routeGeoJson(steps: MapStep[]): GeoJSON.FeatureCollection {
+function routeGeoJson(steps: MapStep[]): FeatureCollection {
   return {
     type: "FeatureCollection",
     features:
