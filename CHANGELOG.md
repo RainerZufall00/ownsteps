@@ -29,6 +29,7 @@ where it isn't obvious.
 
 ### Fixed
 
+- iOS: tapping a notification crashed the app instead of opening the step.
 - Android: tall photos and videos in a step no longer overflow their room –
   photos could be cropped, and videos covered the day and place at the top.
 
