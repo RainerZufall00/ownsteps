@@ -1,6 +1,8 @@
 package de.ownsteps.app
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Build
 import android.provider.Settings
 import de.ownsteps.app.api.ApiError
@@ -23,6 +25,8 @@ import de.ownsteps.app.data.TokenStore
 import de.ownsteps.app.data.TripCache
 import de.ownsteps.app.data.TripNews
 import de.ownsteps.app.data.UploadQueue
+import de.ownsteps.app.data.UploadStatus
+import de.ownsteps.app.data.UploadStatusTracker
 import de.ownsteps.app.media.Library
 import de.ownsteps.app.media.LibraryItem
 import de.ownsteps.app.media.MediaPreparation
@@ -31,7 +35,16 @@ import de.ownsteps.app.work.UploadWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -98,6 +111,38 @@ class AppModel(private val context: Context) {
     val oidc = MutableStateFlow<OidcState>(OidcState.Idle)
     /** Bumped when a trip changed in a way its card shows; the trip list loads again. */
     val tripListRevision = MutableStateFlow(0)
+
+    private val uploadStatusState = MutableStateFlow<UploadStatus?>(null)
+    /** What the app-wide upload indicator shows; null hides it. */
+    val uploadStatus: StateFlow<UploadStatus?> = uploadStatusState.asStateFlow()
+
+    init {
+        val tracker = UploadStatusTracker()
+        scope.launch {
+            combine(uploads.observeAll(), uploads.progress, online(), ::Triple).collectLatest { (overview, progress, online) ->
+                fun refresh() = tracker.status(overview, progress, online, System.currentTimeMillis())
+                val status = refresh()
+                uploadStatusState.value = status
+                if (status?.phase == UploadStatus.Phase.FINISHED) {
+                    // Takes "finished" down again once its time is up.
+                    delay(UploadStatusTracker.FINISHED_MS)
+                    uploadStatusState.value = refresh()
+                }
+            }
+        }
+    }
+
+    /** Whether the device has a network at all: with none, the indicator says so instead of looking stuck. */
+    private fun online(): Flow<Boolean> = callbackFlow {
+        val connectivity = context.getSystemService(ConnectivityManager::class.java)
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { trySend(true) }
+            override fun onLost(network: Network) { trySend(false) }
+        }
+        trySend(connectivity.activeNetwork != null)
+        connectivity.registerDefaultNetworkCallback(callback)
+        awaitClose { connectivity.unregisterNetworkCallback(callback) }
+    }.distinctUntilChanged()
 
     val appVersion: String = BuildConfig.VERSION_NAME
 

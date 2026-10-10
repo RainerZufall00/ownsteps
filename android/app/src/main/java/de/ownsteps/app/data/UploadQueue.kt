@@ -288,6 +288,10 @@ class UploadQueue(
     fun observe(accountId: String, tripId: Long): Flow<UploadSnapshot> =
         combine(dao.observeSteps(accountId, tripId), dao.observeUploads(accountId, tripId), ::snapshot).distinctUntilChanged()
 
+    /** Everything on its way, across accounts and trips – for the app-wide upload indicator. */
+    fun observeAll(): Flow<UploadOverview> =
+        combine(dao.observeUnsentSteps(), dao.observeAllUploads(), ::UploadOverview).distinctUntilChanged()
+
     private fun removeFiles(upload: PendingUpload) =
         listOfNotNull(upload.fileName, upload.posterName, upload.thumbnailName).forEach { File(directory, it).delete() }
 

@@ -29,16 +29,25 @@ enum ShareTarget: Identifiable, Hashable {
 enum ShareSheet {
     @MainActor
     static func present(_ url: URL) {
-        let scene = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }
-        guard var top = scene?.keyWindow?.rootViewController else { return }
-        while let presented = top.presentedViewController { top = presented }
+        guard let top = UIApplication.shared.topViewController else { return }
         let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
         // iPad: anchored at the top right, where the menu was.
         controller.popoverPresentationController?.sourceView = top.view
         controller.popoverPresentationController?.sourceRect = CGRect(x: top.view.bounds.maxX - 60, y: 60, width: 1, height: 1)
         top.present(controller, animated: true)
+    }
+}
+
+extension UIApplication {
+    /// The controller on top in the active scene, to present UIKit's own
+    /// screens from.
+    var topViewController: UIViewController? {
+        let scene = connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+        guard var top = scene?.keyWindow?.rootViewController else { return nil }
+        while let presented = top.presentedViewController { top = presented }
+        return top
     }
 }
 

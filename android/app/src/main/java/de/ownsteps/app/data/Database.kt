@@ -223,6 +223,12 @@ interface QueueDao {
     @Query("SELECT * FROM pending_upload WHERE accountId = :accountId AND tripId = :tripId ORDER BY sortIndex")
     fun observeUploads(accountId: String, tripId: Long): Flow<List<PendingUpload>>
 
+    @Query("SELECT * FROM pending_step WHERE serverStepId IS NULL ORDER BY createdAt")
+    fun observeUnsentSteps(): Flow<List<PendingStep>>
+
+    @Query("SELECT * FROM pending_upload ORDER BY createdAt, sortIndex")
+    fun observeAllUploads(): Flow<List<PendingUpload>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun markUploaded(asset: UploadedAsset)
 

@@ -62,15 +62,23 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     }
 
     /// A tapped notification opens its trip at the step.
+    ///
+    /// The completion-handler form, finished on the main thread. With the
+    /// `async` form UIKit got its handler back on a background thread and
+    /// aborted the app: tapping a notification crashed instead of opening it.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
         // Plain values across the actor boundary; userInfo isn't Sendable.
         let info = response.notification.request.content.userInfo
         let (account, trip, step) = (info["accountID"] as? String, info["tripID"] as? Int, info["stepID"] as? Int)
-        await MainActor.run {
+        // UIKit's handler isn't marked Sendable; it's called on the main actor, where UIKit expects it.
+        nonisolated(unsafe) let done = completionHandler
+        Task { @MainActor in
             model.openTrip = Notifications.route(accountID: account, tripID: trip, stepID: step)
+            done()
         }
     }
 
@@ -104,6 +112,10 @@ struct RootView: View {
                 TripListView()
             }
         }
+        .overlay(alignment: .top) {
+            UploadStatusBar()
+        }
+        .task { await model.watchUploads() }
         .sheet(item: $model.pendingInvite) { invite in
             FollowView(invite: invite)
         }

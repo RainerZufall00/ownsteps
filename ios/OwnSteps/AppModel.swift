@@ -1,5 +1,6 @@
 import AuthenticationServices
 import Foundation
+import Network
 import OwnStepsKit
 import SwiftUI
 import UIKit
@@ -34,7 +35,21 @@ final class AppModel {
     /// The app's own upload session plus those the Share Extension started.
     let uploaders: UploaderGroup
     /// Progress of running uploads by upload ID, 0…1. Only in memory.
-    private(set) var uploadProgress: [String: Double] = [:]
+    private(set) var uploadProgress: [String: Double] = [:] {
+        didSet { refreshUploadStatus() }
+    }
+    /// What the app-wide upload indicator shows; nil hides it.
+    private(set) var uploadStatus: UploadStatus?
+    private var uploadOverview = UploadOverview()
+    private var uploadStatusTracker = UploadStatusTracker()
+    /// Whether the device has a network path at all: with none, the
+    /// indicator says so instead of looking stuck.
+    private var isOnline = true {
+        didSet { if isOnline != oldValue { refreshUploadStatus() } }
+    }
+    private let pathMonitor = NWPathMonitor()
+    /// Takes "finished" down again once its time is up.
+    private var uploadStatusExpiry: Task<Void, Never>?
     /// App group shared with the Share Extension; nil if the build has none.
     let shared = SharedContainer.current
     /// Done once the Share Extension's submissions are in the queue and the
@@ -98,6 +113,11 @@ final class AppModel {
         uploaders.onProgress = { [weak self] id, fraction in
             Task { @MainActor in self?.uploadProgress[id] = fraction }
         }
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            let online = path.status == .satisfied
+            Task { @MainActor in self?.isOnline = online }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "ownsteps.network-path"))
         queueReady = Task {
             if let inbox { await uploads.importInbox(inbox) }
             uploaders.main.activate()
@@ -116,6 +136,31 @@ final class AppModel {
             for id in await uploads.shareSessionIDs() { uploaders.uploader(for: id) }
             await uploads.reconcile()
             await uploads.process()
+        }
+    }
+
+    /// Follows the whole queue for the upload indicator, as long as the
+    /// window is there.
+    func watchUploads() async {
+        do {
+            for try await overview in uploads.observeAll() {
+                uploadOverview = overview
+                refreshUploadStatus()
+            }
+        } catch {
+            // The indicator is a convenience; the cards still show the state.
+        }
+    }
+
+    private func refreshUploadStatus() {
+        let status = uploadStatusTracker.status(for: uploadOverview, progress: uploadProgress, online: isOnline)
+        if status != uploadStatus { uploadStatus = status }
+        uploadStatusExpiry?.cancel()
+        guard status?.phase == .finished else { return }
+        uploadStatusExpiry = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(UploadStatusTracker.finishedDuration))
+            guard !Task.isCancelled else { return }
+            self?.refreshUploadStatus()
         }
     }
 

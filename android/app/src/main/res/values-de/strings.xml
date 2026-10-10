@@ -42,6 +42,10 @@
     <string name="save">Sichern</string>
     <string name="close">Schließen</string>
     <string name="back">Zurück</string>
+    <string name="play_video">Video abspielen</string>
+    <string name="sound_on">Ton einschalten</string>
+    <string name="sound_off">Ton ausschalten</string>
+    <string name="show_playback_controls">Wiedergabesteuerung zeigen</string>
     <string name="delete">Löschen</string>
     <string name="remove">Entfernen</string>
     <string name="retry">Erneut versuchen</string>
@@ -176,6 +180,13 @@
     <string name="channel_news">Neue Beiträge und Kommentare</string>
     <string name="channel_uploads">Uploads</string>
     <string name="uploads_running">Fotos und Beiträge werden gesendet …</string>
+    <string name="upload_status_sending">Wird gesendet …</string>
+    <string name="upload_status_uploading">Hochladen %1$d/%2$d</string>
+    <string name="upload_status_processing">Wird verarbeitet …</string>
+    <string name="upload_status_offline">Keine Verbindung</string>
+    <string name="upload_status_failed">%1$d fehlgeschlagen</string>
+    <string name="upload_status_done">Hochgeladen</string>
+    <string name="upload_status_open">Reise öffnen</string>
     <string name="news_new_step">Neuer Beitrag: %1$s</string>
     <string name="news_tap_to_read">Antippen zum Lesen</string>
     <string name="signed_out_by_server">%1$s hat dieses Gerät abgemeldet.</string>

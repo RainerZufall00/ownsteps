@@ -67,6 +67,16 @@
         }
       }
     },
+    "%lld failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fehlgeschlagen"
+          }
+        }
+      }
+    },
     "%lld photos": {
       "localizations": {
         "en": {
@@ -1070,6 +1080,16 @@
         }
       }
     },
+    "No connection": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Verbindung"
+          }
+        }
+      }
+    },
     "No trips yet": {
       "localizations": {
         "de": {
@@ -1220,6 +1240,16 @@
         }
       }
     },
+    "Opens the trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet die Reise"
+          }
+        }
+      }
+    },
     "Optional. Without dates, the trip's steps set the period; day 1 is the start date.": {
       "localizations": {
         "de": {
@@ -1343,6 +1373,16 @@
         }
       }
     },
+    "Play video": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video abspielen"
+          }
+        }
+      }
+    },
     "Please enter email and password.": {
       "localizations": {
         "de": {
@@ -1409,6 +1449,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vorherige Station"
+          }
+        }
+      }
+    },
+    "Processing …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird verarbeitet …"
           }
         }
       }
@@ -1633,6 +1683,16 @@
         }
       }
     },
+    "Sending …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird gesendet …"
+          }
+        }
+      }
+    },
     "Server": {
       "localizations": {
         "de": {
@@ -1739,6 +1799,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Auf der Karte zeigen"
+          }
+        }
+      }
+    },
+    "Show playback controls": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiedergabesteuerung zeigen"
           }
         }
       }
@@ -2373,12 +2443,42 @@
         }
       }
     },
+    "Turn sound off": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton ausschalten"
+          }
+        }
+      }
+    },
+    "Turn sound on": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ton einschalten"
+          }
+        }
+      }
+    },
     "Upload failed (%@).": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Hochladen fehlgeschlagen (%@)."
+          }
+        }
+      }
+    },
+    "Uploaded": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hochgeladen"
           }
         }
       }
@@ -2419,6 +2519,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Uploading %lld/%lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hochladen %1$lld/%2$lld"
           }
         }
       }
