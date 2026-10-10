@@ -113,8 +113,6 @@ export const en = {
   },
 
   timeline: {
-    timeline: "Timeline",
-    map: "Map",
     emptyTitle: "No steps yet",
     emptyAuthor:
       "Upload your first photo – OwnSteps takes place and time straight from the image.",
@@ -128,6 +126,35 @@ export const en = {
     views: { one: "{count} view", other: "{count} views" },
     viewsHint:
       "Readers who have seen this step, each counted once – in the app and through the share link. Only authors see this.",
+  },
+
+  tripScreen: {
+    about: "About this trip",
+    wholeTrip: "Show the whole trip",
+    steps: "Steps",
+    progress: "Trip progress",
+    openStep: "Opens the step",
+  },
+
+  story: {
+    label: "Steps as stories",
+    close: "Close",
+    previousStep: "Previous step",
+    nextStep: "Next step",
+    previousPhoto: "Previous photo",
+    nextPhoto: "Next photo",
+    photo: "Photo {index} of {count}",
+    video: "Video {index} of {count}",
+    more: "more",
+    readMore: "Read the whole text",
+    comments: "Comments",
+    commentCount: { one: "{count} comment", other: "{count} comments" },
+    noComments: "No comments yet.",
+    showOnMap: "Show on map",
+    fullScreen: "Full screen",
+    soundOn: "Turn sound on",
+    soundOff: "Turn sound off",
+    play: "Play video",
   },
 
   lightbox: {

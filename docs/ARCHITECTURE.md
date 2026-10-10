@@ -896,9 +896,11 @@ highlighting. The active step only grows, so the photo stands out, not a
 signal color. Other styles can be set via `MAP_STYLE`, e.g. `satellite`,
 `outdoor-v2` or `streets-v2`.
 
-Over the map, `MapTimelineStrip` provides a strip for paging through the
-steps; it snaps to each entry and moves the map along. Tapping the already
-active step jumps to it in the timeline.
+On the desktop, `MapTimelineStrip` provides a strip over the map for paging
+through the steps; it snaps to each entry and moves the map along. Tapping
+the already active step jumps to it in the timeline. Phones and tablets have
+their own, larger cards under the map instead (section 8, *Phones and
+tablets*).
 
 **The strip keeps its distance from the bottom edge of the screen** (2.5 rem
 plus `safe-area-inset-bottom`). If it stuck to the bottom, it would sit in the
@@ -908,12 +910,21 @@ instead of the strip. For the same reason the cards are big enough to hit
 width must adjust the padding `px-[calc(50%-…)]` too: it centers the snap
 points and is exactly half the card width.
 
-**In map mode the height is measured, not calculated.** On phones the map
+**On phones and tablets the height is measured, not calculated.** The map
 should reach down to the bottom edge; how much space sits above it depends on
 the view – the signed-in one has a header bar, the share link doesn't. A fixed
 calculation like `100dvh - 11rem` shrank the map to a third in the visitor
-view. Now `getBoundingClientRect().top` provides the starting point, and the
-header steps back entirely on narrow screens.
+view. `MobileTripView` therefore measures its own top once and takes
+`100dvh` minus that.
+
+**What floats over the map is passed in as `padding`.** `TripMap` hands it to
+`map.setPadding()`, so fitting the route and easing to a step frame them in
+what the cards and the top bar leave free – not behind the cards. `fitKey`
+frames the whole route again on request ("show the whole trip"), and
+`controls={false}` drops the zoom and location buttons, which would sit under
+the top bar on phones (pinching zooms anyway). MapLibre's own stylesheet pins
+the attribution to the bottom corner; `MobileTripView` lifts it above the
+cards with an `!important` utility.
 
 In `TripMap.tsx`:
 
@@ -922,12 +933,15 @@ In `TripMap.tsx`:
 - The **route line** is a style layer and needs a loaded style. `syncRoute`
   therefore runs immediately *and* on `load` *and* on `styledata` – the
   function is deliberately idempotent.
-- A `ResizeObserver` calls `map.resize()`, because the container toggles
-  between visible and hidden on phones.
+- A `ResizeObserver` calls `map.resize()`, because the container changes
+  size (rotation, a window crossing the desktop breakpoint).
 - **The camera only follows when the points have changed** (comparing a
   signature of IDs and coordinates). Without that, every keystroke in the
   editor reset the view. With `autoFit={false}` it only fits once at all –
-  whoever is searching for a place there decides the map section.
+  whoever is searching for a place there decides the map section. The
+  signature is reset when the map is removed: React's development build
+  mounts every effect twice, and the second map otherwise kept the first
+  one's signature and was never framed.
 - `map.on("error", …)` logs style and tile errors MapLibre would otherwise
   swallow silently.
 
@@ -936,10 +950,17 @@ In `TripMap.tsx`:
 ## 8. Views: timeline, grid, fullscreen
 
 `TripView` is the **only** reading view: the signed-in trip page and the share
-link render the same component and differ only in two props – `header` (the
-page contributes its header) and `editable` (shows the edit links). What
-visitors see is thereby necessarily the same as the signed-in view; a second
-view could drift apart.
+link render the same component and differ only in their props – `header` (the
+page contributes its header), `editable` (shows the edit links) and
+`mobileActions` (the author's "+"). What visitors see is thereby necessarily
+the same as the signed-in view; a second view could drift apart.
+
+It has two layouts, split at `xl` (1280 px): the **desktop** with the timeline
+beside the map, and **phones and tablets** with the app's layout
+(`MobileTripView`, see below). Both are rendered and CSS shows one of them,
+because the server doesn't know the screen and guessing would flash the wrong
+layout. `useMediaQuery` (`null` until hydrated) then decides which of them
+mounts its map and the story – there's never a second MapLibre instance.
 
 The boundary to the client is drawn by `toViewStep()` in
 `src/lib/view-types.ts`. It deliberately only returns what's shown: IDs,
@@ -965,20 +986,79 @@ On the authors' page every step shows how many readers have seen it
 a private trip doesn't say "0 views" everywhere. On the share page the same
 component reports what the visitor read (`useStepViews`).
 
-The "timeline / map" toggle **deliberately doesn't stick** – a bar scrolling
-along above the timeline feels restless.
-
 **Side by side only from `xl` (1280 px), not from `lg`.** An iPad in landscape
 measures about 1194 px; with `lg` that left 628 px for the timeline and 460 px
-for the map, and both felt cramped. Up to `xl` each view therefore gets the
-full width via the toggle; from `xl` they sit side by side (map 520 px,
-`sticky`) in a frame up to 1280 px wide.
+for the map, and both felt cramped. From `xl` they sit side by side (map
+520 px, `sticky`) in a frame up to 1280 px wide; below that, phones and
+tablets get the app's layout. (Until 2026-10-10 they got a "timeline / map"
+toggle instead – see [E20].)
 
-Below that, the mode decides the frame's width: the timeline gets a reading
-column with `max-w-3xl` – stretched over the full 1150 px of a tablet the
-lines would be unreadable – while the map gets `max-w-6xl` and thus
-everything. That's why the width depends on the `mobileView` state and not on
-breakpoints alone.
+### Phones and tablets (`MobileTripView`)
+
+The trip screen of the apps (D29), for the share link and the authors' page
+alike ([E20]):
+
+- **The map fills the screen.** On top floats a capsule with the trip – the
+  newest step's first photo, title, date range and step count; tapping it
+  frames the whole route again. Beside it, "i" opens the page's `header` in a
+  sheet (title, summary, language switch, "Open in the app"; for authors also
+  the way to the trip settings), and the author's "+" starts a new step.
+- **Below the map, the steps are cards side by side,** oldest on the left
+  like the route, opening on the newest ([E13]). Each card is most of the
+  screen wide (88 vw, at most 440 px), so the neighbors peek in; the strip
+  snaps one card at a time, and the card in the middle moves the map there.
+  A tapped marker brings its card. Steps without a place get a card too –
+  they just don't move the map.
+- **Above the cards runs the day bar** (`DayTrack`): filled up to the step in
+  view, "Day n" riding on its end, placed by time between the trip's start
+  and its end date (or last step). Dragging scrubs through the steps. It's a
+  transparent `<input type="range">` underneath, so keyboards and screen
+  readers get a real slider; the arrow keys move one step, not one
+  thousandth of the bar.
+- **A tapped card opens the step as a story** (`StepStory`) – a modal
+  `<dialog>`, so focus stays inside, Escape closes it and the page behind is
+  inert. Steps are stacked like reels and page up and down, one per swipe
+  (`scroll-snap-stop: always`); a step's photos page sideways, and a tap on
+  the left third goes back, elsewhere on. Day and place sit at the top,
+  progress bars per photo above them, the text (three lines, "… more" opens
+  the whole of it in a sheet) and the comment, map and full-screen buttons
+  at the bottom; the photo sits between them with its caption right under
+  it, the blurred photo behind everything. A step without photos becomes a
+  text story. Only the step in view and its neighbors are rendered.
+- **Videos play like in the apps' stories** (`StoryVideo`): muted and
+  looping while they're the page in view, paused when paged away or when
+  the tab is hidden, and from the start when coming back. A tap switches the
+  sound for the whole story – set inside the tap, since Safari only allows
+  sound there; if the browser still refuses, it falls back to muted. Taps on
+  the outer fifths page instead. With `prefers-reduced-motion` a play button
+  waits instead of autoplay. "Full screen" opens the `Lightbox` with the
+  browser's controls for scrubbing (and zoom for photos).
+- **The URL follows the story.** Opening a card adds a history entry
+  (`#step-123`), so the browser's back button closes the story instead of
+  leaving the trip; paging replaces the hash, and closing returns the cards
+  and the map to the step last shown and focus to its card. A link with
+  `#step-123` – the apps share those – opens straight into that story.
+- **Comments open in a sheet** (`Sheet`, also a modal `<dialog>`), with the
+  same `CommentSection` as on the desktop. React passes a `<dialog>`'s
+  `cancel` and `close` events up its own tree even though the DOM events
+  don't bubble, so both components check `event.target` – otherwise Escape
+  in a sheet closed the story under it as well.
+- **Views count like in the app** (`useShownStepView`): a reader's step
+  counts once it stayed for a second as the card in the middle or as the
+  story in view. Paging past doesn't count.
+- **Keyboard:** Tab reaches the cards (focusing one brings it to the middle),
+  the day bar, the capsule and "i". In the story, ↑/↓ and Page Up/Down change
+  the step, ←/→ the photo; the arrow buttons for both are visible where a
+  mouse can hover and screen-reader-only on touch screens (`touch-sr-only`).
+  Keys typed into a comment stay in the comment.
+- **Motion:** the opening fade and the sheets' slide are switched off by the
+  global `prefers-reduced-motion` rule, scrolling to a step or photo jumps
+  instead of gliding, and MapLibre skips its camera animations by itself.
+
+What it deliberately leaves out: the grid of a step's photos (the story is
+the photo view), the author's per-step "Edit" lives in the story's bottom
+row instead of under the text, and without JavaScript the cards do nothing –
+the share page needs scripts for the map anyway.
 
 ### Grid (`PhotoGrid`)
 
@@ -1387,6 +1467,41 @@ map and place names without anyone signing up anywhere.
 - The album's still map keeps OpenStreetMap's raster tiles without a key
   (OpenFreeMap has no raster tiles) – a dozen tiles once per export.
 
+### [E20] Phones and tablets get the app's trip screen
+
+Readers mostly open the share link on a phone, often without the app. Until
+2026-10-10 the web gave them a "timeline / map" toggle: a long scrolling
+page with the map hidden one tap away. The apps had moved on to D29 – the map
+fills the screen, steps are cards beneath it, a tapped card opens a story –
+and that's what readers know from Polarsteps too. So below `xl` the web now
+uses the same layout (section 8, *Phones and tablets*), decided on
+2026-10-10 from three mockups (cards under the map; a bottom sheet with the
+old timeline; a cover page first).
+
+- **Steps page up and down in the story, photos sideways** – like the iOS
+  app. Sideways through everything was simpler, but readers slipped from the
+  last photo into the next day without noticing, and the two gestures
+  competed.
+- **The authors' trip page gets it as well.** Authors on a phone read their
+  own trip like their readers do and see the same thing; a second phone
+  layout only for them would drift apart from `TripView` again. What they
+  need beyond reading has a place: "+" next to "i", "Edit" and the view
+  count in the story's bottom row, the trip settings behind "i". Writing at
+  length happens at a computer or in the app anyway.
+- **The desktop stays as it was.** At a desk the timeline beside the map is
+  the better reading view, and editing several steps is easier with all of
+  them in one column.
+- **Both layouts are in the HTML,** CSS picks one. The server can't know the
+  screen, and deciding after hydration would show the wrong layout first.
+  The cost is a hidden copy of the cards (or the timeline) per page – text
+  and lazy images, which the hidden copy never loads – while the map, the
+  observers and the story only run in the visible layout.
+- **Not built:** a bottom sheet that pulls the old timeline over the map
+  (mockup B) – D29 dropped the vertical timeline in the apps on purpose; and
+  a cover page before the map (mockup C), which puts a tap between readers
+  and what's new. A home-screen web app with Web Push for readers is a
+  separate step; this layout is meant to make it feel at home there.
+
 ---
 
 ## 12. Pitfalls
@@ -1618,10 +1733,27 @@ Verified (production build, real HTTP requests):
   a rejected share password returns the server's message in the active
   language; date ranges, weekdays and counts change with it; the share
   header with the switch fits at 375 px
-- Layout at four screen sizes: phone (375 × 812), tablet portrait
-  (834 × 1194) and landscape (1194 × 834) show the toggle, the timeline stays
-  at 768 px, the map takes the full width (343 / 802 / 1120 px); from 1280 px
-  both sit side by side (696 px and 520 px), nowhere a horizontal scrollbar
+- Layout at four screen sizes (before [E20]): phone (375 × 812), tablet
+  portrait (834 × 1194) and landscape (1194 × 834) show the toggle, the
+  timeline stays at 768 px, the map takes the full width (343 / 802 /
+  1120 px); from 1280 px both sit side by side (696 px and 520 px), nowhere a
+  horizontal scrollbar
+- Phone and tablet layout ([E20]), in the browser pane against the dev server
+  and a production build (2026-10-10), with a seeded trip of six steps
+  (photos, a video, a text-only step, a step without a place): at 375 × 812,
+  768 × 1024 and 1194 × 834 the map frames the route above the cards, the
+  newest card sits in the middle, swiping a card moves the day bar, the
+  active marker and the map; a tapped card opens its story, a tap on the
+  right goes to the next photo, ↓ to the next step, the hash follows and
+  the back button closes the story. The video plays muted on its page and
+  a tap switches the sound on; with reduced motion (stubbed `matchMedia`) it
+  waits with a play button. Comments sheet: a guest comment arrives and the
+  count in the story updates; Escape closes the sheet, a second Escape the
+  story, and focus returns to the card. `#step-1` opens straight into the
+  story. View reports leave only for steps shown for a second (fetch
+  intercepted). The authors' page shows the same layout under its bar with
+  "+" and view counts, light and dark; from 1440 px the desktop is
+  unchanged and runs one map. No CSP errors in the production build
 - Day strip: the cards end 57 px above the bottom screen edge (previously
   16 px) and still snap centered – deviation 1 px
 - OIDC against a self-built provider (discovery, PKCE, signed `id_token`,
@@ -1675,6 +1807,12 @@ Not verified – be careful when building on these:
   run in the iPhone simulator against the dev server (2026-10-07/08) and
   installed on an iPhone and an iPad; swipe feel and scrolling are only
   as good as synthetic gestures can tell.
+- **The web's phone layout never ran on a phone** ([E20]). Checked in
+  Chromium with emulated sizes only: real swipes (snap feel, a vertical
+  swipe starting on the photo strip), iOS Safari's toolbars and safe areas,
+  sound after a tap on iOS, and VoiceOver/TalkBack weren't tried. The
+  browser pane was hidden, so MapLibre and the videos only advanced on
+  screenshots – smooth scrolling and playback weren't watched live.
 - **The Immich export never ran against a real Immich** – only against a
   fake in the tests and Immich's published API descriptions ([E18]).
 - Automated tests (`npm test`) cover access control, the image pipeline, sign-in basics, the `/api/v1` routes and the exports – not the web UI.
