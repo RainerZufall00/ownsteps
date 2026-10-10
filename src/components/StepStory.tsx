@@ -386,14 +386,18 @@ function StoryPage({
         className="relative flex h-full flex-col"
         style={
           {
-            paddingTop: "env(safe-area-inset-top)",
-            paddingBottom: "env(safe-area-inset-bottom)",
             // Text keeps a reading width on tablets; the photos take it all.
             "--story-gutter": "max(1.25rem, calc(50% - 24rem))",
           } as React.CSSProperties
         }
       >
-        <header className="bg-linear-to-b from-black/60 to-transparent px-(--story-gutter) pb-3 pt-3">
+        {/* The safe areas are padding of header and footer, not of the page:
+            their shades must reach the screen's edges, or a lighter strip
+            stays above the home indicator. */}
+        <header
+          className="bg-linear-to-b from-black/60 to-transparent px-(--story-gutter) pb-3"
+          style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
+        >
           {step.photos.length > 1 && (
             <div aria-hidden="true" className="mb-3 mr-12 flex gap-1">
               {step.photos.map((item, index) => (
@@ -525,7 +529,10 @@ function StoryPage({
           )}
         </div>
 
-        <footer className="bg-linear-to-t from-black/50 to-transparent px-(--story-gutter) pb-4 pt-3">
+        <footer
+          className="bg-linear-to-t from-black/50 to-transparent px-(--story-gutter) pt-3"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}
+        >
           {hasPhotos && step.body && (
             <ClampedText
               text={step.body}

@@ -42,7 +42,10 @@ where it isn't obvious.
 - A shared trip added to the home screen opened the authors' sign-in
   instead of the trip. Each share link now has its own web app manifest
   that starts at the link and carries the trip's name ("Protected trip"
-  while behind a password, which the home-screen app asks for once).
+  while behind a password, which the home-screen app asks for once). The
+  label under the icon is the whole title; the home screen shortens it.
+- Web, step stories on phones: the shade behind the buttons stopped above
+  the home indicator and left a lighter strip at the bottom.
 - iOS: tapping a notification crashed the app instead of opening the step.
 - Android: tall photos and videos in a step no longer overflow their room –
   photos could be cropped, and videos covered the day and place at the top.

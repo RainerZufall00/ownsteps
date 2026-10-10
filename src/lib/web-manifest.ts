@@ -24,12 +24,17 @@ export const MANIFEST_BASE = {
   ],
 } satisfies MetadataRoute.Manifest;
 
-/** Roughly what fits under an icon on a home screen before it's cut off. */
-const SHORT_NAME_LENGTH = 12;
+/**
+ * Generous on purpose: iOS and Android show `short_name` under the icon and
+ * cut it there with an ellipsis themselves. "Über die Alp…" says more than a
+ * label we cut short to "Über die". Only really long titles are trimmed.
+ */
+const SHORT_NAME_LENGTH = 30;
 
 /**
- * A home-screen label from a trip title: whole words as long as they fit,
- * the first word cut with an ellipsis if even that one is too long.
+ * A home-screen label from a trip title: the title if it isn't really long,
+ * else whole words as long as they fit, the first word cut with an ellipsis
+ * if even that one is too long.
  */
 export function shortName(title: string, max = SHORT_NAME_LENGTH) {
   const trimmed = title.trim().replace(/\s+/g, " ");

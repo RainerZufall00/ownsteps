@@ -40,7 +40,7 @@ describe("share-link manifest", () => {
     expect(manifest.scope).toBe(`/s/${trip.shareToken}`);
     expect(manifest.id).toBe(`/s/${trip.shareToken}`);
     expect(manifest.name).toBe("Norway in winter");
-    expect(manifest.short_name).toBe("Norway in");
+    expect(manifest.short_name).toBe("Norway in winter");
     expect(manifest.display).toBe("standalone");
     expect(manifest.icons.length).toBeGreaterThan(0);
   });
@@ -99,17 +99,18 @@ describe("share page metadata", () => {
 });
 
 describe("shortName", () => {
-  it("keeps short titles", () => {
+  it("keeps titles whole – the home screen cuts them itself", () => {
     expect(shortName("Norway")).toBe("Norway");
     expect(shortName("  Two  words ")).toBe("Two words");
+    expect(shortName("Über die Alpen")).toBe("Über die Alpen");
+    expect(shortName("Iceland, Faroe and Shetland")).toBe("Iceland, Faroe and Shetland");
   });
 
-  it("cuts at a word boundary", () => {
-    expect(shortName("Iceland, Faroe and Shetland")).toBe("Iceland");
-    expect(shortName("Road trip through Chile")).toBe("Road trip");
+  it("cuts really long titles at a word boundary", () => {
+    expect(shortName("Road trip through Chile and Argentina in winter")).toBe("Road trip through Chile and");
   });
 
   it("cuts a single long word with an ellipsis", () => {
-    expect(shortName("Donaudampfschifffahrt")).toBe("Donaudampfs…");
+    expect(shortName("Donaudampfschifffahrtsgesellschaftskapitän")).toBe("Donaudampfschifffahrtsgesells…");
   });
 });
