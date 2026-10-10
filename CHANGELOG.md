@@ -41,9 +41,8 @@ where it isn't obvious.
 
 - A shared trip added to the home screen opened the authors' sign-in
   instead of the trip. Each share link now has its own web app manifest
-  that starts at the link and carries the trip's name ("Protected trip"
-  while behind a password, which the home-screen app asks for once). The
-  label under the icon is the whole title; the home screen shortens it.
+  that starts at the link; the icon is called OwnSteps (the instance's
+  `SITE_NAME`). Behind a password the home-screen app asks for it once.
 - Web, step stories on phones: the shade behind the buttons stopped above
   the home indicator and left a lighter strip at the bottom.
 - iOS: tapping a notification crashed the app instead of opening the step.

@@ -28,10 +28,12 @@ export async function generateMetadata({
   // The link's own manifest, so the home-screen icon opens this trip
   // instead of "/" (the authors' sign-in). The layout's appleWebApp is
   // replaced, not merged, hence `capable` and the status bar again.
-  const homeScreen = (title: string): Metadata => ({
+  // The icon is named after the instance, like the apps; the reader can
+  // rename it while adding it.
+  const homeScreen: Metadata = {
     manifest: `/s/${token}/manifest.webmanifest`,
-    appleWebApp: { capable: true, title, statusBarStyle: "default" },
-  });
+    appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "default" },
+  };
 
   // Behind a password, the link preview (messengers, crawlers – they never
   // unlock) must not tell more than the locked page: no title, no summary,
@@ -41,7 +43,7 @@ export async function generateMetadata({
     return {
       title: t.share.lockedTitle,
       robots: { index: false, follow: false },
-      ...homeScreen(t.share.lockedTitle),
+      ...homeScreen,
     };
   }
 
@@ -53,7 +55,7 @@ export async function generateMetadata({
       trip.summary ?? plural(t.share.description, steps.length),
     // The link must not end up in any index.
     robots: { index: false, follow: false },
-    ...homeScreen(trip.title),
+    ...homeScreen,
     // Smart App Banner in Safari; hands the link to the app when installed.
     ...(APP_STORE_ID
       ? { itunes: { appId: APP_STORE_ID, appArgument: shareUrl(await pageOrigin(), token) } }

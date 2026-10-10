@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { createUser } from "@/lib/auth";
 import { grantUnlock } from "@/lib/share";
 import { createTrip, getTrip, updateTrip } from "@/lib/trips";
-import { shortName } from "@/lib/web-manifest";
 
 async function setup(
   options: { shared?: boolean; password?: string; title?: string } = {},
@@ -39,8 +38,9 @@ describe("share-link manifest", () => {
     expect(manifest.start_url).toBe(`/s/${trip.shareToken}`);
     expect(manifest.scope).toBe(`/s/${trip.shareToken}`);
     expect(manifest.id).toBe(`/s/${trip.shareToken}`);
-    expect(manifest.name).toBe("Norway in winter");
-    expect(manifest.short_name).toBe("Norway in winter");
+    // Named after the instance, like the apps.
+    expect(manifest.name).toBe("OwnSteps");
+    expect(manifest.short_name).toBe("OwnSteps");
     expect(manifest.display).toBe("standalone");
     expect(manifest.icons.length).toBeGreaterThan(0);
   });
@@ -61,16 +61,10 @@ describe("share-link manifest", () => {
     expect(response.status).toBe(200);
     const manifest = await response.json();
     expect(manifest.start_url).toBe(`/s/${trip.shareToken}`);
-    expect(manifest.name).toBe("Protected trip");
+    expect(manifest.name).toBe("OwnSteps");
     expect(JSON.stringify(manifest)).not.toContain("Secret fjords");
   });
 
-  it("names a protected trip once the request carries the unlock", async () => {
-    const trip = await setup({ title: "Secret fjords", password: "fjord-password" });
-    await grantUnlock(trip);
-    const manifest = await (await fetchManifest(trip.shareToken)).json();
-    expect(manifest.name).toBe("Secret fjords");
-  });
 });
 
 describe("share page metadata", () => {
@@ -86,31 +80,14 @@ describe("share page metadata", () => {
     const trip = await setup({ title: "Norway in winter" });
     const meta = await metadata(trip.shareToken);
     expect(meta.manifest).toBe(`/s/${trip.shareToken}/manifest.webmanifest`);
-    expect(meta.appleWebApp).toMatchObject({ capable: true, title: "Norway in winter" });
+    expect(meta.appleWebApp).toMatchObject({ capable: true, title: "OwnSteps" });
     expect(meta.openGraph?.title).toBe("Norway in winter");
   });
 
-  it("keeps a locked page's home-screen title as anonymous as the page", async () => {
+  it("names a locked page's home-screen app after the instance too", async () => {
     const trip = await setup({ title: "Secret fjords", password: "fjord-password" });
     const meta = await metadata(trip.shareToken);
     expect(meta.manifest).toBe(`/s/${trip.shareToken}/manifest.webmanifest`);
-    expect(meta.appleWebApp).toMatchObject({ title: "Protected trip" });
-  });
-});
-
-describe("shortName", () => {
-  it("keeps titles whole – the home screen cuts them itself", () => {
-    expect(shortName("Norway")).toBe("Norway");
-    expect(shortName("  Two  words ")).toBe("Two words");
-    expect(shortName("Über die Alpen")).toBe("Über die Alpen");
-    expect(shortName("Iceland, Faroe and Shetland")).toBe("Iceland, Faroe and Shetland");
-  });
-
-  it("cuts really long titles at a word boundary", () => {
-    expect(shortName("Road trip through Chile and Argentina in winter")).toBe("Road trip through Chile and");
-  });
-
-  it("cuts a single long word with an ellipsis", () => {
-    expect(shortName("Donaudampfschifffahrtsgesellschaftskapitän")).toBe("Donaudampfschifffahrtsgesells…");
+    expect(meta.appleWebApp).toMatchObject({ title: "OwnSteps" });
   });
 });

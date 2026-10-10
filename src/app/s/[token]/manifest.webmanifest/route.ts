@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
+import { SITE_NAME } from "@/lib/env";
 import { getI18n } from "@/lib/i18n/server";
 import { getTripByShareToken, resolveTripAccess } from "@/lib/share";
-import { MANIFEST_BASE, shortName } from "@/lib/web-manifest";
+import { MANIFEST_BASE } from "@/lib/web-manifest";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,11 @@ export const dynamic = "force-dynamic";
  * the authors' sign-in. Public like the share page; the token in the path is
  * the credential, an unknown or disabled one answers 404.
  *
- * Browsers fetch manifests without cookies, so a password-protected trip is
- * named like its locked page ("Protected trip") – the manifest must not tell
- * more than that. The icon still opens the link, which then asks for the
- * password in the home-screen app's own cookie jar.
+ * The icon is named after the instance (SITE_NAME), like the apps – the
+ * reader can rename it while adding it. Browsers fetch manifests without
+ * cookies, so behind a password the description stays generic too. The icon
+ * still opens the link, which then asks for the password in the home-screen
+ * app's own cookie jar.
  */
 export async function GET(
   _request: Request,
@@ -28,14 +30,13 @@ export async function GET(
   if (access.kind === "denied") return new Response("Not found", { status: 404 });
 
   const { locale, t } = await getI18n();
-  const title = access.kind === "locked" ? t.share.lockedTitle : trip.title;
   const path = `/s/${token}`;
   const manifest: MetadataRoute.Manifest = {
     ...MANIFEST_BASE,
     id: path,
     lang: locale,
-    name: title,
-    short_name: shortName(title),
+    name: SITE_NAME,
+    short_name: SITE_NAME,
     description:
       (access.kind !== "locked" && trip.summary) || t.meta.manifestDescription,
     start_url: path,

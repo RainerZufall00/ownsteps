@@ -278,11 +278,15 @@ flowchart TD
   start URL and scope are the link, so a reader's home-screen icon opens the
   trip and not `/` (the authors' sign-in, which keeps the global
   `app/manifest.ts`). It resolves the trip like the page – unknown or
-  switched-off token → 404. Browsers fetch manifests without cookies, so for
-  a password-protected trip it says only "Protected trip"; on iOS the name
-  comes from the page's `apple-mobile-web-app-title` (the trip title once
-  unlocked). The home-screen app has its own cookie jar on iOS and asks for
-  the password once more.
+  switched-off token → 404. The icon is named after the instance
+  (`SITE_NAME`), like the apps, in the manifest and in
+  `apple-mobile-web-app-title`; the reader can rename it while adding it.
+  Trip titles were tried first and dropped: iOS shows `short_name` and cut
+  "Über die Alpen" to "Über die", and a protected trip could only have been
+  called "Protected trip" anyway. Behind a password the description stays
+  generic, because browsers fetch manifests without cookies. The
+  home-screen app has its own cookie jar on iOS and asks for the password
+  once more.
 
 > **Rule:** every new path through which trip content leaves the server must
 > use `resolveTripAccess`. That applies especially to route handlers – no
@@ -1827,8 +1831,8 @@ Not verified – be careful when building on these:
   Checked against the dev server (2026-10-10): the share page links its own
   manifest (start URL and scope = the link) and nothing else, an unknown or
   switched-off token answers 404, a password-protected link unlocks in a
-  fresh cookie jar and the page then names the trip. Whether iOS really
-  opens the trip from the icon, and which name it picks, needs an iPhone.
+  fresh cookie jar and the page then shows the trip. On an iPhone
+  (2026-10-10) the icon opened the trip.
 - **The Immich export never ran against a real Immich** – only against a
   fake in the tests and Immich's published API descriptions ([E18]).
 - Automated tests (`npm test`) cover access control, the image pipeline, sign-in basics, the `/api/v1` routes and the exports – not the web UI.
