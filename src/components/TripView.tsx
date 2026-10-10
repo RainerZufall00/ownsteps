@@ -12,8 +12,10 @@ import MapCanvas, { type MapStep } from "./MapCanvas";
 import MapTimelineStrip from "./MapTimelineStrip";
 import { MediaBaseProvider } from "./media-context";
 import { ChevronRightIcon, EyeIcon, PinIcon } from "./icons";
+import MobileTripView from "./MobileTripView";
 import PhotoGrid from "./PhotoGrid";
 import { useDayLabel } from "./trip-day";
+import { DESKTOP_QUERY, useMediaQuery } from "./use-media-query";
 import { useStepViews } from "./use-step-views";
 
 type Props = {
@@ -35,8 +37,13 @@ type Props = {
   shareToken?: string;
   /** Readers per step – only on the authors' page. */
   viewCounts?: Record<number, number>;
-  /** Header contributed by the respective page (title, actions). */
+  /**
+   * Header contributed by the respective page (title, actions). On phones and
+   * tablets it moves into the "about this trip" sheet.
+   */
   header: ReactNode;
+  /** Round buttons at the top of the phone and tablet layout, e.g. "new step". */
+  mobileActions?: ReactNode;
 };
 
 export default function TripView({
@@ -48,17 +55,17 @@ export default function TripView({
   shareToken,
   viewCounts,
   header,
+  mobileActions,
 }: Props) {
   const { locale, t } = useI18n();
-  const [mobileView, setMobileView] = useState<"timeline" | "map">("timeline");
+  /** `null` until hydrated – both layouts render, CSS shows the right one. */
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const [activeStepId, setActiveStepId] = useState<number | null>(
     steps.at(-1)?.id ?? null,
   );
   const articleRefs = useRef(new Map<number, HTMLElement>());
   // After a marker click, scroll tracking should hold still briefly.
   const suppressObserver = useRef(false);
-  const mapBox = useRef<HTMLDivElement>(null);
-  const [mapHeight, setMapHeight] = useState<number | null>(null);
 
   /** Steps with a place – the ones the map and the strip over it show. */
   const located = useMemo(
@@ -119,35 +126,10 @@ export default function TripView({
 
   useStepViews(shareToken, articleRefs, steps);
 
-  /**
-   * On phones the map should reach down to the bottom edge. How much space
-   * sits above it depends on the view – the signed-in one has a header bar,
-   * the share link doesn't. So it's measured instead of calculated.
-   */
+  // When opened with #step-123, jump straight there. (Phones and tablets open
+  // the step's story instead, see MobileTripView.)
   useEffect(() => {
-    if (mobileView !== "map") return;
-    const measure = () => {
-      const box = mapBox.current;
-      if (!box) return;
-      // From the two-column layout on, the stylesheet handles the height.
-      if (window.matchMedia("(min-width: 1280px)").matches) {
-        setMapHeight(null);
-        return;
-      }
-      const top = box.getBoundingClientRect().top;
-      setMapHeight(Math.max(320, window.innerHeight - top - 12));
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    window.addEventListener("orientationchange", measure);
-    return () => {
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("orientationchange", measure);
-    };
-  }, [mobileView]);
-
-  // When opened with #step-123, jump straight there.
-  useEffect(() => {
+    if (!isDesktop) return;
     const hash = window.location.hash;
     if (!hash.startsWith("#step-")) return;
     const id = Number(hash.slice("#step-".length));
@@ -156,14 +138,12 @@ export default function TripView({
     requestAnimationFrame(() => {
       articleRefs.current.get(id)?.scrollIntoView({ block: "start" });
     });
-  }, []);
+  }, [isDesktop]);
 
-  /** Jump to the step – out of the map view into the timeline. */
+  /** Jump to the step in the timeline. */
   const openStep = (stepId: number) => {
     setActiveStepId(stepId);
-    setMobileView("timeline");
     suppressObserver.current = true;
-    // On phones only scroll after switching views.
     requestAnimationFrame(() => {
       articleRefs.current
         .get(stepId)
@@ -176,57 +156,46 @@ export default function TripView({
 
   return (
     <MediaBaseProvider value={mediaBase}>
+      {/*
+        Phones and tablets: map with step cards and stories, like the apps.
+        Both layouts are rendered and CSS picks one, so the server needn't
+        know the screen; only the visible one runs its map.
+      */}
+      <div className="w-full xl:hidden">
+        <MobileTripView
+          trip={trip}
+          steps={steps}
+          mapStyle={mapStyle}
+          editable={editable}
+          shareToken={shareToken}
+          viewCounts={viewCounts}
+          firstDay={firstDay}
+          header={header}
+          actions={mobileActions}
+          active={isDesktop === false}
+        />
+      </div>
+
       <div
         /*
-         * Below the two-column layout the mode decides the width: the timeline
-         * gets a reading column, the map all the space. Without the cap, lines
-         * on a tablet ran over 1150 px.
-         *
          * `w-full` is mandatory: `<body>` is a flex container, and a flex child
          * with `margin: auto` on the cross axis no longer stretches but shrinks
          * to its content. The map has no width of its own – without this line
          * it collapsed to a hundred-odd pixels.
          */
-        className={`mx-auto w-full px-4 pt-5 xl:max-w-7xl xl:pb-10 ${
-          mobileView === "map" ? "max-w-6xl pb-0" : "max-w-3xl pb-24"
-        }`}
+        className="mx-auto hidden w-full max-w-7xl px-4 pb-10 pt-5 xl:block"
       >
-        {/* In map mode the header steps back on phones so the map gets the
-            screen. */}
-        <div className={mobileView === "map" ? "hidden xl:block" : ""}>
-          {header}
-        </div>
-
-        {/* Toggle only on narrow screens. Deliberately not sticky: a bar
-            scrolling along above the timeline feels restless. */}
-        <div className="mb-4 xl:hidden">
-          <div className="flex rounded-full border border-line bg-surface p-1">
-            {(["timeline", "map"] as const).map((view) => (
-              <button
-                key={view}
-                type="button"
-                onClick={() => setMobileView(view)}
-                aria-pressed={mobileView === view}
-                className={`flex-1 rounded-full py-2 text-sm font-semibold transition ${
-                  mobileView === view
-                    ? "bg-accent text-accent-ink shadow-card"
-                    : "text-ink-soft"
-                }`}
-              >
-                {view === "timeline" ? t.timeline.timeline : t.timeline.map}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* An only child: next to a sibling, React's dev build warned about
+            a missing key on the server-made header. */}
+        <div>{header}</div>
 
         {/*
           Side by side only from `xl`. On a tablet in landscape (around 1194 px)
           the timeline got 628 px and the map 460 px – both too little, both
-          felt cramped. Below that, each view gets the full width via the
-          toggle.
+          felt cramped. Below that, phones and tablets get the app's layout.
         */}
-        <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,520px)] xl:items-start xl:gap-8">
-          <div className={mobileView === "map" ? "hidden xl:block" : ""}>
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,520px)] items-start gap-8">
+          <div>
             {steps.length === 0 ? (
               <div className="card px-6 py-14 text-center">
                 <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent-soft text-2xl">
@@ -333,23 +302,17 @@ export default function TripView({
             )}
           </div>
 
-          <div
-            className={`${
-              mobileView === "timeline" ? "hidden" : ""
-            } xl:sticky xl:top-20 xl:block`}
-          >
-            <div
-              ref={mapBox}
-              style={mapHeight ? { height: mapHeight } : undefined}
-              className="relative h-[70dvh] overflow-hidden rounded-3xl border border-line shadow-card xl:h-[calc(100dvh-7rem)]"
-            >
-              <MapCanvas
-                steps={mapSteps}
-                mapStyle={mapStyle}
-                activeStepId={activeStepId}
-                onSelect={setActiveStepId}
-                className="h-full w-full"
-              />
+          <div className="sticky top-20">
+            <div className="relative h-[calc(100dvh-7rem)] overflow-hidden rounded-3xl border border-line shadow-card">
+              {isDesktop && (
+                <MapCanvas
+                  steps={mapSteps}
+                  mapStyle={mapStyle}
+                  activeStepId={activeStepId}
+                  onSelect={setActiveStepId}
+                  className="h-full w-full"
+                />
+              )}
 
               {/* Page through steps over the map without having to hit the markers. */}
               <MapTimelineStrip

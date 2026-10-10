@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BackLink from "@/components/BackLink";
-import Fab from "@/components/Fab";
+import { PlusIcon } from "@/components/icons";
 import TripHeading from "@/components/TripHeading";
 import TripView from "@/components/TripView";
 import { getI18n } from "@/lib/i18n/server";
@@ -64,18 +64,30 @@ export default async function TripPage({ params }: PageProps<"/trips/[id]">) {
     </header>
   );
 
+  // The "+" at the top of the map on phones and tablets, beside "about".
+  const newStep = (
+    <form action={startStepAction}>
+      <input type="hidden" name="tripId" value={trip.id} />
+      <button
+        type="submit"
+        aria-label={t.trip.addStep}
+        className="grid h-12 w-12 place-items-center rounded-full bg-accent text-accent-ink shadow-float transition active:scale-95"
+      >
+        <PlusIcon />
+      </button>
+    </form>
+  );
+
   return (
-    <>
-      <TripView
-        trip={toViewTrip(trip)}
-        steps={steps.map(toViewStep)}
-        mapStyle={getMapStyle()}
-        editable
-        // A private trip that never had readers would only say "0 views".
-        viewCounts={trip.shareEnabled || views.size > 0 ? Object.fromEntries(views) : undefined}
-        header={header}
-      />
-      <Fab label={t.trip.addStep} action={startStepAction} fields={{ tripId: trip.id }} />
-    </>
+    <TripView
+      trip={toViewTrip(trip)}
+      steps={steps.map(toViewStep)}
+      mapStyle={getMapStyle()}
+      editable
+      // A private trip that never had readers would only say "0 views".
+      viewCounts={trip.shareEnabled || views.size > 0 ? Object.fromEntries(views) : undefined}
+      header={header}
+      mobileActions={newStep}
+    />
   );
 }

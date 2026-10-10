@@ -32,6 +32,50 @@ export function ChevronRightIcon({ className = "h-4 w-4" }: IconProps) {
   return <StrokeIcon className={className} d="m9 5 7 7-7 7" />;
 }
 
+export function ChevronUpIcon({ className = "h-4 w-4" }: IconProps) {
+  return <StrokeIcon className={className} d="m5 15 7-7 7 7" />;
+}
+
+export function ChevronDownIcon({ className = "h-4 w-4" }: IconProps) {
+  return <StrokeIcon className={className} d="m5 9 7 7 7-7" />;
+}
+
+export function InfoIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <StrokeIcon
+      className={className}
+      d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-10v5m0-8h.01"
+    />
+  );
+}
+
+export function MapIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <StrokeIcon
+      className={className}
+      d="m9 4-6 2.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4Zm0 0v13.5m6-11v13.5"
+      strokeWidth={1.8}
+    />
+  );
+}
+
+export function ExpandIcon({ className = "h-4 w-4" }: IconProps) {
+  return <StrokeIcon className={className} d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />;
+}
+
+export function SoundOnIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <StrokeIcon
+      className={className}
+      d="M11 5 6 9H3v6h3l5 4V5Zm4.5 3.5a5 5 0 0 1 0 7m3-10a9 9 0 0 1 0 13"
+    />
+  );
+}
+
+export function SoundOffIcon({ className = "h-5 w-5" }: IconProps) {
+  return <StrokeIcon className={className} d="M11 5 6 9H3v6h3l5 4V5Zm5 5 5 5m0-5-5 5" />;
+}
+
 export function PlusIcon({ className = "h-6 w-6", strokeWidth = 2.5 }: IconProps & { strokeWidth?: number }) {
   return <StrokeIcon className={className} d="M12 5v14M5 12h14" strokeWidth={strokeWidth} />;
 }

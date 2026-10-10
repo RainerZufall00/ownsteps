@@ -19,6 +19,16 @@ where it isn't obvious.
 
 ### Changed
 
+- Web on phones and tablets: the trip looks like it does in the apps. The map
+  fills the screen, the steps are cards side by side below it (newest in
+  front) with the day bar above them, and a tapped card opens the step as a
+  story – swipe up and down between steps, sideways between photos, videos
+  play muted until tapped. Comments and a step's whole text open in sheets
+  from the bottom, the trip's details behind the "i". The browser's back
+  button closes the story, and links to a step (`#step-123`) open it. This
+  applies to the share link and to the authors' trip page below 1280 px;
+  the desktop keeps the timeline beside the map, and the "Timeline / Map"
+  toggle is gone.
 - Apps: videos play like stories instead of in the system player. They start
   by themselves, muted and looping, while they're the page in view, and stop
   when paged away or in the background; a tap switches the sound, a thin bar

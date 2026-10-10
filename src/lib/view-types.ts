@@ -24,6 +24,8 @@ export type ViewStep = Pick<Step, "id" | "body" | "lat" | "lon" | "placeName" | 
 export type ViewTrip = Pick<Trip, "id" | "title" | "summary"> & {
   /** ISO date ("2026-07-01"), set by hand – determines the first trip day. */
   startDate: string | null;
+  /** ISO date, set by hand – the end of the date range ([E14]). */
+  endDate: string | null;
 };
 
 /** A place search hit (`/api/geocode/search`). */
@@ -83,5 +85,11 @@ export function toViewStep(
 }
 
 export function toViewTrip(trip: ViewTrip): ViewTrip {
-  return { id: trip.id, title: trip.title, summary: trip.summary, startDate: trip.startDate };
+  return {
+    id: trip.id,
+    title: trip.title,
+    summary: trip.summary,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+  };
 }
