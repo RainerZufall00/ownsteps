@@ -273,6 +273,16 @@ flowchart TD
   page and link preview (`generateMetadata`) say only "Protected trip"
   (`share.lockedTitle`) – no title, no summary, no cover – until the visitor
   has unlocked it.
+- **Each share link has its own web app manifest**
+  (`/s/[token]/manifest.webmanifest`), linked only from the share page:
+  start URL and scope are the link, so a reader's home-screen icon opens the
+  trip and not `/` (the authors' sign-in, which keeps the global
+  `app/manifest.ts`). It resolves the trip like the page – unknown or
+  switched-off token → 404. Browsers fetch manifests without cookies, so for
+  a password-protected trip it says only "Protected trip"; on iOS the name
+  comes from the page's `apple-mobile-web-app-title` (the trip title once
+  unlocked). The home-screen app has its own cookie jar on iOS and asks for
+  the password once more.
 
 > **Rule:** every new path through which trip content leaves the server must
 > use `resolveTripAccess`. That applies especially to route handlers – no
@@ -1813,6 +1823,12 @@ Not verified – be careful when building on these:
   sound after a tap on iOS, and VoiceOver/TalkBack weren't tried. The
   browser pane was hidden, so MapLibre and the videos only advanced on
   screenshots – smooth scrolling and playback weren't watched live.
+- **"Add to Home Screen" for a share link was never tried on a phone.**
+  Checked against the dev server (2026-10-10): the share page links its own
+  manifest (start URL and scope = the link) and nothing else, an unknown or
+  switched-off token answers 404, a password-protected link unlocks in a
+  fresh cookie jar and the page then names the trip. Whether iOS really
+  opens the trip from the icon, and which name it picks, needs an iPhone.
 - **The Immich export never ran against a real Immich** – only against a
   fake in the tests and Immich's published API descriptions ([E18]).
 - Automated tests (`npm test`) cover access control, the image pipeline, sign-in basics, the `/api/v1` routes and the exports – not the web UI.
