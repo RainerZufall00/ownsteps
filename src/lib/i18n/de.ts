@@ -107,8 +107,6 @@ export const de: Dictionary = {
   },
 
   timeline: {
-    timeline: "Timeline",
-    map: "Karte",
     emptyTitle: "Noch keine Stationen",
     emptyAuthor:
       "Lade dein erstes Foto hoch – Ort und Zeit holt sich OwnSteps direkt aus dem Bild.",
@@ -122,6 +120,35 @@ export const de: Dictionary = {
     views: { one: "{count} Aufruf", other: "{count} Aufrufe" },
     viewsHint:
       "Leser, die diese Station gesehen haben, jeder einmal gezählt – in der App und über den Freigabe-Link. Sehen nur die Autoren.",
+  },
+
+  tripScreen: {
+    about: "Über diese Reise",
+    wholeTrip: "Ganze Reise zeigen",
+    steps: "Stationen",
+    progress: "Reiseverlauf",
+    openStep: "Öffnet die Station",
+  },
+
+  story: {
+    label: "Stationen als Storys",
+    close: "Schließen",
+    previousStep: "Vorherige Station",
+    nextStep: "Nächste Station",
+    previousPhoto: "Vorheriges Foto",
+    nextPhoto: "Nächstes Foto",
+    photo: "Foto {index} von {count}",
+    video: "Video {index} von {count}",
+    more: "mehr",
+    readMore: "Ganzen Text lesen",
+    comments: "Kommentare",
+    commentCount: { one: "{count} Kommentar", other: "{count} Kommentare" },
+    noComments: "Noch keine Kommentare.",
+    showOnMap: "Auf der Karte zeigen",
+    fullScreen: "Vollbild",
+    soundOn: "Ton an",
+    soundOff: "Ton aus",
+    play: "Video abspielen",
   },
 
   lightbox: {

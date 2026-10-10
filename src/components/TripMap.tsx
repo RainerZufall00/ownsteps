@@ -51,7 +51,25 @@ type Props = {
    * `key`, so the same spot can be targeted again.
    */
   focusPoint?: { lat: number; lon: number; key: number } | null;
+  /**
+   * Room taken by what floats over the map (the step cards on phones), so
+   * the route and the active step are framed in what stays visible.
+   */
+  padding?: { top: number; bottom: number; left: number; right: number };
+  /** Changing it frames the whole route again ("show the whole trip"). */
+  fitKey?: number;
+  /** Zoom and location buttons; phones pinch and have their own buttons there. */
+  controls?: boolean;
 };
+
+const FIT_PADDING = { top: 60, bottom: 60, left: 40, right: 40 };
+
+function routeBounds(steps: MapStep[]) {
+  return steps.reduce(
+    (acc, s) => acc.extend([s.lon, s.lat]),
+    new LngLatBounds([steps[0].lon, steps[0].lat], [steps[0].lon, steps[0].lat]),
+  );
+}
 
 function routeGeoJson(steps: MapStep[]): FeatureCollection {
   return {
@@ -119,6 +137,9 @@ export default function TripMap({
   className,
   autoFit = true,
   focusPoint = null,
+  padding,
+  fitKey = 0,
+  controls = true,
 }: Props) {
   const mediaBase = useMediaBase();
   const mediaBaseRef = useRef(mediaBase);
@@ -148,9 +169,12 @@ export default function TripMap({
       attributionControl: { compact: true },
     });
     mapRef.current = map;
+    if (padding) map.setPadding(padding);
 
-    map.addControl(new NavigationControl({ showCompass: false }), "top-right");
-    map.addControl(new GeolocateControl({ trackUserLocation: false }), "top-right");
+    if (controls) {
+      map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+      map.addControl(new GeolocateControl({ trackUserLocation: false }), "top-right");
+    }
 
     map.on("click", (event) => {
       onMapClickRef.current?.(event.lngLat.lat, event.lngLat.lng);
@@ -172,6 +196,8 @@ export default function TripMap({
       markersRef.current.clear();
       map.remove();
       mapRef.current = null;
+      // A new map (React's dev double mount, a remount) must be framed again.
+      lastFitRef.current = null;
     };
     // Build the map once; data is maintained in the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -224,18 +250,7 @@ export default function TripMap({
       if (steps.length === 1) {
         map.jumpTo({ center: [steps[0].lon, steps[0].lat], zoom: 9 });
       } else {
-        const bounds = steps.reduce(
-          (acc, s) => acc.extend([s.lon, s.lat]),
-          new LngLatBounds(
-            [steps[0].lon, steps[0].lat],
-            [steps[0].lon, steps[0].lat],
-          ),
-        );
-        map.fitBounds(bounds, {
-          padding: { top: 60, bottom: 60, left: 40, right: 40 },
-          maxZoom: 11,
-          duration: 0,
-        });
+        map.fitBounds(routeBounds(steps), { padding: FIT_PADDING, maxZoom: 11, duration: 0 });
       }
     }
 
@@ -298,6 +313,24 @@ export default function TripMap({
     // Only the counter decides, otherwise every render would fly again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusPoint?.key]);
+
+  // What floats over the map can change size (rotation, a taller card row).
+  useEffect(() => {
+    if (padding) mapRef.current?.setPadding(padding);
+  }, [padding?.top, padding?.bottom, padding?.left, padding?.right]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Back to the whole route on request.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || fitKey === 0 || steps.length === 0) return;
+    if (steps.length === 1) {
+      map.easeTo({ center: [steps[0].lon, steps[0].lat], zoom: 9, duration: 800 });
+    } else {
+      map.fitBounds(routeBounds(steps), { padding: FIT_PADDING, maxZoom: 11, duration: 800 });
+    }
+    // Only the counter decides; new steps are framed by the effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey]);
 
   // Highlight the active step and ease towards it.
   useEffect(() => {
