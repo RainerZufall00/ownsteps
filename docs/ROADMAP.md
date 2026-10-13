@@ -136,7 +136,7 @@ architecture doc and the phase is ticked off here.
 - [x] English README: quick start, example `docker-compose.yml`, backup, upgrade, OIDC setup.
 - [x] GHCR image for amd64 and arm64, semver tags, `CHANGELOG.md`. The workflow (`.github/workflows/docker.yml`) runs on `v*.*.*` tags; `v0.1.0` is the first (2026-10-06). Still open: making the package public on GitHub, together with the repo. Installations update with `docker compose pull` – `deploy.sh` (git pull and build on the server) is gone.
 - [x] `SECURITY.md`, `CONTRIBUTING.md` (2026-10-06). Reports go through GitHub's private vulnerability reporting – switch it on in the repository settings when going public.
-- [ ] Demo instance for App Review, then App Store submission. Put the App Store ID into the Smart App Banner.
+- [ ] Demo instance for App Review, then App Store submission. Put the App Store ID into the Smart App Banner. Prepared on 2026-10-13: listing, screenshots, privacy policy and checklist in `docs/app-store/`, demo content via `scripts/seed-demo.mjs`.
 
 ### Phase 7 – Open source
 - [ ] Make the repo public, tag the first release.
