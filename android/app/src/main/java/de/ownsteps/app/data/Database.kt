@@ -1,6 +1,7 @@
 package de.ownsteps.app.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -18,17 +19,19 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * The app's one SQLite file: the offline copy of what the servers sent
- * ([D22]) and the upload queue ([D19]). Times are epoch milliseconds.
+ * ([D22]), the upload queue ([D19]) and the bell's news. Times are epoch milliseconds.
  * Schemas are exported to `app/schemas`; a change means a new version and
  * a migration – installed apps have run every earlier one.
  */
 @Database(
-    version = 1,
-    entities = [CachedTripList::class, CachedTrip::class, PendingStep::class, PendingUpload::class, UploadedAsset::class, IgnoredAsset::class],
+    version = 2,
+    entities = [CachedTripList::class, CachedTrip::class, PendingStep::class, PendingUpload::class, UploadedAsset::class, IgnoredAsset::class, NewsEntry::class],
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun cache(): CacheDao
     abstract fun queue(): QueueDao
+    abstract fun news(): NewsDao
 
     companion object {
         fun open(context: Context) = Room.databaseBuilder(context, AppDatabase::class.java, "ownsteps.db").build()
@@ -237,4 +240,58 @@ interface QueueDao {
 
     @Query("SELECT assetId FROM uploaded_asset WHERE accountId = :accountId UNION SELECT assetId FROM ignored_asset WHERE accountId = :accountId")
     suspend fun knownAssets(accountId: String): List<String>
+}
+
+// News
+
+/**
+ * A new comment (authors) or step (readers) the device noticed while
+ * refreshing a trip – what the bell lists ([D16]). Kept per device, like
+ * the notifications: reading on the phone doesn't mark it on the tablet.
+ */
+@Entity(tableName = "news", primaryKeys = ["accountId", "kind", "itemId"], indices = [Index("accountId", "tripId")])
+data class NewsEntry(
+    val accountId: String,
+    val kind: TripNews.Kind,
+    /** The comment's or the step's ID. */
+    val itemId: Long,
+    val tripId: Long,
+    val stepId: Long,
+    val title: String,
+    val body: String,
+    /** When it was written on the server. */
+    val at: Long,
+    val read: Boolean = false,
+)
+
+@Dao
+interface NewsDao {
+    /** Seen twice (a trip screen and the change feed at once): the first one stays, read or not. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(entries: List<NewsEntry>)
+
+    @Query("SELECT * FROM news ORDER BY at DESC LIMIT :limit")
+    fun observe(limit: Int): Flow<List<NewsEntry>>
+
+    @Query("SELECT COUNT(*) FROM news WHERE NOT read")
+    fun observeUnread(): Flow<Int>
+
+    @Query("UPDATE news SET read = 1 WHERE NOT read")
+    suspend fun markAllRead()
+
+    @Query("UPDATE news SET read = 1 WHERE accountId = :accountId AND kind = :kind AND itemId = :itemId")
+    suspend fun markRead(accountId: String, kind: TripNews.Kind, itemId: Long)
+
+    @Query("SELECT itemId FROM news WHERE accountId = :accountId AND tripId = :tripId AND kind = :kind")
+    suspend fun itemIds(accountId: String, tripId: Long, kind: TripNews.Kind): List<Long>
+
+    @Query("DELETE FROM news WHERE accountId = :accountId AND kind = :kind AND itemId IN (:itemIds)")
+    suspend fun remove(accountId: String, kind: TripNews.Kind, itemIds: List<Long>)
+
+    @Query("DELETE FROM news WHERE accountId = :accountId AND (:tripId IS NULL OR tripId = :tripId)")
+    suspend fun remove(accountId: String, tripId: Long?)
+
+    /** Only the newest [keep] stay. */
+    @Query("DELETE FROM news WHERE rowid NOT IN (SELECT rowid FROM news ORDER BY at DESC LIMIT :keep)")
+    suspend fun trim(keep: Int)
 }

@@ -38,6 +38,7 @@ import de.ownsteps.app.ui.settings.SettingsScreen
 import de.ownsteps.app.ui.trip.ReadersScreen
 import de.ownsteps.app.ui.trip.TripScreen
 import de.ownsteps.app.ui.trip.TripSettingsScreen
+import de.ownsteps.app.ui.trips.NewsScreen
 import de.ownsteps.app.ui.trips.TripFormScreen
 import de.ownsteps.app.ui.trips.TripListScreen
 import de.ownsteps.app.ui.welcome.FollowScreen
@@ -60,6 +61,7 @@ object Routes {
     @Serializable data class TripSettings(val accountId: String, val tripId: Long)
     @Serializable data class Suggestions(val accountId: String, val tripId: Long)
     @Serializable data object Settings
+    @Serializable data object News
     @Serializable data class Immich(val accountId: String)
 }
 
@@ -167,6 +169,9 @@ fun AppNavigation() {
                         }
                     }
                 }
+            }
+            composable<Routes.News> {
+                NewsScreen(onOpen = { navController.navigate(Routes.Trip(it.accountId, it.tripId, it.stepId)) }, onClose = navController::popBackStack)
             }
             composable<Routes.Settings> {
                 SettingsScreen(onClose = navController::popBackStack, onImmich = { navController.navigate(Routes.Immich(it)) })

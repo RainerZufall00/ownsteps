@@ -1,5 +1,6 @@
 package de.ownsteps.app.data
 
+import de.ownsteps.app.api.Comment
 import de.ownsteps.app.api.Photo
 import de.ownsteps.app.api.Step
 import de.ownsteps.app.api.TripDetail
@@ -32,13 +33,14 @@ data class TripCalendar(val zone: ZoneId) {
 }
 
 /**
- * What background refresh tells the user about ([D16]): readers hear about
+ * What the bell lists and background refresh notifies about ([D16]): readers hear about
  * new steps, authors about comments from others. Decided by comparing the
  * trip as the device last saw it with the fresh copy – the change feed
  * doesn't say who did something, and edits shouldn't ring.
  */
 object TripNews {
-    data class Item(val kind: Kind, val tripId: Long, val stepId: Long, val title: String, val body: String)
+    /** [id] is the step's or the comment's, [at] when it was written. */
+    data class Item(val kind: Kind, val id: Long, val tripId: Long, val stepId: Long, val title: String, val body: String, val at: Instant)
 
     enum class Kind { STEP, COMMENT }
 
@@ -49,16 +51,19 @@ object TripNews {
         if (reader) {
             val known = old.steps.map(Step::id).toSet()
             return new.steps.filter { it.id !in known }.map { step ->
-                Item(Kind.STEP, new.id, step.id, step.placeName?.let { "$title · $it" } ?: title, excerpt(step.body))
+                Item(Kind.STEP, step.id, new.id, step.id, step.placeName?.let { "$title · $it" } ?: title, excerpt(step.body), step.updatedAt)
             }
         }
         val known = old.steps.flatMap { it.comments }.map { it.id }.toSet()
         return new.steps.flatMap { step ->
-            step.comments.filter { it.id !in known && it.authorName != ownName }.map {
-                Item(Kind.COMMENT, new.id, step.id, "${it.authorName} · $title", excerpt(it.body))
+            step.comments.filter { it.id !in known && !isOwn(it, ownName) }.map {
+                Item(Kind.COMMENT, it.id, new.id, step.id, "${it.authorName} · $title", excerpt(it.body), it.createdAt)
             }
         }
     }
+
+    /** The server knows who wrote it; only older ones leave the name to go by – which anyone may pick. */
+    private fun isOwn(comment: Comment, ownName: String) = comment.isOwn ?: (comment.authorName == ownName)
 
     fun excerpt(text: String, limit: Int = 180): String {
         val flat = text.lines().joinToString(" ")

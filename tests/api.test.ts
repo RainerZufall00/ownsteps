@@ -437,6 +437,41 @@ describe("viewers", () => {
     expect(list.json.items.map((t: { id: number }) => t.id)).toEqual([trip.id]);
   });
 
+  it("tells each caller its own comments by identity, not by name", async () => {
+    const { token, trip } = await sharedTrip();
+    const step = await call("POST", "/api/v1/trips/{id}/steps", {
+      token,
+      params: { id: trip.id },
+      body: { body: "Fjords" },
+    });
+    // A reader who happens to pick the author's name.
+    const { json } = await call("POST", "/api/v1/viewers/redeem", {
+      body: { shareLink: trip.share.url, name: "Author" },
+    });
+    const viewer = json.token;
+    const fromViewer = await call("POST", "/api/v1/steps/{id}/comments", {
+      token: viewer,
+      params: { id: step.json.id },
+      body: { body: "Lovely" },
+    });
+    expect(fromViewer.json.isOwn).toBe(true);
+    const fromAuthor = await call("POST", "/api/v1/steps/{id}/comments", {
+      token,
+      params: { id: step.json.id },
+      body: { body: "Thanks!" },
+    });
+    expect(fromAuthor.json.isOwn).toBe(true);
+
+    const own = async (caller: string) => {
+      const detail = await call("GET", "/api/v1/trips/{id}", { token: caller, params: { id: trip.id } });
+      return Object.fromEntries(
+        detail.json.steps[0].comments.map((c: { body: string; isOwn: boolean }) => [c.body, c.isOwn]),
+      );
+    };
+    expect(await own(token)).toEqual({ Lovely: false, "Thanks!": true });
+    expect(await own(viewer)).toEqual({ Lovely: true, "Thanks!": false });
+  });
+
   it("sees only its own trip", async () => {
     const { token, trip } = await sharedTrip();
     const other = await call("POST", "/api/v1/trips", { token, body: { title: "Secret" } });

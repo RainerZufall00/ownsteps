@@ -29,6 +29,10 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/step
         principal.kind === "author"
           ? `user:${principal.user.id}`
           : `viewer:${principal.device.id}`,
+      sender:
+        principal.kind === "author"
+          ? { userId: principal.user.id }
+          : { viewerDeviceId: principal.device.id },
       resolveAccess: async (trip) => {
         try {
           await requireReadableTrip(principal, trip.id);
@@ -38,6 +42,6 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/step
         }
       },
     });
-    return json(commentDto(comment), 201);
+    return json(commentDto(comment, principal), 201);
   });
 }

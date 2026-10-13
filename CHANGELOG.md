@@ -10,6 +10,28 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.6.0] – 2026-10-13
+
+### Added
+
+- Apps: a bell above the trips lists what's new – comments from others on
+  your trips, new steps in trips you follow – with the unread ones marked.
+  A tap opens the trip at that step. It catches what notifications miss:
+  those only come when the system allows a background run, and a trip
+  opened in the app no longer swallows its news. The apps also check for
+  news on every return and on pull to refresh.
+- API: comments carry `isOwn` – whether the caller wrote them, by account
+  or reader device. The server now remembers who wrote a comment
+  (database migration 0007; runs by itself on start).
+
+### Fixed
+
+- Authors are told about every comment but their own, even when a reader
+  picks the author's name; before, the apps went by the name alone.
+- Android: tapping through a step's photos no longer hangs briefly – a
+  double tap zoomed and held every single tap back. Zoom by spreading two
+  fingers, like on iOS. The next photo is loaded ahead.
+
 ## [0.5.0] – 2026-10-10
 
 ### Added
@@ -199,7 +221,8 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.2.0...v0.3.0

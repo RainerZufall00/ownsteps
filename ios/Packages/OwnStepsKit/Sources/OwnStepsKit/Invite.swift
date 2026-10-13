@@ -42,18 +42,22 @@ public struct Invite: Sendable, Hashable, Identifiable {
     }
 }
 
-/// What background refresh tells the user about ([D16]): readers hear about
+/// What the bell lists and background refresh notifies about ([D16]): readers hear about
 /// new steps, authors about comments from others. Decided by comparing the
 /// trip as the device last saw it with the fresh copy – the change feed
 /// doesn't say who did something, and edits shouldn't ring.
 public enum TripNews {
     public struct Item: Sendable, Equatable {
-        public enum Kind: Sendable, Equatable { case step, comment }
+        public enum Kind: String, Sendable, Equatable { case step, comment }
         public let kind: Kind
+        /// The step's or the comment's ID.
+        public let id: Int
         public let tripID: Int
         public let stepID: Int
         public let title: String
         public let body: String
+        /// When it was written on the server.
+        public let at: Date
     }
 
     public static func items(
@@ -68,24 +72,30 @@ public enum TripNews {
             let known = Set(old.steps.map(\.id))
             return new.steps.filter { !known.contains($0.id) }.map { step in
                 Item(
-                    kind: .step, tripID: new.id, stepID: step.id,
+                    kind: .step, id: step.id, tripID: new.id, stepID: step.id,
                     title: step.placeName.map { "\(new.title) · \($0)" } ?? new.title,
-                    body: excerpt(step.body)
+                    body: excerpt(step.body), at: step.updatedAt
                 )
             }
         }
         let known = Set(old.steps.flatMap(\.comments).map(\.id))
         return new.steps.flatMap { step in
             step.comments
-                .filter { !known.contains($0.id) && $0.authorName != ownName }
+                .filter { !known.contains($0.id) && !isOwn($0, ownName: ownName) }
                 .map { comment in
                     Item(
-                        kind: .comment, tripID: new.id, stepID: step.id,
+                        kind: .comment, id: comment.id, tripID: new.id, stepID: step.id,
                         title: "\(comment.authorName) · \(new.title)",
-                        body: excerpt(comment.body)
+                        body: excerpt(comment.body), at: comment.createdAt
                     )
                 }
         }
+    }
+
+    /// The server knows who wrote it; only older ones leave the name to go
+    /// by – which anyone may pick.
+    private static func isOwn(_ comment: Components.Schemas.Comment, ownName: String) -> Bool {
+        comment.isOwn ?? (comment.authorName == ownName)
     }
 
     static func excerpt(_ text: String, limit: Int = 180) -> String {

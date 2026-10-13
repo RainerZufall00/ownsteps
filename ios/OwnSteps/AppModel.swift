@@ -28,6 +28,11 @@ final class AppModel {
     var tripListRevision = 0
     /// Trips as last seen, for offline reading ([D22]).
     let cache: TripCache
+    /// What the bell lists ([D16]).
+    let news: NewsInbox
+    /// The bell's entries, newest first – read again after every change.
+    private(set) var newsEntries: [NewsEntry] = []
+    var unreadNews: Int { newsEntries.count { !$0.read } }
     /// Photos, loaded with the account's token and kept on disk.
     let media: MediaStore
     /// Steps and photos on their way to the server ([D19]).
@@ -80,6 +85,7 @@ final class AppModel {
             database = try! AppDatabase.inMemory()
         }
         self.cache = TripCache(database: database)
+        self.news = NewsInbox(database: database)
         self.media = MediaStore(directory: support.appending(path: "Media", directoryHint: .isDirectory))
         // Queued before the app group existed: move it where the queue looks now.
         let oldUploads = support.appending(path: "Uploads", directoryHint: .isDirectory)
@@ -124,6 +130,7 @@ final class AppModel {
             for id in await uploads.shareSessionIDs() { uploaders.uploader(for: id) }
         }
         publishShareTargets()
+        reloadNews()
     }
 
     /// On launch and whenever the app comes back: take over what the Share
@@ -323,7 +330,7 @@ final class AppModel {
     /// Follows each server's change feed. Trips that changed are fetched
     /// again, which keeps the offline copy fresh; comparing with the old copy
     /// tells what's new. Only the background run notifies – in the
-    /// foreground, the user sees it anyway.
+    /// foreground, the bell shows it.
     ///
     /// Runs one after the other: a foreground and a background run started
     /// together would read the same cursor and notify twice.
@@ -374,21 +381,51 @@ final class AppModel {
 
     /// False if the trip couldn't be fetched and the change must be seen again.
     private func refreshTrip(_ tripID: Int, of account: Account, client: ServerClient, notify: Bool) async -> Bool {
-        let old = (try? cache.trip(tripID, for: account.id))?.value
         do {
-            let fresh = try await client.trip(id: tripID)
-            try? cache.saveTrip(fresh, for: account.id)
+            let news = keepTrip(try await client.trip(id: tripID), for: account)
             guard notify, !Notifications.isMuted(account: account, tripID: tripID) else { return true }
-            let news = TripNews.items(old: old, new: fresh, reader: account.kind == .viewer, ownName: account.displayName)
             await Notifications.post(news, account: account)
             return true
         } catch let error as APIError where error.code == "trip_not_found" {
             // Deleted: nothing more will come of it.
-            try? cache.removeTrip(tripID, for: account.id)
+            forgetTrip(tripID, for: account)
             return true
         } catch {
             return false
         }
+    }
+
+    /// Keeps a fresh copy of a trip – the one way in, so the bell sees every
+    /// change, whoever fetched it. Returns what's new against the old copy.
+    @discardableResult
+    func keepTrip(_ fresh: Components.Schemas.TripDetail, for account: Account) -> [TripNews.Item] {
+        let old = (try? cache.trip(fresh.id, for: account.id))?.value
+        try? cache.saveTrip(fresh, for: account.id)
+        let items = TripNews.items(old: old, new: fresh, reader: account.kind == .viewer, ownName: account.displayName)
+        try? news.record(items, trip: fresh, for: account.id)
+        reloadNews()
+        return items
+    }
+
+    /// Deleted on the server: its offline copy and its news go.
+    func forgetTrip(_ tripID: Int, for account: Account) {
+        try? cache.removeTrip(tripID, for: account.id)
+        try? news.remove(tripID: tripID, for: account.id)
+        reloadNews()
+    }
+
+    func reloadNews() {
+        newsEntries = (try? news.entries()) ?? []
+    }
+
+    func markRead(_ entry: NewsEntry) {
+        try? news.markRead(entry)
+        reloadNews()
+    }
+
+    func markAllNewsRead() {
+        try? news.markAllRead()
+        reloadNews()
     }
 
     // MARK: Using an account
@@ -440,12 +477,14 @@ final class AppModel {
         try? tokens.removeToken(for: account.id)
         UserDefaults.standard.removeObject(forKey: cursorKey(account))
         try? cache.removeAll(for: account.id)
+        try? news.remove(for: account.id)
         Task {
             await media.removeAll(for: account.id)
             if !keepingQueue { await uploads.removeAll(for: account.id) }
         }
         accounts.removeAll { $0.id == account.id }
         store.save(accounts)
+        reloadNews()
         publishShareTargets()
     }
 }

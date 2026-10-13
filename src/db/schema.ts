@@ -144,6 +144,12 @@ export const comments = sqliteTable(
     authorName: text("author_name").notNull(),
     body: text("body").notNull(),
     createdAt: integer("created_at").notNull().default(now),
+    /** The signed-in author who wrote it, if any. */
+    userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+    /** The app reader who wrote it, if any. */
+    viewerDeviceId: integer("viewer_device_id").references(() => viewerDevices.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => [index("comments_step_idx").on(t.stepId, t.createdAt)],
 );

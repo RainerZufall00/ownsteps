@@ -29,7 +29,8 @@ private fun step(id: Long, at: Instant = t0, comments: List<Comment> = emptyList
 
 private fun trip(vararg steps: Step) = TripDetail(Trip(id = 1, title = "Norway", updatedAt = t0), steps.toList())
 
-private fun comment(id: Long, author: String) = Comment(id, stepId = 1, authorName = author, body = "Nice", createdAt = t0)
+private fun comment(id: Long, author: String, isOwn: Boolean? = null) =
+    Comment(id, stepId = 1, authorName = author, body = "Nice", createdAt = t0, isOwn = isOwn)
 
 class TripCalendarTest {
     @Test fun `calendar days are read in the server's zone`() {
@@ -60,7 +61,18 @@ class TripNewsTest {
     @Test fun `authors hear about comments from others only`() {
         val old = trip(step(1, comments = listOf(comment(1, "Mia"))))
         val new = trip(step(1, comments = listOf(comment(1, "Mia"), comment(2, "Me"), comment(3, "Ben"))))
-        assertEquals(listOf("Ben · Norway"), TripNews.items(old, new, reader = false, ownName = "Me").map { it.title })
+        val news = TripNews.items(old, new, reader = false, ownName = "Me")
+        assertEquals(listOf("Ben · Norway"), news.map { it.title })
+        // The bell keys an entry by the comment, so the same one never lists twice.
+        assertEquals(3L, news.single().id)
+        assertEquals(t0, news.single().at)
+    }
+
+    @Test fun `the server's word beats the name`() {
+        val old = trip(step(1))
+        // A reader who picked the author's name, and the author's own comment under another name.
+        val new = trip(step(1, comments = listOf(comment(2, "Me", isOwn = false), comment(3, "Old name", isOwn = true))))
+        assertEquals(listOf(2L), TripNews.items(old, new, reader = false, ownName = "Me").map { it.id })
     }
 
     @Test fun `excerpts are one line and short`() {

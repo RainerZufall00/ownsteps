@@ -470,7 +470,7 @@ struct TripView: View {
         guard deleteConfirmed else { return }
         do {
             try await model.client(for: account).deleteTrip(id: tripID)
-            try? model.cache.removeTrip(tripID, for: account.id)
+            model.forgetTrip(tripID, for: account)
             await model.uploads.removeAll(for: account.id, tripID: tripID)
             model.tripListRevision += 1
             dismiss()
@@ -590,14 +590,14 @@ struct TripView: View {
             trip = fresh
             staleSince = nil
             error = nil
-            try? model.cache.saveTrip(fresh, for: account.id)
+            model.keepTrip(fresh, for: account)
             prefetch(fresh)
             await updateSuggestions()
         } catch let api as APIError where api.isUnauthorized {
             model.signedOutByServer(account)
         } catch let api as APIError where api.code == "trip_not_found" {
             // Deleted on the server: don't keep showing a ghost.
-            try? model.cache.removeTrip(tripID, for: account.id)
+            model.forgetTrip(tripID, for: account)
             trip = nil
             error = ErrorText.message(for: api)
         } catch {

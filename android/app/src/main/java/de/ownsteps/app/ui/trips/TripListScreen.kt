@@ -140,6 +140,7 @@ fun TripListScreen(navController: NavController, viewModel: TripListViewModel = 
                 title = { Text(stringResource(R.string.trips)) },
                 scrollBehavior = scroll,
                 actions = {
+                    NewsBell { navController.navigate(Routes.News) }
                     IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, stringResource(R.string.more)) }
                     DropdownMenu(menu, { menu = false }) {
                         DropdownMenuItem(
@@ -171,7 +172,7 @@ fun TripListScreen(navController: NavController, viewModel: TripListViewModel = 
             }
         },
     ) { padding ->
-        PullToRefreshBox(viewModel.refreshing, viewModel::refresh, Modifier.padding(padding).fillMaxSize()) {
+        PullToRefreshBox(viewModel.refreshing, { viewModel.refresh(); model.refreshNews() }, Modifier.padding(padding).fillMaxSize()) {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(320.dp),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),

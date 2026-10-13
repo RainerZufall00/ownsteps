@@ -186,6 +186,16 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       );
     `,
   },
+  {
+    // Who wrote a comment, so the apps can tell their own from others' –
+    // the name alone is chosen freely. Empty for guests on the web and for
+    // comments from before.
+    name: "0007_comment_senders",
+    sql: `
+      ALTER TABLE comments ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+      ALTER TABLE comments ADD COLUMN viewer_device_id INTEGER REFERENCES viewer_devices(id) ON DELETE SET NULL;
+    `,
+  },
 ];
 
 function isBusyError(error: unknown) {

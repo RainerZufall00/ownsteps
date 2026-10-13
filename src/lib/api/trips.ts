@@ -48,5 +48,5 @@ export async function tripDetailFor(principal: Principal, trip: Trip, request: R
     (coverId ? await getPhoto(coverId) : null);
   const viewCounts =
     principal.kind === "author" ? await countStepViews(steps.map((step) => step.id)) : undefined;
-  return tripDetailDto(trip, steps, shareFor(principal, trip, request), cover, viewCounts);
+  return tripDetailDto(trip, principal, steps, shareFor(principal, trip, request), cover, viewCounts);
 }

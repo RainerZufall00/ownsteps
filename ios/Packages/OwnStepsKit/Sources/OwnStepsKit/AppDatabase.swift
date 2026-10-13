@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-/// The app's one SQLite file: the trip cache and the upload queue.
+/// The app's one SQLite file: the trip cache, the upload queue and the bell's news.
 public final class AppDatabase: Sendable {
     let queue: DatabaseQueue
 
@@ -108,6 +108,23 @@ public final class AppDatabase: Sendable {
             try db.alter(table: "pending_upload") { t in
                 t.add(column: "caption", .text)
             }
+        }
+        migrator.registerMigration("v5_news") { db in
+            // What the bell lists ([D16]): one row per new comment or step,
+            // keyed by its ID on the server.
+            try db.create(table: "news") { t in
+                t.column("account_id", .text).notNull()
+                t.column("kind", .text).notNull()
+                t.column("item_id", .integer).notNull()
+                t.column("trip_id", .integer).notNull()
+                t.column("step_id", .integer).notNull()
+                t.column("title", .text).notNull()
+                t.column("body", .text).notNull()
+                t.column("at", .double).notNull()
+                t.column("read", .boolean).notNull().defaults(to: false)
+                t.primaryKey(["account_id", "kind", "item_id"])
+            }
+            try db.create(index: "news_trip", on: "news", columns: ["account_id", "trip_id"])
         }
         return migrator
     }
