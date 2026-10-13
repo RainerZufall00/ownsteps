@@ -1,23 +1,84 @@
-# OwnSteps
+<p align="center">
+  <img src="ios/OwnSteps/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="112" alt="OwnSteps icon">
+</p>
 
-A travel journal for your own server: upload photos, write a few lines, and
-everything lands on a map and in a timeline automatically. Whoever should
-follow along gets a secret link – no account, no sign-up.
+<h1 align="center">OwnSteps</h1>
 
-- **Mobile first** – for uploading on the road as much as for reading on the couch.
-- **Place and time automatically** – taken from the photos' EXIF data.
-- **Your photos stay with you** – nothing is handed to third parties; images
-  are only served to signed-in users or holders of a valid share link.
-- **One container, one file** – SQLite plus a folder of images, that's it.
-- **Keep it** – download a trip as an offline album (one page with all photos,
-  texts and a map, no server needed), or send it to your Immich with the text
-  in each photo's description.
+<p align="center">
+  <b>A travel journal for your own server – photos, map and stories for the people back home.</b><br>
+  Web · iPhone &amp; iPad · Android · English &amp; German · one Docker container · no tracking
+</p>
 
-> The user interface speaks English and German. It follows the browser's
-> language; a switch in the settings, on the sign-in page and on shared trips
-> overrides it.
+<p align="center">
+  <!-- TODO: replace with the real App Store link once the app is live -->
+  <a href="https://apps.apple.com/app/idXXXXXXXXXX">
+    <img src="docs/images/app-store-badge.svg" height="54" alt="Download on the App Store">
+  </a>
+</p>
 
-## Quick start
+<p align="center">
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/github/v/tag/RainerZufall00/ownsteps?label=version" alt="Latest version"></a>
+  <a href="https://github.com/RainerZufall00/ownsteps/pkgs/container/ownsteps"><img src="https://img.shields.io/badge/docker-ghcr.io-2496ED?logo=docker&logoColor=white" alt="Docker image"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0"></a>
+</p>
+
+## 💡 Why I built this
+
+I love how [Polarsteps](https://www.polarsteps.com) keeps family and friends
+up to date on a trip: a few photos and lines a day, a route growing across the
+map, and everyone at home following along. What I didn't want was to hand all
+those photos straight to a company.
+
+So OwnSteps does the same on a server you run yourself. Upload photos, write a
+few lines, and everything lands on a map and in a timeline automatically.
+Whoever should follow along gets a secret link – no account, no sign-up.
+
+> **Unofficial project.** OwnSteps is independent and not affiliated with or
+> endorsed by Polarsteps.
+
+<p align="center">
+  <img src="docs/images/iphone-map.webp" width="19%" alt="The route on the map">
+  <img src="docs/images/iphone-story.webp" width="19%" alt="A step as a story">
+  <img src="docs/images/iphone-trips.webp" width="19%" alt="The trip list">
+  <img src="docs/images/iphone-new-step.webp" width="19%" alt="A new step with place and date from the photos">
+  <img src="docs/images/iphone-readers.webp" width="19%" alt="Inviting readers with a QR code">
+</p>
+
+## ✨ Features
+
+- 📸 **Place and time automatically** – taken from the photos' EXIF data; a step is saved from the first photo on
+- 🗺️ **Route on the map** – every step a stop, every trip a line; flip through the steps as stories
+- 👨‍👩‍👧 **Readers without accounts** – a secret link or QR code is enough, in the browser or the app, optionally with a password
+- 💬 **Comments and reach** – readers comment, authors see how many have seen each step
+- 🔔 **News in the apps** – new comments and new steps, without a push service in between
+- ✈️ **Made for the road** – mobile first, offline reading in the apps, uploads that wait for a connection, videos up to 400 MB
+- 👥 **Several authors** – everyone with an account writes on every trip together
+- 💾 **Keep it** – download a trip as an offline album (one page with all photos, texts and a map, no server needed), or send it to your Immich with the text in each photo's description
+- 🔒 **Your photos stay with you** – images are only served to signed-in users or holders of a valid share link; nothing goes to third parties
+- 📦 **One container, one file** – SQLite plus a folder of images, that's it
+
+<p align="center">
+  <img src="docs/images/ipad-map.webp" width="80%" alt="OwnSteps on the iPad: the whole trip on the map">
+</p>
+
+The web interface and the apps speak English and German. They follow the
+device's language; a switch in the settings, on the sign-in page and on
+shared trips overrides it.
+
+## 📱 The apps
+
+The **iOS app** ([ios/](ios/README.md)) and the **Android app**
+([android/](android/README.md)) are native and do the same: write steps on the
+road (also straight from the share sheet), read trips offline, get news, and
+follow other people's trips as a reader. Both can be signed in to several
+servers at once.
+
+[Download OwnSteps on the App Store](https://apps.apple.com/app/idXXXXXXXXXX) <!-- TODO: real App Store link -->
+
+Readers don't need a server of their own: *Follow a trip with a link* on the
+welcome screen, or simply open the link on the phone.
+
+## 🚀 Quick start
 
 OwnSteps runs as a ready-made Docker image; all you need is Docker with the
 compose plugin. Fetch the compose file and the configuration template into
@@ -29,7 +90,7 @@ curl -fsSLO https://raw.githubusercontent.com/RainerZufall00/ownsteps/main/docke
 curl -fsSL -o .env https://raw.githubusercontent.com/RainerZufall00/ownsteps/main/.env.example
 ```
 
-Edit `.env` – at least `PUBLIC_URL` and `MAPTILER_KEY`. Then:
+Edit `.env` – at least `PUBLIC_URL`. Then:
 
 ```bash
 docker compose up -d
@@ -40,122 +101,10 @@ app runs on port 2555. On the first visit, `/setup` walks you through
 creating the first account (skipped if `ADMIN_EMAIL` and `ADMIN_PASSWORD` are
 set in `.env` or sign-in runs through OIDC).
 
-## Setting up the map
+When the iOS app is in the App Store, set `APP_STORE_ID` so shared trips
+offer to open in the app.
 
-The map and place names work out of the box, without an account anywhere:
-
-- **Map:** [OpenFreeMap](https://openfreemap.org) – free vector maps. Pick a
-  style with `MAP_STYLE=liberty` (default), `bright` or `positron`.
-- **Place names and place search:** OpenStreetMap's
-  [Nominatim](https://nominatim.org) and [Photon](https://photon.komoot.io),
-  at most one request per second each, as their usage policies ask.
-
-With a [MapTiler](https://cloud.maptiler.com/account/keys/) key
-(`MAPTILER_KEY=...` in `.env`, free tier is plenty) both come from MapTiler
-instead, and `MAP_STYLE` takes MapTiler's styles – `hybrid` (satellite with
-labels, the default then), `satellite`, `streets-v2`, `outdoor-v2` … The key
-stays on the server: all map requests go through `/api/map`, so it never
-shows up in shared links.
-
-`GEOCODING=off` keeps every place lookup on your server; place names are then
-typed by hand.
-
-## Sign-in via OIDC (e.g. Pocket ID)
-
-Create an OIDC client with your provider using the callback URL:
-
-```
-https://your-domain.com/api/auth/oidc/callback
-```
-
-Then set `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` in `.env`.
-The sign-in page then shows a button for the provider (label configurable via
-`OIDC_BUTTON_LABEL`).
-
-Whoever signs in via OIDC with the same email address as an existing account
-ends up in that account automatically. Password sign-in stays active as a
-fallback in case the provider is unreachable.
-
-If not everyone on your identity provider should get access, use
-`OIDC_ALLOWED_EMAILS=you@example.com,partner@example.com`.
-
-Accounts are only matched or created by an email address the provider marks
-as verified (`email_verified`). If yours checks addresses but doesn't send that
-claim, set `OIDC_TRUST_EMAIL=true`.
-
-Once OIDC works, `PASSWORD_LOGIN=false` switches password sign-in off in the
-web UI and the app alike.
-
-## API and app
-
-The iOS app ([ios/](ios/README.md)) and the Android app ([android/](android/README.md)) talk to `/api/v1`, a versioned REST API with bearer tokens. The
-description is served at `/api/v1/openapi.json`; `/api/v1/info` tells clients
-which sign-in methods and features the server offers. Signed-in app devices
-show up under *Settings* and can be signed out there; readers who follow a
-trip in the app are listed in the trip's settings. Details in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), section 5.
-
-When the app is in the App Store, set `APP_STORE_ID` so shared trips offer to
-open in the app.
-
-## Reverse proxy
-
-Behind Caddy, Traefik or nginx, restrict the port in `docker-compose.yml` to
-`127.0.0.1:${HOST_PORT:-2555}:2555` so the container isn't directly reachable
-from the network. Example for Caddy:
-
-```
-trips.example.com {
-    reverse_proxy 127.0.0.1:2555
-}
-```
-
-Inside the container the app always runs on 2555; `HOST_PORT` in `.env` only
-changes the outside port. `PORT` does **not** belong there – it would change
-the container port while the mapping stays the same.
-
-**Set `PUBLIC_URL` to the public address.** Share links, preview images and
-the OIDC callback URL are built from it. Without it, OwnSteps derives the
-address from the `Host` header – behind a proxy an internal address can then
-easily end up in a link you send out.
-
-**Never use the container IP** from `docker inspect` as the proxy target: it
-changes on every restart, and forwarding is dead afterwards. Depending on how
-the proxy is set up, there are two clean ways:
-
-**Proxy or tunnel client in the host network** (e.g. Pangolin's `newt`, or
-Caddy and nginx directly on the server): the target is `127.0.0.1:2555`, i.e.
-the port mapped on the host. Then additionally set
-
-```
-BIND_ADDRESS=127.0.0.1
-```
-
-in `.env` so the port is only reachable locally and not open to the network.
-This matters even behind a firewall: Docker publishes ports past ufw. If the
-proxy runs on another server, allow the port only from it in your provider's
-firewall instead.
-
-**Proxy as a container in a bridge network** (Traefik, nginx-proxy-manager):
-attach both containers to the same network and use the container name
-`http://ownsteps:2555` as the target. The scaffolding for that is commented
-out in `docker-compose.yml`. Container names only resolve inside bridge
-networks – this doesn't work for a proxy in the host network.
-
-Important: `X-Forwarded-Proto` must be passed through (Caddy and Traefik do
-this by default) so share links are created with `https://`. Alternatively set
-`PUBLIC_URL` explicitly – it always takes precedence.
-
-**`TRUSTED_PROXIES`** (default `1`) tells OwnSteps how many proxies append to
-`X-Forwarded-For` – the brakes against password guessing count per client
-address. One proxy (Caddy, nginx, Traefik, Pangolin): leave it. Two, e.g.
-Cloudflare in front of Caddy: `2`. Reachable directly without a proxy: `0`.
-
-The proxy must let large uploads through: 25 MB is enough for photos, videos
-can be up to 400 MB (nginx: `client_max_body_size 400m;`). Its timeout should
-be generous too – a video over a mobile connection takes a while.
-
-## How it works
+## 🧭 How it works
 
 1. **Create a trip** – only a name is required. The date range is optional and
    can be changed at any time.
@@ -164,6 +113,9 @@ be generous too – a video over a mobile connection takes a while.
 3. **Share** – flip the switch in the share settings and send the link.
    Optionally with a password on top. A new link invalidates the old one, so
    OwnSteps asks before creating one.
+
+<details>
+<summary><b>More details</b> – dates, videos, comments, views, the map view</summary>
 
 If a **date range** is set, it shows in the header and on the trip card – even
 before the first step exists. It also determines the first trip day: whoever
@@ -230,7 +182,128 @@ steps are gone afterwards.
 All accounts work together on all trips; there is deliberately no permission
 system.
 
-## Backups
+</details>
+
+## ⚙️ Configuration
+
+### Map and place names
+
+The map and place names work out of the box, without an account anywhere:
+
+- **Map:** [OpenFreeMap](https://openfreemap.org) – free vector maps. Pick a
+  style with `MAP_STYLE=liberty` (default), `bright` or `positron`.
+- **Place names and place search:** OpenStreetMap's
+  [Nominatim](https://nominatim.org) and [Photon](https://photon.komoot.io),
+  at most one request per second each, as their usage policies ask.
+
+With a [MapTiler](https://cloud.maptiler.com/account/keys/) key
+(`MAPTILER_KEY=...` in `.env`, free tier is plenty) both come from MapTiler
+instead, and `MAP_STYLE` takes MapTiler's styles – `hybrid` (satellite with
+labels, the default then), `satellite`, `streets-v2`, `outdoor-v2` … The key
+stays on the server: all map requests go through `/api/map`, so it never
+shows up in shared links.
+
+`GEOCODING=off` keeps every place lookup on your server; place names are then
+typed by hand.
+
+### Sign-in via OIDC (e.g. Pocket ID)
+
+Create an OIDC client with your provider using the callback URL:
+
+```
+https://your-domain.com/api/auth/oidc/callback
+```
+
+Then set `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` in `.env`.
+The sign-in page then shows a button for the provider (label configurable via
+`OIDC_BUTTON_LABEL`).
+
+Whoever signs in via OIDC with the same email address as an existing account
+ends up in that account automatically. Password sign-in stays active as a
+fallback in case the provider is unreachable.
+
+If not everyone on your identity provider should get access, use
+`OIDC_ALLOWED_EMAILS=you@example.com,partner@example.com`.
+
+Accounts are only matched or created by an email address the provider marks
+as verified (`email_verified`). If yours checks addresses but doesn't send that
+claim, set `OIDC_TRUST_EMAIL=true`.
+
+Once OIDC works, `PASSWORD_LOGIN=false` switches password sign-in off in the
+web UI and the app alike.
+
+### Reverse proxy
+
+Behind Caddy, Traefik or nginx, restrict the port in `docker-compose.yml` to
+`127.0.0.1:${HOST_PORT:-2555}:2555` so the container isn't directly reachable
+from the network. Example for Caddy:
+
+```
+trips.example.com {
+    reverse_proxy 127.0.0.1:2555
+}
+```
+
+Inside the container the app always runs on 2555; `HOST_PORT` in `.env` only
+changes the outside port. `PORT` does **not** belong there – it would change
+the container port while the mapping stays the same.
+
+**Set `PUBLIC_URL` to the public address.** Share links, preview images and
+the OIDC callback URL are built from it. Without it, OwnSteps derives the
+address from the `Host` header – behind a proxy an internal address can then
+easily end up in a link you send out.
+
+<details>
+<summary><b>Proxy target, forwarded headers and upload limits</b></summary>
+
+**Never use the container IP** from `docker inspect` as the proxy target: it
+changes on every restart, and forwarding is dead afterwards. Depending on how
+the proxy is set up, there are two clean ways:
+
+**Proxy or tunnel client in the host network** (e.g. Pangolin's `newt`, or
+Caddy and nginx directly on the server): the target is `127.0.0.1:2555`, i.e.
+the port mapped on the host. Then additionally set
+
+```
+BIND_ADDRESS=127.0.0.1
+```
+
+in `.env` so the port is only reachable locally and not open to the network.
+This matters even behind a firewall: Docker publishes ports past ufw. If the
+proxy runs on another server, allow the port only from it in your provider's
+firewall instead.
+
+**Proxy as a container in a bridge network** (Traefik, nginx-proxy-manager):
+attach both containers to the same network and use the container name
+`http://ownsteps:2555` as the target. The scaffolding for that is commented
+out in `docker-compose.yml`. Container names only resolve inside bridge
+networks – this doesn't work for a proxy in the host network.
+
+Important: `X-Forwarded-Proto` must be passed through (Caddy and Traefik do
+this by default) so share links are created with `https://`. Alternatively set
+`PUBLIC_URL` explicitly – it always takes precedence.
+
+**`TRUSTED_PROXIES`** (default `1`) tells OwnSteps how many proxies append to
+`X-Forwarded-For` – the brakes against password guessing count per client
+address. One proxy (Caddy, nginx, Traefik, Pangolin): leave it. Two, e.g.
+Cloudflare in front of Caddy: `2`. Reachable directly without a proxy: `0`.
+
+The proxy must let large uploads through: 25 MB is enough for photos, videos
+can be up to 400 MB (nginx: `client_max_body_size 400m;`). Its timeout should
+be generous too – a video over a mobile connection takes a while.
+
+</details>
+
+### API
+
+The apps talk to `/api/v1`, a versioned REST API with bearer tokens. The
+description is served at `/api/v1/openapi.json`; `/api/v1/info` tells clients
+which sign-in methods and features the server offers. Signed-in app devices
+show up under *Settings* and can be signed out there; readers who follow a
+trip in the app are listed in the trip's settings. Details in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), section 5.
+
+## 💾 Backups
 
 Everything important lives in the `data/` folder:
 
@@ -256,7 +329,7 @@ web sizes; the original is only kept as a safeguard under
 `data/uploads/<id>/original` and can be copied from there. To save space, set
 `KEEP_ORIGINALS=false` – then only the web sizes remain.
 
-## Updating
+## 🔄 Updating
 
 ```bash
 docker compose pull && docker compose up -d
@@ -271,7 +344,15 @@ when to move on, pin a version there instead – `:1` takes every 1.x release,
 `:1.2.3` exactly that one. The releases and what changed are listed on the
 [releases page](https://github.com/RainerZufall00/ownsteps/releases).
 
-## Development
+## 🧩 Known quirks
+
+- **HEIC from iPhones:** Safari usually converts photos to JPEG on upload. If
+  that doesn't happen, set *Settings → Camera → Formats* to "Most Compatible"
+  on the iPhone. The iOS app converts by itself.
+- **Place names come from OpenStreetMap or MapTiler:** coordinates from your
+  photos are sent to one of them to name the place, unless `GEOCODING=off`.
+
+## 🛠️ Development
 
 ```bash
 git clone https://github.com/RainerZufall00/ownsteps.git && cd ownsteps
@@ -283,35 +364,40 @@ npm run dev
 Without `DATA_DIR`, database and photos go into the `./data` folder.
 `npm test` runs the tests. To try your own Docker image, build it with
 `docker build -t ownsteps .` and put `image: ownsteps` into
-`docker-compose.yml`.
+`docker-compose.yml`. `node scripts/seed-demo.mjs` fills an empty instance
+with three demo trips.
 
 A new release is a version tag: `git tag v1.2.3 && git push --tags` builds the
 image for both architectures and publishes it to the GitHub Container
 Registry (`.github/workflows/docker.yml`).
 
-## Tech
-
-Next.js 16 (App Router) · SQLite via Drizzle · sharp for the image sizes ·
-exifr for GPS and capture time · MapLibre GL for the map · Tailwind CSS v4.
+**Tech:** Next.js 16 (App Router) · SQLite via Drizzle · sharp for the image
+sizes · exifr for GPS and capture time · MapLibre GL for the map · Tailwind
+CSS v4 · SwiftUI and Jetpack Compose for the apps.
 
 If you work on the code, **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** has
 the data model, the flows behind upload, access control and sign-in, and the
 reasoning behind every decision made.
 
-## Contributing
+## 💬 Feedback & contributing
 
-Bug reports and pull requests are welcome – see
-[CONTRIBUTING.md](CONTRIBUTING.md). Security problems please report
-privately, as described in [SECURITY.md](SECURITY.md). What changed between
-versions is in [CHANGELOG.md](CHANGELOG.md).
+[Support page](https://rainerzufall00.github.io/ownsteps/support) ·
+[Open an issue](https://github.com/RainerZufall00/ownsteps/issues) · Pull
+requests are welcome – see [CONTRIBUTING.md](CONTRIBUTING.md). Security
+problems please report privately, as described in [SECURITY.md](SECURITY.md).
+What changed between versions is in [CHANGELOG.md](CHANGELOG.md).
 
-## Known quirks
+Privacy: the apps talk only to the servers you enter.
+[Privacy Policy](https://rainerzufall00.github.io/ownsteps/privacy)
 
-- **HEIC from iPhones:** Safari usually converts photos to JPEG on upload. If
-  that doesn't happen, set *Settings → Camera → Formats* to "Most Compatible"
-  on the iPhone.
-- **Place names come from OpenStreetMap or MapTiler:** coordinates from your
-  photos are sent to one of them to name the place, unless `GEOCODING=off`.
+## ☕ Support
+
+OwnSteps is free, without ads or subscriptions. If it keeps your family
+posted on your next trip, you can buy me a coffee:
+
+<a href="https://buymeacoffee.com/rainerzufall00">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="50" alt="Buy Me a Coffee">
+</a>
 
 ## License
 
@@ -319,4 +405,22 @@ The server and web UI are free software under the
 [GNU Affero General Public License v3.0](LICENSE): if you run a modified
 version for others, you have to offer them its source code. The iOS app in
 `ios/` and the Android app in `android/` are under the
-[Mozilla Public License 2.0](ios/LICENSE).
+[Mozilla Public License 2.0](ios/LICENSE). *Polarsteps* is a trademark of its
+respective owner.
+
+<details>
+<summary>Demo photos</summary>
+
+The screenshots and `scripts/seed-demo.mjs` use photos from
+[Unsplash](https://unsplash.com), covered by the
+[Unsplash License](https://unsplash.com/license), not by the licenses above.
+Photos by Paulo Evangelista, Lisha Riabinina, Polina Kocheva, Magdalena
+Raczka, Dmitry Voronov, Pedro Souto, Benjamin Voros, Josè Maria Sava, Andrey
+Masiero, Hasmik Ghazaryan Olson, Helio Dilolwa, Daniel Seßler, Nick
+Karvounis, Ekin-Fidel Tanriverdi, Thimo van Leeuwen, Bruno Ferreira, Sokmean
+Nou, Tobias Pfeifer, Shreyas Nair, Einar H. Reynis, Tom Podmore, Pavol
+Svantner, Robert Lukeman, Shadman Sakib, With Paul, Ankit Sood, Lisa Hanly,
+Yves Alarie, Joshua Earle, Pietro De Grandi, Luca Bravo, Neil Rosenstech,
+Luca, Reiseuhu and David Xeli.
+
+</details>

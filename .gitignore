@@ -43,3 +43,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Demo photos and App Store screenshots (scripts/seed-demo.mjs, docs/app-store)
+/.demo-photos
+/docs/app-store/screenshots
