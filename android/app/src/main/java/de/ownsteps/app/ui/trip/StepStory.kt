@@ -8,6 +8,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -250,12 +253,28 @@ private fun StoryPage(
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val width = constraints.maxWidth
-        /** A tap on the right goes on, on the left back; a double tap zooms. */
-        val taps = Modifier.pointerInput(photos) {
-            detectTapGestures(onDoubleTap = { if (photos.isNotEmpty()) onZoom(pager.currentPage) }) { offset ->
-                if (offset.x < width / 3f) go(-1) else go(1)
+        /**
+         * A tap on the right goes on, on the left back; spreading two fingers
+         * zooms, like on iOS. No double tap: waiting for a second tap held
+         * every single one back by its timeout, so paging felt stuck.
+         */
+        val taps = Modifier
+            .pointerInput(photos) { detectTapGestures { offset -> if (offset.x < width / 3f) go(-1) else go(1) } }
+            .pointerInput(photos) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var zoom = 1f
+                    do {
+                        val event = awaitPointerEvent()
+                        if (event.changes.count { it.pressed } > 1) {
+                            zoom *= event.calculateZoom()
+                            // Consumed, so the tap detector above doesn't page once the fingers lift.
+                            event.changes.forEach { it.consume() }
+                        }
+                    } while (event.changes.any { it.pressed })
+                    if (zoom > 1.15f && photos.getOrNull(pager.currentPage)?.isVideo == false) onZoom(pager.currentPage)
+                }
             }
-        }
         if (photos.isEmpty()) CoverPlaceholder(step.id, Modifier.fillMaxSize(), iconSize = 0.dp)
         else Backdrop(account, photos.getOrNull(pager.currentPage))
 
@@ -268,7 +287,8 @@ private fun StoryPage(
                         ClampedText(step.body, 10, MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center), Modifier.padding(horizontal = 32.dp), onRead)
                     }
                 } else {
-                    HorizontalPager(pager, Modifier.fillMaxSize(), pageSpacing = 20.dp, key = { photos[it].id }) { page ->
+                    // The neighbours load ahead, so the next tap shows a sharp photo at once.
+                    HorizontalPager(pager, Modifier.fillMaxSize(), pageSpacing = 20.dp, beyondViewportPageCount = 1, key = { photos[it].id }) { page ->
                         StoryPhoto(account, photos[page], playing = isCurrent && page == pager.currentPage) { forward -> go(if (forward) 1 else -1) }
                     }
                 }
