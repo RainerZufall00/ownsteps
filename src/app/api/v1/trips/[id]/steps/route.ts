@@ -19,6 +19,6 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/trip
     // The app sends its language as Accept-Language.
     const language = negotiateLocale(request.headers.get("accept-language"));
     const { step, created } = await createStepFromApp(tripId, principal.user.id, input, language);
-    return json(stepDto(step), created ? 201 : 200);
+    return json(stepDto(step, principal), created ? 201 : 200);
   });
 }

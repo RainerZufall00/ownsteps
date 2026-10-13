@@ -21,6 +21,7 @@ export async function addCommentAction(
   formData: FormData,
 ): Promise<CommentState> {
   try {
+    const user = await getCurrentUser();
     const { trip, comment } = await postComment({
       tripId: Number(formData.get("tripId")),
       stepId: Number(formData.get("stepId")),
@@ -29,6 +30,8 @@ export async function addCommentAction(
         body: formString(formData, "body"),
       },
       clientKey: clientAddress(await headers()),
+      // Signed in, it's the author's own – the apps then don't report it back to them.
+      sender: user ? { userId: user.id } : undefined,
       // Guests prove access with the link's token, like their media URLs.
       resolveAccess: (trip) => resolveTripAccess(trip, formText(formData, "shareToken")),
     });

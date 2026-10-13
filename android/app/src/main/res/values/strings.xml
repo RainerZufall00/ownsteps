@@ -190,6 +190,8 @@
     <string name="upload_status_open">Open the trip</string>
     <string name="news_new_step">New step: %1$s</string>
     <string name="news_tap_to_read">Tap to read</string>
+    <string name="news">News</string>
+    <string name="no_news">Nothing new yet. New comments on your trips, and new steps in trips you follow, show up here.</string>
     <string name="signed_out_by_server">%1$s signed this device out.</string>
     <string name="signed_out_by_server_pending">%1$s signed this device out. Sign in again to send what\'s still waiting.</string>
     <string name="error_address_empty">Please enter your server\'s address.</string>
@@ -244,6 +246,10 @@
     <plurals name="photos">
         <item quantity="one">%1$d photo</item>
         <item quantity="other">%1$d photos</item>
+    </plurals>
+    <plurals name="news_unread">
+        <item quantity="one">News, %1$d unread</item>
+        <item quantity="other">News, %1$d unread</item>
     </plurals>
     <plurals name="comments">
         <item quantity="one">%1$d comment</item>

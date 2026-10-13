@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         model.resumeUploads()
+        model.refreshNews()
     }
 
     override fun onResume() {

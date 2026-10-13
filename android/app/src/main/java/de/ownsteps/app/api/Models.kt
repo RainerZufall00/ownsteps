@@ -172,7 +172,15 @@ data class Step(
 }
 
 @Serializable
-data class Comment(val id: Long, val stepId: Long, val authorName: String, val body: String, val createdAt: Timestamp)
+data class Comment(
+    val id: Long,
+    val stepId: Long,
+    val authorName: String,
+    val body: String,
+    val createdAt: Timestamp,
+    /** Written by this account or reader device; null from servers before 0.6. */
+    val isOwn: Boolean? = null,
+)
 
 @Serializable
 data class Viewer(

@@ -6,11 +6,16 @@ import { comments, steps } from "@/db/schema";
 import { recordChange } from "./changes";
 import { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH } from "./limits";
 
+/** Who wrote a comment, beyond the name: lets the apps tell their own from others'. */
+export type CommentSender = { userId: number } | { viewerDeviceId: number };
+
 export async function addComment(input: {
   stepId: number;
   tripId: number;
   authorName: string;
   body: string;
+  /** None for guests on the web. */
+  sender?: CommentSender;
 }) {
   const [created] = await db
     .insert(comments)
@@ -19,6 +24,7 @@ export async function addComment(input: {
       tripId: input.tripId,
       authorName: input.authorName.trim().slice(0, NAME_MAX_LENGTH),
       body: input.body.trim().slice(0, COMMENT_MAX_LENGTH),
+      ...input.sender,
     })
     .returning();
   await recordChange(created.tripId, "comment", created.id, "upsert");

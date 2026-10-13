@@ -51,6 +51,14 @@ export const commentSchema = z
     authorName: z.string(),
     body: z.string(),
     createdAt: isoDateTime,
+    /**
+     * Written by the account or reader device asking – by identity, not by
+     * name. Optional for servers before 0.6; clients then compare names.
+     */
+    isOwn: z.boolean().optional().meta({
+      description:
+        "Whether the caller wrote it (same account or reader device). Missing on servers before 0.6.",
+    }),
   })
   .meta({ id: "Comment" });
 

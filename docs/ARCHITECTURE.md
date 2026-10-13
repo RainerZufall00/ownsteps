@@ -686,13 +686,31 @@ and whatever was still queued for it go too.
   account. Trips that changed are fetched again – which also keeps the
   offline copy fresh – and compared with the cached copy (`TripNews`):
   readers hear about new steps, authors about comments by others. Edits
-  don't notify, and nothing does on the very first run. Only the
+  don't notify, and nothing does on the very first run. "By others" is
+  decided by identity, not by name: comments store the account
+  (`user_id`) or reader device (`viewer_device_id`) that wrote them, and
+  the API marks each with `isOwn` for the caller. Names are chosen freely,
+  so a reader calling themselves like the author would otherwise go
+  unreported. Guests on the web and comments from before 0.6 have neither;
+  apps talking to an older server fall back to comparing names. Only the
   background run posts notifications; each can be muted per trip. Runs are
   queued one after the other (two at once would notify twice), and the
   cursor only moves on once every changed trip was fetched. A tapped
   notification opens the trip at that step. The simulator never schedules
   refresh tasks, so debug builds run the same check when sent to the
   background with `-OwnStepsDebugNewsInBackground YES`.
+- *The bell* above the trip list holds the same news, because background
+  runs come only when the system allows them, and a trip opened in the app
+  updated the cached copy before the change feed could compare it. Every
+  fresh copy of a trip (change feed, trip screen, foreground or
+  background) therefore goes through one function (`keepTrip` on iOS,
+  `store` on Android) that compares, saves and records the news in a local
+  `news` table, keyed by the comment's or step's ID. Deleted comments and
+  steps drop out on the next refresh, and only the newest 200 entries are
+  kept. Read state stays on the device, like the notifications. Closing
+  the list marks everything read; opening an entry marks only that one.
+  Both apps also check the change feed on every return to the foreground
+  and on pull to refresh. No server change was needed.
 
 Photos are cached on disk by `MediaStore` only, under the photo's
 `fileKey` (a hash of its storage key, new with every upload) – photo IDs

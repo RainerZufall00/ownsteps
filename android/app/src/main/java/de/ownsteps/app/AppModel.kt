@@ -18,6 +18,7 @@ import de.ownsteps.app.data.Account
 import de.ownsteps.app.data.AccountStore
 import de.ownsteps.app.api.TripDetail
 import de.ownsteps.app.data.AppDatabase
+import de.ownsteps.app.data.NewsInbox
 import de.ownsteps.app.data.PhotoSuggestions
 import de.ownsteps.app.data.PhotoCache
 import de.ownsteps.app.data.Prefs
@@ -93,6 +94,7 @@ class AppModel(private val context: Context) {
     private val database = AppDatabase.open(context)
     val accounts = accountStore.accounts
     val cache = TripCache(database.cache())
+    val news = NewsInbox(database.news())
     val photos = PhotoCache(File(context.filesDir, "media"), http)
     val uploads = UploadQueue(database.queue(), File(context.filesDir, "uploads"), clientFor = { id -> account(id)?.let(::client) })
     val media = MediaPreparation(context)
@@ -293,6 +295,7 @@ class AppModel(private val context: Context) {
         accountStore.update { list -> list.filterNot { it.id == account.id } }
         prefs.removeAll(account.id)
         cache.removeAll(account.id)
+        news.remove(account.id)
         photos.removeAll(account.id)
         if (!keepingQueue) uploads.removeAll(account.id)
     }
@@ -324,11 +327,31 @@ class AppModel(private val context: Context) {
         checkForNews(notify = false)
     }
 
+    /** Back in the app: the bell catches up on what happened meanwhile. */
+    fun refreshNews() = startWatching()
+
+    /**
+     * Keeps a fresh copy of a trip – the one way in, so the bell sees every
+     * change, whoever fetched it. Returns what's new against the old copy.
+     */
+    suspend fun store(account: Account, fresh: TripDetail): List<TripNews.Item> {
+        val old = cache.trip(account.id, fresh.id)?.value
+        cache.saveTrip(account.id, fresh)
+        return TripNews.items(old, fresh, reader = !account.isAuthor, ownName = account.displayName)
+            .also { news.record(account.id, fresh, it) }
+    }
+
+    /** Deleted on the server: its offline copy and its news go. */
+    suspend fun forgetTrip(account: Account, tripId: Long) {
+        cache.removeTrip(account.id, tripId)
+        news.remove(account.id, tripId)
+    }
+
     /**
      * Follows each server's change feed ([D16]). Trips that changed are
      * fetched again, which keeps the offline copy fresh; comparing with the
      * old copy tells what's new. Only background runs notify – in the
-     * foreground the user sees it anyway. Runs one at a time, or two runs
+     * foreground the bell shows it. Runs one at a time, or two runs
      * would read the same cursor and notify twice.
      */
     suspend fun checkForNews(notify: Boolean) = newsMutex.withLock {
@@ -357,17 +380,13 @@ class AppModel(private val context: Context) {
 
     /** False if the trip couldn't be fetched and the change must be seen again. */
     private suspend fun refreshTrip(tripId: Long, account: Account, client: ServerClient, notify: Boolean): Boolean {
-        val old = cache.trip(account.id, tripId)?.value
         return try {
-            val fresh = client.trip(tripId)
-            cache.saveTrip(account.id, fresh)
-            if (notify && !prefs.isMuted(account.id, tripId)) {
-                Notifications.post(context, account, TripNews.items(old, fresh, reader = !account.isAuthor, ownName = account.displayName))
-            }
+            val items = store(account, client.trip(tripId))
+            if (notify && !prefs.isMuted(account.id, tripId)) Notifications.post(context, account, items)
             true
         } catch (error: ApiError) {
             // Deleted: nothing more will come of it.
-            if (error.code == "trip_not_found") cache.removeTrip(account.id, tripId)
+            if (error.code == "trip_not_found") forgetTrip(account, tripId)
             error.code == "trip_not_found"
         } catch (_: Exception) {
             false

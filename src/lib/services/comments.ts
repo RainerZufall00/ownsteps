@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { Trip } from "@/db/schema";
-import { addComment, deleteComment, isCommentableStep } from "@/lib/comments";
+import { addComment, type CommentSender, deleteComment, isCommentableStep } from "@/lib/comments";
 import { ServiceError } from "@/lib/errors";
 import { createRateLimit } from "@/lib/rate-limit";
 import { commentInput, parseInput } from "@/lib/schemas";
@@ -22,6 +22,8 @@ export async function postComment(input: {
   raw: unknown;
   /** Identifies the sender for the rate limit, e.g. the client IP. */
   clientKey: string;
+  /** The account or app reader writing it; none for guests on the web. */
+  sender?: CommentSender;
   resolveAccess: (trip: Trip) => Promise<TripAccess>;
 }) {
   if (!Number.isInteger(input.tripId) || !Number.isInteger(input.stepId)) {
@@ -46,6 +48,7 @@ export async function postComment(input: {
     tripId: trip.id,
     authorName,
     body,
+    sender: input.sender,
   });
   return { trip, comment };
 }

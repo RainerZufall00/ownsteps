@@ -8,10 +8,10 @@ import { patchStep, removeStep } from "@/lib/services/steps";
 /** Editing needs a connection; only new steps can be written offline ([D19]). */
 export async function PATCH(request: Request, context: RouteContext<"/api/v1/steps/[id]">) {
   return handle(async () => {
-    await requireAuthor(request);
+    const principal = await requireAuthor(request);
     const stepId = idParam((await context.params).id, "step_not_found");
     const patch = parseInput(stepPatchSchema, await readJson(request));
-    return json(stepDto(await patchStep(stepId, patch)));
+    return json(stepDto(await patchStep(stepId, patch), principal));
   });
 }
 

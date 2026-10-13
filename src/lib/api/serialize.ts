@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import type { Change, Comment, Photo, Trip, User, ViewerDevice } from "@/db/schema";
 import { summarizeSteps, type StepWithPhotos, type TripStats } from "@/lib/trips";
 import { toIso } from "./http";
+import type { Principal } from "./principal";
 import type {
   ChangeDto,
   CommentDto,
@@ -48,18 +49,29 @@ function fileKey(storageKey: string) {
   return createHash("sha256").update(storageKey).digest("hex").slice(0, 16);
 }
 
-export function commentDto(comment: Comment): CommentDto {
+/**
+ * Whether the one asking wrote it – by account or reader device, never by
+ * name: names are chosen freely, and a reader may pick the author's.
+ */
+function isOwnComment(comment: Comment, reader: Principal) {
+  return reader.kind === "author"
+    ? comment.userId === reader.user.id
+    : comment.viewerDeviceId === reader.device.id;
+}
+
+export function commentDto(comment: Comment, reader: Principal): CommentDto {
   return {
     id: comment.id,
     stepId: comment.stepId,
     authorName: comment.authorName,
     body: comment.body,
     createdAt: toIso(comment.createdAt)!,
+    isOwn: isOwnComment(comment, reader),
   };
 }
 
 /** `viewCount` only for authors – readers never learn who else reads along. */
-export function stepDto(step: StepWithPhotos, viewCount?: number): StepDto {
+export function stepDto(step: StepWithPhotos, reader: Principal, viewCount?: number): StepDto {
   return {
     id: step.id,
     tripId: step.tripId,
@@ -72,7 +84,7 @@ export function stepDto(step: StepWithPhotos, viewCount?: number): StepDto {
     occurredAt: toIso(step.occurredAt)!,
     updatedAt: toIso(step.updatedAt)!,
     photos: step.photos.map(photoDto),
-    comments: step.comments.map(commentDto),
+    comments: step.comments.map((comment) => commentDto(comment, reader)),
     ...(viewCount === undefined ? {} : { viewCount }),
   };
 }
@@ -110,6 +122,7 @@ export function tripDto(
 
 export function tripDetailDto(
   trip: Trip,
+  reader: Principal,
   steps: StepWithPhotos[],
   share: { url: string } | null,
   cover: Photo | null,
@@ -118,7 +131,7 @@ export function tripDetailDto(
 ): TripDetailDto {
   return {
     ...tripDto(trip, summarizeSteps(trip, steps), share, cover),
-    steps: steps.map((step) => stepDto(step, viewCounts && (viewCounts.get(step.id) ?? 0))),
+    steps: steps.map((step) => stepDto(step, reader, viewCounts && (viewCounts.get(step.id) ?? 0))),
   };
 }
 

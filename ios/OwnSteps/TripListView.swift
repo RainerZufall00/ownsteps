@@ -30,6 +30,9 @@ struct TripListView: View {
     @State private var newTripFor: Account?
     @State private var showingSettings = false
     @State private var following = false
+    @State private var showingNews = false
+    /// Chosen in the news list; opened once the sheet is gone.
+    @State private var newsTarget: TripRoute?
     @State private var accountToUnfollow: Account?
     @Namespace private var cardTransition
 
@@ -57,6 +60,17 @@ struct TripListView: View {
         }
         .sheet(isPresented: $showingSettings) { SettingsView() }
         .sheet(isPresented: $following) { FollowView() }
+        .sheet(isPresented: $showingNews, onDismiss: {
+            // Closing the list marks the rest read; opening an entry only that one.
+            if let target = newsTarget {
+                newsTarget = nil
+                open(target)
+            } else {
+                model.markAllNewsRead()
+            }
+        }) {
+            NewsView { entry in newsTarget = TripRoute(accountID: entry.accountID, tripID: entry.tripID, stepID: entry.stepID) }
+        }
         // An alert, not a second confirmation dialog: SwiftUI shows only one of those per view.
         .alert(
             "Stop following this trip?",
@@ -114,7 +128,10 @@ struct TripListView: View {
             }
             .navigationTitle("Trips")
             .toolbar { toolbar }
-            .refreshable { await refresh() }
+            .refreshable {
+                await refresh()
+                await model.checkForNews(notify: false)
+            }
             .navigationDestination(for: TripRoute.self) { route in
                 if let account = model.account(id: route.accountID) {
                     TripView(account: account, tripID: route.tripID, focusStepID: route.stepID)
@@ -213,7 +230,10 @@ struct TripListView: View {
             }
             .navigationTitle("Trips")
             .toolbar { toolbar }
-            .refreshable { await refresh() }
+            .refreshable {
+                await refresh()
+                await model.checkForNews(notify: false)
+            }
         } detail: {
             NavigationStack {
                 if let selection, let account = model.account(id: selection.accountID) {
@@ -280,6 +300,20 @@ struct TripListView: View {
                 Image(systemName: "person.crop.circle")
             }
             .accessibilityLabel(Text("Settings"))
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { showingNews = true } label: {
+                if model.unreadNews > 0 {
+                    // The dot red, the bell like the other toolbar icons.
+                    Image(systemName: "bell.badge")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.red, .primary)
+                } else {
+                    Image(systemName: "bell")
+                }
+            }
+            .accessibilityLabel(Text("News"))
+            .accessibilityValue(model.unreadNews > 0 ? Text("\(model.unreadNews) unread") : Text(verbatim: ""))
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {

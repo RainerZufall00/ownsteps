@@ -17,7 +17,7 @@ import { getStep } from "@/lib/trips";
  */
 export async function POST(request: Request, context: RouteContext<"/api/v1/steps/[id]/media">) {
   return handle(async () => {
-    await requireAuthor(request);
+    const principal = await requireAuthor(request);
     const stepId = idParam((await context.params).id, "step_not_found");
 
     return withMultipart(request, uploadLimitFor, async (form) => {
@@ -40,7 +40,7 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/step
       const failure = result.failed[0];
       if (failure) return problem(failure.code);
       return json(
-        { photo: photoDto(result.photos[0]), step: stepDto((await getStep(stepId))!) },
+        { photo: photoDto(result.photos[0]), step: stepDto((await getStep(stepId))!, principal) },
         201,
       );
     });

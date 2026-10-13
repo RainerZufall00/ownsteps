@@ -247,6 +247,16 @@
         }
       }
     },
+    "%lld unread": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ungelesen"
+          }
+        }
+      }
+    },
     "%lld views": {
       "localizations": {
         "en": {
@@ -960,6 +970,16 @@
         }
       }
     },
+    "New comments on your trips, and new steps in trips you follow, show up here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Kommentare zu deinen Reisen und neue Beiträge in Reisen, denen du folgst, erscheinen hier."
+          }
+        }
+      }
+    },
     "New step": {
       "localizations": {
         "de": {
@@ -1026,6 +1046,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Neue Reise"
+          }
+        }
+      }
+    },
+    "News": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuigkeiten"
           }
         }
       }
@@ -1126,6 +1156,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nicht jetzt"
+          }
+        }
+      }
+    },
+    "Nothing new yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch nichts Neues"
           }
         }
       }
@@ -2459,6 +2499,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ton einschalten"
+          }
+        }
+      }
+    },
+    "Unread": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungelesen"
           }
         }
       }

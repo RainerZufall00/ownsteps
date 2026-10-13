@@ -321,10 +321,11 @@ extension JSONDecoder {
 }
 
 @Suite struct TripNewsTests {
-    func trip(_ steps: [(id: Int, comments: [(Int, String)])]) throws -> Components.Schemas.TripDetail {
+    func trip(_ steps: [(id: Int, comments: [(Int, String)])], own: [Int: Bool] = [:]) throws -> Components.Schemas.TripDetail {
         let stepsJSON = steps.map { step -> String in
             let comments = step.comments.map { id, author -> String in
-                #"{"id":\#(id),"stepId":\#(step.id),"authorName":"\#(author)","body":"Line one\nline two","createdAt":"2026-07-03T10:00:00.000Z"}"#
+                let isOwn = own[id].map { #","isOwn":\#($0)"# } ?? ""
+                return #"{"id":\#(id),"stepId":\#(step.id),"authorName":"\#(author)","body":"Line one\nline two","createdAt":"2026-07-03T10:00:00.000Z"\#(isOwn)}"#
             }.joined(separator: ",")
             return #"{"id":\#(step.id),"tripId":1,"clientUuid":null,"body":"Fjords","placeName":"Bergen","countryCode":null,"lat":null,"lon":null,"occurredAt":"2026-07-03T10:00:00.000Z","updatedAt":"2026-07-03T10:00:00.000Z","photos":[],"comments":[\#(comments)]}"#
         }.joined(separator: ",")
@@ -347,9 +348,40 @@ extension JSONDecoder {
         #expect(items.map(\.stepID) == [1, 2])
         #expect(items.first?.title == "Opa · Norway")
         #expect(items.first?.body == "Line one line two")
+        // The bell keys an entry by the comment, so the same one never lists twice.
+        #expect(items.map(\.id) == [7, 8])
+    }
+
+    @Test func theServersWordBeatsTheName() throws {
+        let old = try trip([(1, [])])
+        // A reader who picked the author's name, and the author's own comment under another name.
+        let new = try trip([(1, [(2, "Anna"), (3, "Old name")])], own: [2: false, 3: true])
+        #expect(TripNews.items(old: old, new: new, reader: false, ownName: "Anna").map(\.id) == [2])
     }
 
     @Test func staysQuietWithoutAnEarlierCopy() throws {
         #expect(TripNews.items(old: nil, new: try trip([(1, [])]), reader: true, ownName: "x").isEmpty)
+    }
+
+    @Test func theBellKeepsEachCommentOnceAndDropsDeletedOnes() throws {
+        let inbox = try NewsInbox.inMemory()
+        let account = UUID()
+        let old = try trip([(1, [])])
+        let new = try trip([(1, [(6, "Opa"), (7, "Oma")])])
+        let items = TripNews.items(old: old, new: new, reader: false, ownName: "Anna")
+        try inbox.record(items, trip: new, for: account)
+        // The trip screen and the change feed noticed it at once.
+        try inbox.record(items, trip: new, for: account)
+        #expect(try inbox.entries().map(\.itemID).sorted() == [6, 7])
+
+        try inbox.markRead(try #require(inbox.entries().first { $0.itemID == 6 }))
+        #expect(try inbox.entries().filter { !$0.read }.map(\.itemID) == [7])
+
+        // Comment 7 was deleted on the server.
+        try inbox.record([], trip: try trip([(1, [(6, "Opa")])]), for: account)
+        #expect(try inbox.entries().map(\.itemID) == [6])
+
+        try inbox.remove(for: account)
+        #expect(try inbox.entries().isEmpty)
     }
 }

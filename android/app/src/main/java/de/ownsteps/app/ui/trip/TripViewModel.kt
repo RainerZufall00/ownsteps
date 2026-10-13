@@ -108,14 +108,14 @@ class TripViewModel(private val app: Application, val account: Account, val trip
             trip = fresh
             staleSince = null
             error = null
-            model.cache.saveTrip(account.id, fresh)
+            model.store(account, fresh)
             applyPendingFocus()
             prefetch(fresh)
             updateSuggestions()
         } catch (failure: Exception) {
             if (failure is ApiError && failure.code == "trip_not_found") {
                 // Deleted on the server: don't keep showing a ghost.
-                model.cache.removeTrip(account.id, tripId)
+                model.forgetTrip(account, tripId)
                 trip = null
             }
             if (trip == null) error = ErrorText.message(app, failure)
@@ -202,7 +202,7 @@ class TripViewModel(private val app: Application, val account: Account, val trip
     /** Needs a connection, like every change to what the server has ([D19]). */
     fun deleteTrip(onDeleted: () -> Unit) = act {
         model.withClient(account) { it.deleteTrip(tripId) }
-        model.cache.removeTrip(account.id, tripId)
+        model.forgetTrip(account, tripId)
         model.uploads.removeAll(account.id, tripId)
         model.tripListRevision.value++
         onDeleted()
