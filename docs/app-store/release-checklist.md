@@ -40,7 +40,7 @@
       (`python3 docs/app-store/check-lengths.py`).
 - [ ] App Privacy: *Data Not Collected*. Privacy Policy URL from GitHub Pages.
 - [ ] Age rating questionnaire.
-- [ ] Screenshots: iPhone 6.9" and iPad 13", German and English, from
+- [ ] Screenshots: iPhone 6.9" (6.3" from `iphone-6.3/`) and iPad 13", German and English, from
       `docs/app-store/screenshots/` (see `listing.md`).
 - [ ] App Review information: demo account, notes, contact details.
 

@@ -136,8 +136,10 @@ The demo server is reset every night.
 ## Screenshots
 
 Required: iPhone 6.9" (1320 × 2868) and iPad 13" (2064 × 2752), per language.
-In `docs/app-store/screenshots/<en|de>/<iphone|ipad>/` (git-ignored), in
-upload order:
+App Store Connect may also ask for iPhone 6.1"/6.3" (1206 × 2622); those are
+scaled down from the 6.9" set (step 7 below) and live in `iphone-6.3/`.
+In `docs/app-store/screenshots/<en|de>/<iphone|iphone-6.3|ipad>/`
+(git-ignored), in upload order:
 
 | # | iPhone | iPad |
 |---|---|---|
@@ -164,3 +166,6 @@ How they were taken, to repeat them for a new version:
 5. For the news list, post a few reader comments after signing in, then send
    the app to the background and back.
 6. `xcrun simctl io <device> screenshot <file>.png`.
+7. Scale the iPhone set to 6.3" and drop the alpha channel, which App Store
+   Connect rejects (same aspect ratio, so nothing is cropped):
+   `ffmpeg -i iphone/<file>.png -vf scale=1206:2622:flags=lanczos -pix_fmt rgb24 iphone-6.3/<file>.png`.
