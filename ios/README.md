@@ -34,6 +34,10 @@ xcodebuild -project OwnSteps.xcodeproj -scheme OwnSteps \
   -skipPackagePluginValidation build
 ```
 
+Xcode Cloud runs `ci_scripts/ci_post_clone.sh` first: it writes
+`Config/Secrets.xcconfig` and lets the build plugin run without asking. What
+else a release needs is in `docs/app-store/release-checklist.md`.
+
 Package tests run on the Mac: `cd Packages/OwnStepsKit && swift test`.
 
 ## The API description

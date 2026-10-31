@@ -10,6 +10,15 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Added
+
+- iOS: privacy manifests for the app and the Share Extension, and an Xcode
+  Cloud script (`ios/ci_scripts/`) – ready for the App Store.
+- `scripts/seed-demo.mjs` fills an instance with three demo trips, for the
+  App Review demo instance and the screenshots.
+- Privacy policy and support page under `docs/`, served by GitHub Pages;
+  App Store texts and a release checklist in `docs/app-store/`.
+
 ## [0.6.0] – 2026-10-13
 
 ### Added
