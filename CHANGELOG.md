@@ -10,6 +10,11 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Added
+
+- Every version tag now also creates a GitHub release with its changelog
+  section.
+
 ## [0.6.0] – 2026-10-13
 
 ### Added
