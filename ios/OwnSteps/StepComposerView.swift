@@ -4,8 +4,11 @@ import Photos
 import PhotosUI
 import SwiftUI
 
-/// Writing a step – also without a connection ([D19]). Everything goes into
-/// the upload queue on save; the queue brings it to the server when it can.
+/// Writing a step – also without a connection ([D19]). Laid out like a page
+/// in Apple's Journal, not like a form: place and day on top, the text as
+/// the main thing, the photos as a strip below it. A bar above the keyboard
+/// brings photos, place and date. Everything goes into the upload queue on
+/// save; the queue brings it to the server when it can.
 /// In `addTo` mode it only adds photos to an existing step. `assets` come
 /// preselected, e.g. from the photo suggestions ([D22]).
 struct StepComposerView: View {
@@ -25,6 +28,8 @@ struct StepComposerView: View {
     struct Item: Identifiable {
         let id: String
         let prepared: PreparedMedia?
+        /// Nil for assets that came preselected.
+        var pick: PhotosPickerItem? = nil
     }
 
     let account: Account
@@ -56,13 +61,21 @@ struct StepComposerView: View {
     @State private var choosingOnMap = false
     @State private var locating = false
     @State private var error: String?
+    @State private var pickingPhotos = false
+    @State private var choosingPlace = false
+    @State private var choosingDate = false
+    /// The photo whose caption is being written.
+    @State private var captioning: Item?
+    /// Preselected assets taken out again.
+    @State private var removedAssets: Set<String> = []
+    @FocusState private var writing: Bool
 
     private var isNew: Bool { if case .new = mode { true } else { false } }
     private var calendar: TripCalendar { model.calendar(for: account) }
 
     private var canSave: Bool {
         guard !preparing, !locating else { return false }
-        let hasMedia = !selection.isEmpty || !assets.isEmpty
+        let hasMedia = !items.isEmpty
         if isNew {
             return hasMedia || !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || !placeName.trimmingCharacters(in: .whitespaces).isEmpty
@@ -72,8 +85,14 @@ struct StepComposerView: View {
 
     /// Suggested assets first, then what was picked – the order they're uploaded in.
     private var items: [Item] {
-        assets.map { Item(id: $0.localIdentifier, prepared: preparedAssets[$0.localIdentifier]) }
-            + selection.map { Item(id: "\($0.hashValue)", prepared: prepared[$0]) }
+        assets.filter { !removedAssets.contains($0.localIdentifier) }
+            .map { Item(id: $0.localIdentifier, prepared: preparedAssets[$0.localIdentifier]) }
+            + selection.map { Item(id: "\($0.hashValue)", prepared: prepared[$0], pick: $0) }
+    }
+
+    /// Something a cancel would lose.
+    private var hasContent: Bool {
+        !items.isEmpty || !bodyText.isEmpty || !placeName.isEmpty
     }
 
     /// The places the photos were taken at, earliest first.
@@ -83,46 +102,39 @@ struct StepComposerView: View {
         })
     }
 
-    private var pickerTitle: String {
-        if !selection.isEmpty { return String(localized: "Change selection") }
-        return assets.isEmpty ? String(localized: "Add photos or videos") : String(localized: "Add more")
-    }
-
     private var allPrepared: [PreparedMedia] {
         Array(prepared.values) + Array(preparedAssets.values)
     }
 
     var body: some View {
         NavigationStack {
-            Form {
-                mediaSection
-                if isNew {
-                    Section("What happened?") {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    if isNew {
+                        heading
                         TextField("Tell about this day …", text: $bodyText, axis: .vertical)
-                            .lineLimit(4...12)
+                            .font(.title3)
+                            .focused($writing)
+                            .frame(minHeight: 110, alignment: .topLeading)
                     }
-                    Section {
-                        DatePicker(
-                            "Date",
-                            selection: Binding(get: { date }, set: { date = $0; dateTouched = true }),
-                            displayedComponents: .date
-                        )
-                        .environment(\.timeZone, calendar.calendar.timeZone)
-                    } footer: {
-                        Text("The date comes from the photos when they carry one.")
+                    mediaStrip
+                    if let error {
+                        Text(error).foregroundStyle(.red)
                     }
-                    locationSection
                 }
-
-                if let error {
-                    Section { Text(error).foregroundStyle(.red) }
-                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                // A readable column on the iPad.
+                .frame(maxWidth: 640, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .safeAreaBar(edge: .bottom) { actionBar }
             .navigationTitle(isNew ? "New step" : "Add photos")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .cancel) {
+                    DiscardButton(hasChanges: hasContent) {
                         allPrepared.forEach { $0.discard() }
                         dismiss()
                     }
@@ -131,55 +143,176 @@ struct StepComposerView: View {
                     Button(role: .confirm, action: save).disabled(!canSave)
                 }
             }
-            .sheet(isPresented: $choosingOnMap) {
-                LocationPickerView(initial: coordinate) { picked, name in
-                    locationSource = .map
-                    apply(picked, name: name)
-                }
-            }
-            .onChange(of: selection) { prepareSelection() }
-            .task { await prepareAssets() }
-            .interactiveDismissDisabled(preparing || !selection.isEmpty || !assets.isEmpty || !bodyText.isEmpty)
-        }
-    }
-
-    // MARK: Photos and captions
-
-    private var mediaSection: some View {
-        Section {
-            // The label closure is Sendable: read the state outside.
-            let title = pickerTitle
-            PhotosPicker(
+            .photosPicker(
+                isPresented: $pickingPhotos,
                 selection: $selection,
                 matching: .any(of: [.images, .videos]),
                 preferredItemEncoding: .current,
                 photoLibrary: .shared()
-            ) {
-                Label(title, systemImage: "photo.on.rectangle.angled")
+            )
+            .sheet(isPresented: $choosingPlace) { placeSheet }
+            .sheet(item: $captioning) { item in
+                CaptionSheet(item: item, caption: Binding(
+                    get: { captions[item.id] ?? "" },
+                    set: { captions[item.id] = $0 }
+                ))
             }
-            ForEach(items) { item in
-                HStack(spacing: 12) {
-                    FileThumbnail(
-                        url: item.prepared?.media.thumbnail,
-                        isVideo: item.prepared?.media.mime.hasPrefix("video/") == true,
-                        size: 56,
-                        loading: item.prepared == nil
-                    )
-                    TextField("Caption (optional)", text: Binding(
-                        get: { captions[item.id] ?? "" },
-                        set: { captions[item.id] = $0 }
-                    ), axis: .vertical)
-                    .lineLimit(1...4)
+            .onChange(of: selection) { prepareSelection() }
+            .task { await prepareAssets() }
+            .onAppear {
+                if isNew {
+                    writing = true
+                } else if assets.isEmpty {
+                    // Adding photos is all this screen does.
+                    pickingPhotos = true
                 }
             }
+            .interactiveDismissDisabled(preparing || hasContent)
+        }
+    }
+
+    // MARK: Page
+
+    /// The place as the page's title, the day below it.
+    private var heading: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Button { choosingPlace = true } label: {
+                Text(placeName.isEmpty ? String(localized: "Add a place") : placeName)
+                    .font(.title2.bold())
+                    .foregroundStyle(placeName.isEmpty ? .secondary : .primary)
+                    .multilineTextAlignment(.leading)
+            }
+            .buttonStyle(.plain)
+            Text(date.formatted(
+                Date.FormatStyle(timeZone: calendar.calendar.timeZone).weekday(.wide).day().month(.wide).year()
+            ))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Stays above the keyboard while writing.
+    private var actionBar: some View {
+        HStack(spacing: 0) {
+            barButton("Add photos or videos", systemImage: "photo.on.rectangle.angled") { pickingPhotos = true }
+            if isNew {
+                barButton(
+                    "Place",
+                    systemImage: coordinate == nil && placeName.isEmpty ? "mappin.and.ellipse" : "mappin.circle.fill"
+                ) { choosingPlace = true }
+                barButton("Date", systemImage: "calendar") { choosingDate = true }
+                    .popover(isPresented: $choosingDate) {
+                        DatePicker(
+                            "Date",
+                            selection: Binding(get: { date }, set: { date = $0; dateTouched = true }),
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.graphical)
+                        .environment(\.timeZone, calendar.calendar.timeZone)
+                        .frame(width: 320)
+                        .padding()
+                        .presentationCompactAdaptation(.popover)
+                    }
+            }
+        }
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    private func barButton(_ title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.title3)
+                .frame(maxWidth: .infinity, minHeight: 46)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(title))
+    }
+
+    // MARK: Photos and captions
+
+    /// A tap writes a caption, the corner takes a photo out again.
+    private var mediaStrip: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal) {
+                HStack(spacing: 10) {
+                    ForEach(items) { item in
+                        Button { captioning = item } label: {
+                            thumbnail(item)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(item.prepared == nil)
+                        .accessibilityLabel(Text(captions[item.id]?.isEmpty == false ? captions[item.id] ?? "" : String(localized: "Add a caption")))
+                        .overlay(alignment: .topTrailing) {
+                            Button { remove(item) } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title3)
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(.white, .black.opacity(0.55))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(4)
+                            .accessibilityLabel(Text("Remove"))
+                        }
+                    }
+                    Button { pickingPhotos = true } label: {
+                        Image(systemName: "plus")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                            .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
+                            .background(.fill.tertiary, in: .rect(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Add photos or videos"))
+                }
+            }
+            .scrollIndicators(.hidden)
+            .scrollClipDisabled()
             if preparing {
                 Label("Preparing photos …", systemImage: "hourglass")
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-        } footer: {
             if originalVideos {
                 Text("Videos are uploaded in original quality (see Settings).")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    private static let thumbnailSize: CGFloat = 96
+
+    private func thumbnail(_ item: Item) -> some View {
+        FileThumbnail(
+            url: item.prepared?.media.thumbnail,
+            isVideo: item.prepared?.media.mime.hasPrefix("video/") == true,
+            size: Self.thumbnailSize,
+            loading: item.prepared == nil
+        )
+        .overlay(alignment: .bottomLeading) {
+            if captions[item.id]?.isEmpty == false {
+                Image(systemName: "text.bubble.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.white)
+                    .shadow(radius: 2)
+                    .padding(6)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    private func remove(_ item: Item) {
+        captions[item.id] = nil
+        if let pick = item.pick {
+            // `prepareSelection` follows and throws its file away.
+            selection.removeAll { $0 == pick }
+        } else {
+            removedAssets.insert(item.id)
+            preparedAssets.removeValue(forKey: item.id)?.discard()
+            adoptPhotoPlace()
         }
     }
 
@@ -187,66 +320,90 @@ struct StepComposerView: View {
 
     /// Where the step goes on the map: where a photo was taken (preselected
     /// when one knows), where the phone is now, or a place picked by hand.
-    private var locationSection: some View {
-        Section {
-            Picker("Location", selection: Binding(get: { locationSource }, set: choose)) {
-                if !photoPlaces.isEmpty {
-                    Text("From photo").tag(Optional(LocationSource.photo))
+    private var placeSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Place (optional)", text: Binding(
+                        get: { placeName },
+                        set: { placeName = $0; placeTyped = !$0.isEmpty }
+                    ))
                 }
-                Text("My location").tag(Optional(LocationSource.current))
-                Text("On the map").tag(Optional(LocationSource.map))
-            }
-            .pickerStyle(.segmented)
-            .listRowSeparator(.hidden)
-
-            // Photos from several places: the step can only be at one.
-            if locationSource == .photo, photoPlaces.count > 1 {
-                ForEach(photoPlaces) { place in
-                    Button { usePhotoPlace(place) } label: {
-                        HStack(spacing: 12) {
-                            FileThumbnail(url: thumbnail(of: place), isVideo: false, size: 44)
-                            Text(placeNames[place.id] ?? Self.coordinateText(place.coordinate))
+                Section {
+                    // Photos from several places: the step can only be at one.
+                    ForEach(photoPlaces) { place in
+                        Button {
+                            error = nil
+                            locationSource = .photo
+                            usePhotoPlace(place)
+                        } label: {
+                            HStack(spacing: 12) {
+                                FileThumbnail(url: thumbnail(of: place), isVideo: false, size: 44)
+                                Text(placeNames[place.id] ?? Self.coordinateText(place.coordinate))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if locationSource == .photo, place.id == photoPlaceID {
+                                    Image(systemName: "checkmark").foregroundStyle(.tint)
+                                }
+                            }
+                        }
+                        .task { await lookUpName(of: place) }
+                    }
+                    Button { choose(.current) } label: {
+                        HStack {
+                            Label("My location", systemImage: "location")
                                 .foregroundStyle(.primary)
                             Spacer()
-                            if place.id == photoPlaceID {
+                            if locating {
+                                ProgressView()
+                            } else if locationSource == .current {
                                 Image(systemName: "checkmark").foregroundStyle(.tint)
                             }
                         }
                     }
-                    .task { await lookUpName(of: place) }
+                    Button { choose(.map) } label: {
+                        HStack {
+                            Label("On the map", systemImage: "map")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            if locationSource == .map {
+                                Image(systemName: "checkmark").foregroundStyle(.tint)
+                            }
+                        }
+                    }
+                } footer: {
+                    if photoPlaces.count > 1 {
+                        Text("These photos were taken in different places. The step appears on the map at the one you pick; each photo keeps its own position.")
+                    }
                 }
-            }
-
-            if locating {
-                HStack {
-                    Text("Finding your location …").foregroundStyle(.secondary)
-                    Spacer()
-                    ProgressView()
-                }
-            }
-
-            TextField("Place (optional)", text: Binding(
-                get: { placeName },
-                set: { placeName = $0; placeTyped = !$0.isEmpty }
-            ))
-            if let coordinate {
-                HStack {
-                    Text(Self.coordinateText(coordinate))
+                if let coordinate {
+                    Section {
+                        LabeledContent(Self.coordinateText(coordinate)) {
+                            Button("Remove", role: .destructive) { clearLocation() }
+                                .buttonStyle(.borderless)
+                        }
                         .font(.footnote.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Remove", role: .destructive) { clearLocation() }
-                        .font(.footnote)
-                        .buttonStyle(.borderless)
+                    }
+                }
+                if let error {
+                    Section { Text(error).foregroundStyle(.red) }
                 }
             }
-        } header: {
-            Text("Place")
-        } footer: {
-            if locationSource == .photo, photoPlaces.count > 1 {
-                Text("These photos were taken in different places. The step appears on the map at the one you pick; each photo keeps its own position.")
+            .navigationTitle("Place")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(role: .confirm) { choosingPlace = false }
+                }
+            }
+            .sheet(isPresented: $choosingOnMap) {
+                LocationPickerView(initial: coordinate) { picked, name in
+                    locationSource = .map
+                    apply(picked, name: name)
+                }
             }
         }
+        .presentationDetents([.medium, .large])
     }
 
     private func choose(_ source: LocationSource?) {
@@ -408,6 +565,8 @@ struct StepComposerView: View {
         switch mode {
         case .new(let tripID):
             enqueueNew(tripID: tripID, media: media)
+            // Comments on it are what an author wants to hear about.
+            Task { await Notifications.requestPermission() }
         case .addTo(let tripID, let stepID):
             Task {
                 try? await model.uploads.enqueueMedia(accountID: account.id, tripID: tripID, stepID: stepID, media: media)
@@ -436,6 +595,41 @@ struct StepComposerView: View {
             )
             model.resumeUploads()
         }
+    }
+}
+
+/// The caption of one photo, written before it's uploaded.
+private struct CaptionSheet: View {
+    let item: StepComposerView.Item
+    @Binding var caption: String
+
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var writing: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                FileThumbnail(
+                    url: item.prepared?.media.thumbnail,
+                    isVideo: item.prepared?.media.mime.hasPrefix("video/") == true,
+                    size: 140
+                )
+                TextField("Caption (optional)", text: $caption, axis: .vertical)
+                    .lineLimit(1...4)
+                    .focused($writing)
+                Spacer(minLength: 0)
+            }
+            .padding(20)
+            .navigationTitle("Caption")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(role: .confirm) { dismiss() }
+                }
+            }
+            .onAppear { writing = true }
+        }
+        .presentationDetents([.medium])
     }
 }
 

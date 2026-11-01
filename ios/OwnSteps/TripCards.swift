@@ -48,6 +48,7 @@ struct TripCard: View {
             }
             .clipShape(.rect(cornerRadius: 26))
             .contentShape(.rect(cornerRadius: 26))
+            .contentShape(.contextMenuPreview, .rect(cornerRadius: 26))
     }
 }
 

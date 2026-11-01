@@ -28,7 +28,12 @@ struct NewsView: View {
                         } label: {
                             NewsRow(entry: entry)
                         }
-                        .listRowBackground(entry.read ? nil : Color.accentColor.opacity(0.08))
+                        .swipeActions(edge: .leading) {
+                            if !entry.read {
+                                Button("Mark as read", systemImage: "envelope.open") { model.markRead(entry) }
+                                    .tint(.accentColor)
+                            }
+                        }
                     }
                     .listStyle(.plain)
                 }
@@ -36,7 +41,7 @@ struct NewsView: View {
             .navigationTitle("News")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .close) { dismiss() }
                 }
             }
@@ -48,23 +53,24 @@ private struct NewsRow: View {
     let entry: NewsEntry
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: entry.kind == .step ? "mappin.and.ellipse" : "bubble.left")
-                .foregroundStyle(.tint)
-                .frame(width: 24)
-                .overlay(alignment: .topTrailing) {
-                    if !entry.read {
-                        Circle().fill(.red).frame(width: 8, height: 8).offset(x: 4, y: -2)
-                    }
-                }
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            // Like Mail: a dot in front of what's unread, nothing else.
+            Circle()
+                .fill(.tint)
+                .frame(width: 9, height: 9)
+                .opacity(entry.read ? 0 : 1)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.at.formatted(.relative(presentation: .named)))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(entry.kind == .step ? String(localized: "New step: \(entry.title)") : entry.title)
-                    .font(.body.weight(entry.read ? .regular : .semibold))
-                    .lineLimit(1)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(entry.kind == .step ? String(localized: "New step: \(entry.title)") : entry.title)
+                        .font(.body.weight(entry.read ? .regular : .semibold))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(entry.at.formatted(.relative(presentation: .named, unitsStyle: .abbreviated)))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 if !entry.body.isEmpty {
                     Text(entry.body)
                         .font(.subheadline)

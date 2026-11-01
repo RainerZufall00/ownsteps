@@ -2,73 +2,6 @@ import CoreImage.CIFilterBuiltins
 import OwnStepsKit
 import SwiftUI
 
-/// Writing a comment. Authors comment under their account name, readers
-/// under the name they chose when following – nobody types it again.
-struct CommentComposer: View {
-    let account: Account
-    let step: Components.Schemas.Step
-    let onSent: () -> Void
-
-    @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
-    @State private var text = ""
-    @State private var sending = false
-    @State private var error: String?
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Your comment", text: $text, axis: .vertical)
-                        .lineLimit(3...10)
-                        .focused($focused)
-                        .onAppear { focused = true }
-                } footer: {
-                    Text("Shown as \(account.displayName).")
-                }
-                if let error {
-                    Section { Text(error).foregroundStyle(.red) }
-                }
-            }
-            .navigationTitle("Comment")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .cancel) { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    if sending {
-                        ProgressView()
-                    } else {
-                        Button(role: .confirm, action: send)
-                            .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-
-    private func send() {
-        sending = true
-        error = nil
-        Task {
-            defer { sending = false }
-            do {
-                _ = try await model.client(for: account).comment(
-                    stepID: step.id,
-                    body: text.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
-                onSent()
-                dismiss()
-            } catch {
-                self.error = ErrorText.message(for: error)
-            }
-        }
-    }
-}
-
 /// Who follows the trip in the app, and the invitation for more ([D17],
 /// [D21]): the share link as QR code and through the share sheet. Removing
 /// a reader ends that device's access; the link itself stays valid.
@@ -124,7 +57,7 @@ struct ReadersView: View {
             .navigationTitle("Readers")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .close) { dismiss() }
                 }
                 ToolbarItem(placement: .bottomBar) {

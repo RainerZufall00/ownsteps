@@ -6,6 +6,8 @@ struct PhotoViewer: View {
     let account: Account
     let photos: [Components.Schemas.Photo]
     let startIndex: Int
+    /// The photo shown changed.
+    var onPage: (Int) -> Void = { _ in }
 
     @Environment(\.dismiss) private var dismiss
     @State private var index = 0
@@ -80,11 +82,14 @@ struct PhotoViewer: View {
         }
         .environment(\.colorScheme, .dark)
         .onAppear { index = startIndex }
+        .onChange(of: index) { _, index in onPage(index) }
         .statusBarHidden()
     }
 }
 
-/// Pinch or double-tap to zoom, drag to look around.
+/// Pinch or double-tap to zoom, drag to look around, touch and hold for
+/// what can be done with the photo. Dragging down closes the viewer unless
+/// the photo is zoomed – then the drag looks around.
 struct ZoomablePhoto: View {
     let account: Account
     let photo: Components.Schemas.Photo
@@ -127,6 +132,8 @@ struct ZoomablePhoto: View {
                     if scale > 1 { reset() } else { scale = 2.5; baseScale = 2.5 }
                 }
             }
+            .contextMenu { PhotoMenu(account: account, photo: photo) }
+            .interactiveDismissDisabled(scale > 1)
     }
 
     private func reset() {

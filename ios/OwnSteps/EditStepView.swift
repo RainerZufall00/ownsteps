@@ -31,6 +31,14 @@ struct EditStepView: View {
 
     private var calendar: TripCalendar { model.calendar(for: account) }
 
+    private var hasChanges: Bool {
+        bodyText != step.body
+            || placeName != (step.placeName ?? "")
+            || date != step.occurredAt
+            || !removedPhotos.isEmpty
+            || step.photos.contains { (captions[$0.id] ?? "") != ($0.caption ?? "") }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -76,12 +84,14 @@ struct EditStepView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .cancel) { dismiss() }
+                    DiscardButton(hasChanges: hasChanges) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(role: .confirm, action: save).disabled(busy)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
+            .interactiveDismissDisabled(hasChanges)
             .disabled(busy)
             .overlay { if busy { ProgressView().controlSize(.large) } }
             .confirmationDialog("Delete this step with all its photos?", isPresented: $confirmDelete, titleVisibility: .visible) {

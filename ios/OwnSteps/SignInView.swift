@@ -103,7 +103,7 @@ struct SignInView: View {
                 }
             }
             // A readable column on the iPad instead of a form across the screen.
-            .contentMargins(.horizontal, max(0, (geometry.size.width - 600) / 2), for: .scrollContent)
+            .contentMargins(.horizontal, max(16, (geometry.size.width - 600) / 2), for: .scrollContent)
         }
         .navigationTitle("Sign in")
         .navigationBarTitleDisplayMode(.inline)

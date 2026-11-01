@@ -40,7 +40,8 @@ struct TripView: View {
     @State private var showingSuggestions = false
     @State private var photoAccessDenied = false
     @State private var enableSharingFor: ShareTarget?
-    @State private var commentingOn: Components.Schemas.Step?
+    /// The comments of a step – over the map or over its page.
+    @State private var commentsFor: CommentsRequest?
     @State private var showingReaders = false
     @State private var muted = false
     @State private var confirmingUnfollow = false
@@ -54,6 +55,7 @@ struct TripView: View {
     /// Steps this reader's views were already reported for.
     @State private var reportedViews: Set<Int> = []
     @State private var showingTripSettings = false
+    @Namespace private var stepTransition
 
     /// Readers follow one trip and only read and comment ([D17]).
     private var isAuthor: Bool { account.kind == .author }
@@ -65,10 +67,17 @@ struct TripView: View {
         // there – the map below it can't present anything.
         presentations(mapLayer, active: detail == nil)
             .toolbar { toolbar }
+            // The map runs up to the screen's edge, with no bar over it. The
+            // title stays for the back button's menu; it shows in the capsule.
             .navigationTitle(trip?.title ?? "")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .navigationDestination(item: $detail) { request in
                 presentations(stepDetail(request), active: true)
+                    // Follows the paging: going back lands on the card of the
+                    // step that was read last.
+                    .navigationTransition(.zoom(sourceID: openStepID ?? request.stepID, in: stepTransition))
             }
             .onChange(of: focusedItem) { _, id in followPager(to: id) }
             // The first copy of the trip – cached or fresh – frames the route.
@@ -112,8 +121,17 @@ struct TripView: View {
             // map's controls above them.
             .safeAreaPadding(.bottom, StepPager.height + DayTrack.height + 18)
             // Room for the overview bar, so the route isn't framed under it.
-            .safeAreaPadding(.top, trip?.steps.isEmpty == false ? 56 : 0)
+            // The markers stand on their coordinate: the northernmost one
+            // needs its own height on top of that.
+            .safeAreaPadding(.top, trip?.steps.isEmpty == false ? 100 : 0)
             pager
+        }
+        // Keeps the status bar readable on bright terrain, without an edge.
+        .overlay(alignment: .top) {
+            LinearGradient(colors: [.black.opacity(0.45), .clear], startPoint: .top, endPoint: .bottom)
+                .frame(height: 120)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
         }
         .overlay(alignment: .topLeading) {
             if let trip, !trip.steps.isEmpty {
@@ -172,6 +190,8 @@ struct TripView: View {
                     staleSince: staleSince,
                     queue: queue,
                     showViews: isAuthor,
+                    actions: actions,
+                    transition: stepTransition,
                     focusedItem: $focusedItem
                 ) { stepID in
                     openStepID = stepID
@@ -221,7 +241,7 @@ struct TripView: View {
             edit: { editing = $0 },
             addPhotos: { composer = .addTo(tripID: tripID, stepID: $0.id) },
             share: { share(.step($0.id)) },
-            comment: { commentingOn = $0 },
+            comment: { commentsFor = CommentsRequest(stepID: $0.id) },
             deleteComment: { comment in Task { await deleteComment(comment) } },
             showOnMap: { showOnMap($0) }
         )
@@ -285,29 +305,37 @@ struct TripView: View {
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        // Takes the title's place: it can't be read on the map.
+        ToolbarItem(placement: .principal) {
+            Color.clear.frame(width: 1, height: 1).accessibilityHidden(true)
+        }
+        .sharedBackgroundVisibility(.hidden)
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 if isAuthor {
                     Button("Edit trip", systemImage: "pencil") { editingTrip = true }
                     Button("Share trip …", systemImage: "square.and.arrow.up") { share(.trip) }
                     Button("Readers", systemImage: "person.2") { showingReaders = true }
-                    Button("Photo suggestions", systemImage: "photo.stack") { Task { await reviewSuggestions() } }
                 }
-                Button("Refresh", systemImage: "arrow.clockwise") { Task { await refresh() } }
-                Toggle(isOn: Binding(get: { !muted }, set: { setMuted(!$0) })) {
-                    Label(isAuthor ? "Notify about comments" : "Notify about new steps", systemImage: "bell")
+                Section {
+                    if isAuthor {
+                        Button("Photo suggestions", systemImage: "photo.stack") { Task { await reviewSuggestions() } }
+                    }
+                    Toggle(isOn: Binding(get: { !muted }, set: { setMuted(!$0) })) {
+                        Label(isAuthor ? "Notify about comments" : "Notify about new steps", systemImage: "bell")
+                    }
                 }
-                if isAuthor {
-                    Section {
-                        Button("Trip settings", systemImage: "gearshape") { showingTripSettings = true }
+                Section {
+                    if isAuthor {
+                        Button("Album and Immich", systemImage: "square.and.arrow.down.on.square") { showingTripSettings = true }
                         Button("Delete trip …", systemImage: "trash", role: .destructive) {
                             deleteConfirmation = ""
                             confirmingDelete = true
                         }
-                    }
-                } else {
-                    Button("Stop following", systemImage: "person.badge.minus", role: .destructive) {
-                        confirmingUnfollow = true
+                    } else {
+                        Button("Stop following", systemImage: "person.badge.minus", role: .destructive) {
+                            confirmingUnfollow = true
+                        }
                     }
                 }
             } label: {
@@ -345,8 +373,17 @@ struct TripView: View {
             ), active)) { request in
                 StepComposerView(account: account, mode: request.mode, assets: composerAssets)
             }
-            .sheet(item: gate($commentingOn, active)) { step in
-                CommentComposer(account: account, step: step) { Task { await refresh() } }
+            .sheet(item: gate($commentsFor, active)) { request in
+                if let step = trip?.steps.first(where: { $0.id == request.stepID }) {
+                    StepCommentsSheet(
+                        account: account,
+                        step: step,
+                        isAuthor: isAuthor,
+                        delete: actions.deleteComment,
+                        refresh: refresh
+                    )
+                    .presentationDetents([.medium, .large])
+                }
             }
             .sheet(isPresented: gate($showingReaders, active)) {
                 if let trip {
@@ -465,14 +502,10 @@ struct TripView: View {
         return deleteConfirmation.trimmingCharacters(in: .whitespaces) == trip.title.trimmingCharacters(in: .whitespaces)
     }
 
-    /// Needs a connection, like every change to what the server has ([D19]).
     private func deleteTrip() async {
         guard deleteConfirmed else { return }
         do {
-            try await model.client(for: account).deleteTrip(id: tripID)
-            model.forgetTrip(tripID, for: account)
-            await model.uploads.removeAll(for: account.id, tripID: tripID)
-            model.tripListRevision += 1
+            try await model.deleteTrip(tripID, for: account)
             dismiss()
         } catch let api as APIError where api.isUnauthorized {
             model.signedOutByServer(account)

@@ -18,6 +18,22 @@ where it isn't obvious.
   App Review demo instance and the screenshots.
 - Privacy policy and support page under `docs/`, served by GitHub Pages;
   App Store texts and a release checklist in `docs/app-store/`.
+- Authors can change their display name in the settings on the web and in
+  both apps (`PATCH /api/v1/me`). It also applies to comments they already
+  wrote.
+
+### Changed
+
+- OIDC sign-ins no longer overwrite an account's name: the provider only
+  suggests it for a new account.
+- iOS: writing a step works like a page in a journal, with photos, place and
+  date in a bar above the keyboard, and a draft is never lost by accident.
+- iOS: photos and steps zoom open from where they were tapped. Touching and
+  holding offers the usual actions: trips and steps can be edited or shared
+  from there, photos saved, copied or sent on.
+- iOS: a tap opens a photo in the story full screen; swiping changes photos.
+- iOS: when a picked photo has no location of its own, the app asks for photo
+  access once to read it from the library.
 
 ## [0.6.0] – 2026-10-13
 

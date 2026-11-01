@@ -19,6 +19,9 @@ struct StepPager: View {
     let queue: UploadSnapshot
     /// Authors see how many readers saw each step.
     let showViews: Bool
+    let actions: StepActions
+    /// Where the step's page zooms out of.
+    let transition: Namespace.ID
     /// The card in view – the map follows it.
     @Binding var focusedItem: String?
     let open: (Int) -> Void
@@ -52,8 +55,18 @@ struct StepPager: View {
                                     pendingCount: queue.uploadsByStepID[step.id]?.count ?? 0,
                                     viewCount: showViews ? step.viewCount : nil
                                 )
+                                .matchedTransitionSource(id: step.id, in: transition)
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button("Open", systemImage: "arrow.up.forward.app") { open(step.id) }
+                                Button("Comments", systemImage: "bubble.left") { actions.comment(step) }
+                                if actions.isAuthor {
+                                    Button("Edit", systemImage: "pencil") { actions.edit(step) }
+                                    Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
+                                    Button("Share …", systemImage: "square.and.arrow.up") { actions.share(step) }
+                                }
+                            }
                             .accessibilityHint(Text("Opens the step"))
                         case .local(let local):
                             LocalStepCard(account: account, local: local, day: item.day, calendar: calendar)
@@ -83,7 +96,9 @@ struct StepPager: View {
 extension View {
     /// The solid surface of a card over the map.
     func cardSurface() -> some View {
-        background(Color(uiColor: .systemBackground), in: .rect(cornerRadius: StepPager.cornerRadius))
+        // Grouped: white in the light, a raised gray in the dark – on
+        // pure black the cards looked like holes in the map.
+        background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: StepPager.cornerRadius))
             .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
     }
 }
@@ -140,8 +155,8 @@ struct TripCoverCard: View {
     }
 }
 
-/// The trip at a glance, at the top of the map: cover, dates, how far it
-/// has come. Tapping it shows the whole route – the overview the trip card
+/// The trip at a glance, at the top of the map: cover, title, dates, how
+/// far it has come. Tapping it shows the whole route – the overview the trip card
 /// used to give, without scrolling to the far left for it.
 struct TripOverviewBar: View {
     let account: Account
@@ -158,15 +173,13 @@ struct TripOverviewBar: View {
                     .overlay { TripCover(account: account, trip: trip.withoutSteps, variant: .thumb, symbolSize: 14) }
                     .clipShape(.circle)
                 VStack(alignment: .leading, spacing: 1) {
-                    if let range = TripDates.range(of: trip.withoutSteps, calendar: calendar) {
-                        Text(range)
-                            .font(.subheadline.weight(.semibold))
-                    }
+                    Text(trip.title)
+                        .font(.subheadline.weight(.semibold))
                     Group {
                         if let staleSince {
                             OfflineNote(fetchedAt: staleSince)
                         } else {
-                            Text("\(trip.stepCount) steps") + Text(verbatim: " · ") + Text("\(trip.photoCount) photos")
+                            TripMetaLine(trip: trip.withoutSteps, calendar: calendar)
                         }
                     }
                     .font(.caption)
@@ -240,6 +253,7 @@ struct StepPreviewCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .multilineTextAlignment(.leading)
         .contentShape(.rect(cornerRadius: StepPager.cornerRadius))
+        .contentShape(.contextMenuPreview, .rect(cornerRadius: StepPager.cornerRadius))
         .cardSurface()
     }
 }
@@ -337,9 +351,9 @@ struct StepDetailPager: View {
     @Environment(\.dismiss) private var dismiss
     /// The photo each step is at – kept while moving between steps.
     @State private var photoIndex: [Int: Int] = [:]
-    @State private var commentsFor: CommentsRequest?
     /// Pinching a photo opens it full screen to zoom.
     @State private var viewer: ViewerRequest?
+    @Namespace private var photoTransition
     @State private var position = ScrollPosition(idType: Int.self)
     /// A soft knock when tapping past the first or last photo.
     @State private var edgeBump = 0
@@ -373,9 +387,10 @@ struct StepDetailPager: View {
                             insets: insets,
                             next: { advance(from: step, by: 1) },
                             previous: { advance(from: step, by: -1) },
-                            showComments: { commentsFor = CommentsRequest(stepID: step.id) },
+                            showComments: { actions.comment(step) },
                             showOnMap: { actions.showOnMap(step) },
-                            zoom: { viewer = ViewerRequest(stepID: step.id, index: photoIndex[step.id] ?? 0) }
+                            zoom: { viewer = ViewerRequest(stepID: step.id, index: photoIndex[step.id] ?? 0) },
+                            transition: photoTransition
                         )
                         .frame(width: size.width, height: size.height)
                         .id(step.id)
@@ -424,20 +439,12 @@ struct StepDetailPager: View {
         }
         .fullScreenCover(item: $viewer) { request in
             if let step = steps.first(where: { $0.id == request.stepID }) {
-                PhotoViewer(account: account, photos: step.photos, startIndex: request.index)
-            }
-        }
-        .sheet(item: $commentsFor) { request in
-            if let step = steps.first(where: { $0.id == request.stepID }) {
-                StepCommentsSheet(step: step, isAuthor: actions.isAuthor, delete: actions.deleteComment) {
-                    // The composer is presented by the trip; one sheet at a time.
-                    commentsFor = nil
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(450))
-                        actions.comment(step)
-                    }
+                let shown = step.photos[safe: photoIndex[step.id] ?? request.index] ?? step.photos[request.index]
+                PhotoViewer(account: account, photos: step.photos, startIndex: request.index) { index in
+                    // The story moves along, so closing lands on this photo.
+                    photoIndex[step.id] = index
                 }
-                .presentationDetents([.medium, .large])
+                .navigationTransition(.zoom(sourceID: shown.id, in: photoTransition))
             }
         }
     }
@@ -463,7 +470,7 @@ struct CommentsRequest: Identifiable {
 
 /// One step as a story: its photos side by side over the whole screen, all
 /// of them equal – none is the step's "title photo". They follow the finger
-/// sideways; a tap on the right goes on, on the left back. Each layer has
+/// sideways; a tap opens a photo full screen. Each layer has
 /// its own place, so it's clear what belongs to what: day and place at the
 /// top under the bars, like the sender of a status, and the day's text at
 /// the bottom – both stay while swiping. The photo sits between them, never
@@ -488,8 +495,12 @@ struct StepStoryPage: View {
     let showComments: () -> Void
     let showOnMap: () -> Void
     let zoom: () -> Void
+    /// Where the full-screen viewer zooms out of.
+    let transition: Namespace.ID
 
     @State private var reading = false
+    /// How far the fingers have pinched the photo so far.
+    @State private var pinch: CGFloat = 1
     @State private var position = ScrollPosition(idType: Int.self)
     /// Heights of the day header and the text below – the photos keep clear
     /// of both.
@@ -587,6 +598,11 @@ struct StepStoryPage: View {
         VStack(spacing: 12) {
             media(photo, playing: isCurrent && offset == index)
                 .aspectRatio(Self.aspectRatio(of: photo), contentMode: .fit)
+                .matchedTransitionSource(id: photo.id, in: transition)
+                .contextMenu {
+                    if photo.mediaType == .photo { PhotoMenu(account: account, photo: photo) }
+                }
+                .scaleEffect(offset == index ? pinch : 1)
             if let caption = Self.caption(of: photo) {
                 // The photo's own note, set like a caption under a print.
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -609,14 +625,26 @@ struct StepStoryPage: View {
         .padding(.bottom, bottomHeight + 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(.rect)
-            // A video takes the taps on itself for its sound, all but its edges.
+            // Swiping changes the photo, so a tap is free to open it. A video
+            // takes the taps on itself for its sound, all but its edges.
             .gesture(SpatialTapGesture().onEnded { value in
-                value.location.x < size.width / 3 ? previous() : next()
+                if photo.mediaType == .photo {
+                    zoom()
+                } else {
+                    value.location.x < size.width / 3 ? previous() : next()
+                }
             })
             .simultaneousGesture(
-                MagnifyGesture().onEnded { value in
-                    if value.magnification > 1.15 && photo.mediaType == .photo { zoom() }
-                }
+                // The photo grows under the fingers at once; letting go hands
+                // it to the viewer, which zooms and pans for real.
+                MagnifyGesture()
+                    .onChanged { value in
+                        if photo.mediaType == .photo { pinch = max(value.magnification, 1) }
+                    }
+                    .onEnded { value in
+                        if value.magnification > 1.15 && photo.mediaType == .photo { zoom() }
+                        withAnimation(.smooth(duration: 0.25)) { pinch = 1 }
+                    }
             )
             // A video's own actions (sound, playback controls) stay reachable.
             .accessibilityElement(children: photo.mediaType == .video ? .combine : .ignore)
@@ -887,34 +915,105 @@ struct StepTextSheet: View {
     }
 }
 
-/// The comments of a step, opened from its story.
+/// The comments of a step, with the field to write one right below them,
+/// like in Messages. Sending needs a connection ([D19]).
 struct StepCommentsSheet: View {
+    let account: Account
     let step: Components.Schemas.Step
     let isAuthor: Bool
     let delete: (Components.Schemas.Comment) -> Void
-    let write: () -> Void
+    let refresh: () async -> Void
+
+    @Environment(AppModel.self) private var model
+    @State private var text = ""
+    @State private var sending = false
+    @State private var error: String?
+
+    private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         NavigationStack {
-            List {
-                if step.comments.isEmpty {
-                    Text("No comments yet")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(step.comments, id: \.id) { comment in
-                    CommentRow(comment: comment)
-                        .swipeActions {
-                            if isAuthor {
-                                Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
+            ScrollViewReader { proxy in
+                List {
+                    if step.comments.isEmpty {
+                        Text("No comments yet")
+                            .foregroundStyle(.secondary)
+                            .listRowBackground(Color.clear)
+                    }
+                    ForEach(step.comments, id: \.id) { comment in
+                        CommentRow(comment: comment)
+                            .id(comment.id)
+                            .swipeActions {
+                                if isAuthor {
+                                    Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
+                                }
                             }
-                        }
+                            .contextMenu {
+                                Button("Copy", systemImage: "doc.on.doc") { UIPasteboard.general.string = comment.body }
+                                if isAuthor {
+                                    Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
+                                }
+                            }
+                    }
                 }
-                Button(action: write) {
-                    Label("Write a comment", systemImage: "square.and.pencil")
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: step.comments.last?.id) { _, id in
+                    if let id { withAnimation { proxy.scrollTo(id, anchor: .bottom) } }
                 }
             }
+            .safeAreaBar(edge: .bottom) { inputBar }
             .navigationTitle("Comments")
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private var inputBar: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let error {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 6)
+            }
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Comment as \(account.displayName)", text: $text, axis: .vertical)
+                    .lineLimit(1...5)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+                Button(action: send) {
+                    Group {
+                        if sending {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.up")
+                                .font(.body.weight(.semibold))
+                        }
+                    }
+                    .frame(width: 26, height: 26)
+                }
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.circle)
+                .disabled(trimmed.isEmpty || sending)
+                .accessibilityLabel(Text("Send"))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func send() {
+        sending = true
+        error = nil
+        Task {
+            defer { sending = false }
+            do {
+                _ = try await model.client(for: account).comment(stepID: step.id, body: trimmed)
+                text = ""
+                await refresh()
+            } catch {
+                self.error = ErrorText.message(for: error)
+            }
         }
     }
 }

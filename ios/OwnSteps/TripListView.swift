@@ -34,6 +34,13 @@ struct TripListView: View {
     /// Chosen in the news list; opened once the sheet is gone.
     @State private var newsTarget: TripRoute?
     @State private var accountToUnfollow: Account?
+    /// From a trip's menu in the list.
+    @State private var editingTrip: TripTarget?
+    @State private var readersOf: TripTarget?
+    @State private var tripToDelete: TripTarget?
+    /// The trip's name, typed to confirm deleting it – as inside the trip.
+    @State private var deleteConfirmation = ""
+    @State private var deleteError: String?
     @Namespace private var cardTransition
 
     private var isSplit: Bool { sizeClass == .regular }
@@ -56,6 +63,16 @@ struct TripListView: View {
             TripFormView(account: account, trip: nil, calendar: model.calendar(for: account)) { trip in
                 tripsByAccount[account.id, default: []].insert(trip, at: 0)
                 open(TripRoute(accountID: account.id, tripID: trip.id))
+            }
+        }
+        .sheet(item: $editingTrip) { target in
+            TripFormView(account: target.account, trip: target.trip, calendar: model.calendar(for: target.account)) { _ in
+                Task { await refresh() }
+            }
+        }
+        .sheet(item: $readersOf) { target in
+            ReadersView(account: target.account, trip: target.trip) { _ in
+                Task { await refresh() }
             }
         }
         .sheet(isPresented: $showingSettings) { SettingsView() }
@@ -83,6 +100,26 @@ struct TripListView: View {
             Button("Cancel", role: .cancel) {}
         } message: { _ in
             Text("You can follow again with the link.")
+        }
+        .alert(
+            "Delete this trip?",
+            isPresented: Binding(get: { tripToDelete != nil }, set: { if !$0 { tripToDelete = nil } }),
+            presenting: tripToDelete
+        ) { target in
+            TextField("Name of the trip", text: $deleteConfirmation)
+            Button("Delete", role: .destructive) { Task { await delete(target) } }
+                .disabled(!deleteConfirmed(target))
+            Button("Cancel", role: .cancel) {}
+        } message: { target in
+            Text("All its steps, photos and comments will be gone for good. Type “\(target.trip.title)” to confirm.")
+        }
+        .alert(
+            "Something went wrong",
+            isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deleteError ?? "")
         }
         .onChange(of: model.openTrip, initial: true) { _, route in
             guard let route else { return }
@@ -163,6 +200,7 @@ struct TripListView: View {
                                 .matchedTransitionSource(id: route, in: cardTransition)
                         }
                         .buttonStyle(CardButtonStyle())
+                        .contextMenu { tripMenu(TripTarget(account: account, trip: trip)) }
                     }
                 }
             }
@@ -263,6 +301,7 @@ struct TripListView: View {
             ForEach(trips, id: \.id) { trip in
                 TripSidebarRow(account: account, trip: trip, calendar: model.calendar(for: account))
                     .tag(TripRoute(accountID: account.id, tripID: trip.id))
+                    .contextMenu { tripMenu(TripTarget(account: account, trip: trip)) }
             }
         } else if let message = lists.errors[account.id] {
             Text(message).foregroundStyle(.secondary)
@@ -334,6 +373,43 @@ struct TripListView: View {
         }
     }
 
+    /// Touch and hold on a trip of your own.
+    @ViewBuilder private func tripMenu(_ target: TripTarget) -> some View {
+        Button("Open", systemImage: "arrow.up.forward.app") { open(target.route) }
+        Button("Share trip …", systemImage: "square.and.arrow.up") {
+            // Off so far: the readers sheet is where sharing is switched on.
+            if let url = ShareTarget.trip.url(in: target.trip.share) {
+                ShareSheet.present(url)
+            } else {
+                readersOf = target
+            }
+        }
+        Button("Edit trip", systemImage: "pencil") { editingTrip = target }
+        Button("Readers", systemImage: "person.2") { readersOf = target }
+        Section {
+            Button("Delete trip …", systemImage: "trash", role: .destructive) {
+                deleteConfirmation = ""
+                tripToDelete = target
+            }
+        }
+    }
+
+    private func deleteConfirmed(_ target: TripTarget) -> Bool {
+        deleteConfirmation.trimmingCharacters(in: .whitespaces) == target.trip.title.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func delete(_ target: TripTarget) async {
+        guard deleteConfirmed(target) else { return }
+        do {
+            try await model.deleteTrip(target.trip.id, for: target.account)
+            tripsByAccount[target.account.id]?.removeAll { $0.id == target.trip.id }
+        } catch let api as APIError where api.isUnauthorized {
+            model.signedOutByServer(target.account)
+        } catch {
+            deleteError = ErrorText.message(for: error)
+        }
+    }
+
     private func unfollowButton(_ account: Account) -> some View {
         Button("Stop following", systemImage: "person.badge.minus", role: .destructive) { accountToUnfollow = account }
     }
@@ -381,6 +457,15 @@ struct TripListView: View {
         // Once for all accounts: the Share Extension's trip list.
         model.publishShareTargets()
     }
+}
+
+/// A trip and the account it belongs to, for what its menu opens.
+private struct TripTarget: Identifiable {
+    let account: Account
+    let trip: Components.Schemas.Trip
+
+    var id: TripRoute { route }
+    var route: TripRoute { TripRoute(accountID: account.id, tripID: trip.id) }
 }
 
 /// What the lists show, handed down from `body`.

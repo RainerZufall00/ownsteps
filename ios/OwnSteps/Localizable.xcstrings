@@ -310,6 +310,36 @@
         }
       }
     },
+    "Add a caption": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildunterschrift hinzufügen"
+          }
+        }
+      }
+    },
+    "Add a place": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ort hinzufügen"
+          }
+        }
+      }
+    },
+    "Album and Immich": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Album und Immich"
+          }
+        }
+      }
+    },
     "API key": {
       "localizations": {
         "de": {
@@ -410,6 +440,16 @@
         }
       }
     },
+    "Caption": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildunterschrift"
+          }
+        }
+      }
+    },
     "Caption (optional)": {
       "localizations": {
         "de": {
@@ -490,6 +530,16 @@
         }
       }
     },
+    "Comment as %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als %@ kommentieren"
+          }
+        }
+      }
+    },
     "Comments": {
       "localizations": {
         "de": {
@@ -536,6 +586,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Weiter"
+          }
+        }
+      }
+    },
+    "Copy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopieren"
           }
         }
       }
@@ -650,12 +710,32 @@
         }
       }
     },
+    "Discard draft": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf verwerfen"
+          }
+        }
+      }
+    },
     "Discard step": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Beitrag verwerfen"
+          }
+        }
+      }
+    },
+    "Discard this draft?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entwurf verwerfen?"
           }
         }
       }
@@ -676,6 +756,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Trennen"
+          }
+        }
+      }
+    },
+    "Display name": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anzeigename"
           }
         }
       }
@@ -900,6 +990,16 @@
         }
       }
     },
+    "Keep editing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiter bearbeiten"
+          }
+        }
+      }
+    },
     "Larger than %lld MB.": {
       "localizations": {
         "de": {
@@ -936,6 +1036,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Standortzugriff ist für OwnSteps ausgeschaltet."
+          }
+        }
+      }
+    },
+    "Mark as read": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als gelesen markieren"
           }
         }
       }
@@ -1236,6 +1346,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Auf der Karte"
+          }
+        }
+      }
+    },
+    "Open": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnen"
           }
         }
       }
@@ -1613,6 +1733,16 @@
         }
       }
     },
+    "Save to Photos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Fotos sichern"
+          }
+        }
+      }
+    },
     "Scanned or opened, the link shows the trip – in the app, if it's installed.": {
       "localizations": {
         "de": {
@@ -1679,6 +1809,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Alle auswählen"
+          }
+        }
+      }
+    },
+    "Send": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senden"
           }
         }
       }
@@ -1869,6 +2009,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Erscheint als %@."
+          }
+        }
+      }
+    },
+    "Shown with your comments, also on the ones you already wrote.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Steht bei deinen Kommentaren, auch bei denen, die du schon geschrieben hast."
           }
         }
       }
@@ -2323,6 +2473,16 @@
         }
       }
     },
+    "This photo can't be read.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Foto lässt sich nicht lesen."
+          }
+        }
+      }
+    },
     "This reader no longer exists.": {
       "localizations": {
         "de": {
@@ -2389,6 +2549,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bis"
+          }
+        }
+      }
+    },
+    "To save photos, OwnSteps needs permission to add to your library.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Sichern braucht OwnSteps die Erlaubnis, Fotos zu deiner Mediathek hinzuzufügen."
           }
         }
       }
@@ -2699,6 +2869,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Was ist passiert?"
+          }
+        }
+      }
+    },
+    "What you changed here will be lost.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was du hier geändert hast, geht verloren."
           }
         }
       }
