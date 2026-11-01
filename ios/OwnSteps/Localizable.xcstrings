@@ -24,9 +24,6 @@
     "%lld": {
       "shouldTranslate": false
     },
-    "%lld / %lld": {
-      "shouldTranslate": false
-    },
     "%lld comments": {
       "localizations": {
         "en": {

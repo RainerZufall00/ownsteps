@@ -718,10 +718,4 @@ struct TimelineItem: Identifiable {
     }
 }
 
-struct ViewerRequest: Identifiable {
-    let stepID: Int
-    let index: Int
-    var id: String { "\(stepID)-\(index)" }
-}
-
 extension Components.Schemas.Step: @retroactive Identifiable {}

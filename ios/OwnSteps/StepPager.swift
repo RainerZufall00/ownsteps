@@ -351,9 +351,8 @@ struct StepDetailPager: View {
     @Environment(\.dismiss) private var dismiss
     /// The photo each step is at – kept while moving between steps.
     @State private var photoIndex: [Int: Int] = [:]
-    /// Pinching a photo opens it full screen to zoom.
-    @State private var viewer: ViewerRequest?
-    @Namespace private var photoTransition
+    /// A zoomed photo keeps the drags for itself.
+    @State private var photoZoomed = false
     @State private var position = ScrollPosition(idType: Int.self)
     /// A soft knock when tapping past the first or last photo.
     @State private var edgeBump = 0
@@ -386,25 +385,26 @@ struct StepDetailPager: View {
                                 get: { min(photoIndex[step.id] ?? 0, max(step.photos.count - 1, 0)) },
                                 set: { photoIndex[step.id] = $0 }
                             ),
-                            // Not while the viewer is open over it: its videos play there.
-                            isCurrent: step.id == stepID && viewer == nil,
+                            isCurrent: step.id == stepID,
                             size: size,
                             insets: insets,
                             next: { advance(from: step, by: 1) },
                             previous: { advance(from: step, by: -1) },
                             showComments: { actions.comment(step) },
                             showOnMap: { actions.showOnMap(step) },
-                            zoom: { viewer = ViewerRequest(stepID: step.id, index: photoIndex[step.id] ?? 0) },
-                            transition: photoTransition
+                            isZoomed: $photoZoomed
                         )
                         .frame(width: size.width, height: size.height)
                         .id(step.id)
                     }
                 }
                 .scrollTargetLayout()
+                // The first and last step end the trip, with nothing behind them.
+                .background(NoBounce())
             }
             .scrollTargetBehavior(OneStepPaging(axis: .vertical))
             .scrollIndicators(.hidden)
+            .scrollDisabled(photoZoomed)
             .scrollPosition($position)
             // Taken over only once the scroll has settled: reported while a
             // programmatic scroll was still running, the old step won and
@@ -442,16 +442,6 @@ struct StepDetailPager: View {
         .onChange(of: steps.map(\.id)) { _, ids in
             if !ids.contains(stepID) { dismiss() }
         }
-        .fullScreenCover(item: $viewer) { request in
-            if let step = steps.first(where: { $0.id == request.stepID }) {
-                let shown = step.photos[safe: photoIndex[step.id] ?? request.index] ?? step.photos[request.index]
-                PhotoViewer(account: account, photos: step.photos, startIndex: request.index) { index in
-                    // The story moves along, so closing lands on this photo.
-                    photoIndex[step.id] = index
-                }
-                .navigationTransition(.zoom(sourceID: shown.id, in: photoTransition))
-            }
-        }
     }
 
     /// Next or previous photo within the step. Days change only by swiping
@@ -468,6 +458,21 @@ struct StepDetailPager: View {
     }
 }
 
+/// Stops the scroll view around it at its ends. `scrollBounceBehavior` can't:
+/// it only leaves out the bounce for content that fits.
+private struct NoBounce: UIViewRepresentable {
+    final class Probe: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            let ancestors = sequence(first: self as UIView) { $0.superview }
+            ancestors.lazy.compactMap { $0 as? UIScrollView }.first?.bounces = false
+        }
+    }
+
+    func makeUIView(context: Context) -> Probe { Probe() }
+    func updateUIView(_ view: Probe, context: Context) {}
+}
+
 struct CommentsRequest: Identifiable {
     let stepID: Int
     var id: Int { stepID }
@@ -475,7 +480,8 @@ struct CommentsRequest: Identifiable {
 
 /// One step as a story: its photos side by side over the whole screen, all
 /// of them equal – none is the step's "title photo". They follow the finger
-/// sideways; a tap opens a photo full screen. Each layer has
+/// sideways; a tap on the right goes on, on the left back, and pinching
+/// zooms right here, with the text in view. Each layer has
 /// its own place, so it's clear what belongs to what: day and place at the
 /// top under the bars, like the sender of a status, and the day's text at
 /// the bottom – both stay while swiping. The photo sits between them, never
@@ -499,13 +505,16 @@ struct StepStoryPage: View {
     let previous: () -> Void
     let showComments: () -> Void
     let showOnMap: () -> Void
-    let zoom: () -> Void
-    /// Where the full-screen viewer zooms out of.
-    let transition: Namespace.ID
+    /// The shown photo is zoomed in.
+    @Binding var isZoomed: Bool
 
     @State private var reading = false
-    /// How far the fingers have pinched the photo so far.
-    @State private var pinch: CGFloat = 1
+    /// The shown photo's zoom and where it was dragged to, each with the
+    /// value the running gesture started from.
+    @State private var scale: CGFloat = 1
+    @State private var baseScale: CGFloat = 1
+    @State private var pan: CGSize = .zero
+    @State private var basePan: CGSize = .zero
     @State private var position = ScrollPosition(idType: Int.self)
     /// Heights of the day header and the text below – the photos keep clear
     /// of both.
@@ -527,6 +536,8 @@ struct StepStoryPage: View {
         .overlay(alignment: .bottom) { bottom }
         .foregroundStyle(.white)
         .clipped()
+        // Leaving the step behind leaves its zoom behind.
+        .onChange(of: isCurrent) { if scale > 1 { resetZoom() } }
         .sheet(isPresented: $reading) {
             StepTextSheet(step: step, day: day, calendar: calendar)
                 .presentationDetents([.medium, .large])
@@ -537,6 +548,7 @@ struct StepStoryPage: View {
 
     /// Black between photos while swiping, like the Photos app.
     private static let gap: CGFloat = 20
+    private static let maxZoom: CGFloat = 4
 
     /// Paged like the Photos app: one photo per swipe with the system's own
     /// paging, a gap between photos, and the blurred backdrop standing
@@ -560,6 +572,7 @@ struct StepStoryPage: View {
             .frame(width: size.width, alignment: .leading)
             .scrollTargetBehavior(.paging)
             .scrollIndicators(.hidden)
+            .scrollDisabled(scale > 1)
             .scrollPosition($position)
             // Taken over once the scroll has settled, like the steps.
             .onScrollPhaseChange { _, phase in
@@ -603,11 +616,11 @@ struct StepStoryPage: View {
         VStack(spacing: 12) {
             media(photo, playing: isCurrent && offset == index)
                 .aspectRatio(Self.aspectRatio(of: photo), contentMode: .fit)
-                .matchedTransitionSource(id: photo.id, in: transition)
                 .contextMenu {
                     if photo.mediaType == .photo { PhotoMenu(account: account, photo: photo) }
                 }
-                .scaleEffect(offset == index ? pinch : 1)
+                .scaleEffect(offset == index ? scale : 1)
+                .offset(offset == index ? pan : .zero)
             if let caption = Self.caption(of: photo) {
                 // The photo's own note, set like a caption under a print.
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -632,32 +645,75 @@ struct StepStoryPage: View {
         .padding(.trailing, insets.trailing)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(.rect)
-            // Swiping changes the photo, so a tap is free to open it. A video
-            // takes the taps on itself for its sound, all but its edges.
+            // A video takes the taps on itself for its sound, all but its edges.
             .gesture(SpatialTapGesture().onEnded { value in
-                if photo.mediaType == .photo {
-                    zoom()
+                if scale > 1 {
+                    resetZoom()
                 } else {
                     value.location.x < size.width / 3 ? previous() : next()
                 }
             })
             .simultaneousGesture(
-                // The photo grows under the fingers at once; letting go hands
-                // it to the viewer, which zooms and pans for real.
                 MagnifyGesture()
                     .onChanged { value in
-                        if photo.mediaType == .photo { pinch = max(value.magnification, 1) }
+                        guard photo.mediaType == .photo else { return }
+                        zoom(to: baseScale * value.magnification, around: value.startLocation)
                     }
-                    .onEnded { value in
-                        if value.magnification > 1.15 && photo.mediaType == .photo { zoom() }
-                        withAnimation(.smooth(duration: 0.25)) { pinch = 1 }
+                    .onEnded { _ in
+                        baseScale = scale
+                        basePan = pan
+                        if scale < 1.05 { resetZoom() }
                     }
+            )
+            // Looking around, only while zoomed: otherwise the drags page.
+            .simultaneousGesture(
+                DragGesture()
+                    .onChanged { value in
+                        pan = clamped(CGSize(
+                            width: basePan.width + value.translation.width,
+                            height: basePan.height + value.translation.height
+                        ))
+                    }
+                    .onEnded { _ in basePan = pan },
+                isEnabled: scale > 1
             )
             // A video's own actions (sound, playback controls) stay reachable.
             .accessibilityElement(children: photo.mediaType == .video ? .combine : .ignore)
             .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(offset + 1)")))
             .accessibilityAction(named: Text("Next photo"), next)
             .accessibilityAction(named: Text("Previous photo"), previous)
+    }
+
+    /// Keeps the spot between the fingers where it is.
+    private func zoom(to target: CGFloat, around location: CGPoint) {
+        let next = min(max(target, 1), Self.maxZoom)
+        let ratio = next / baseScale
+        // The photo's middle, which lies between the header and the text.
+        let x = location.x - size.width / 2
+        let y = location.y - (size.height + topHeight - bottomHeight) / 2
+        scale = next
+        pan = clamped(CGSize(
+            width: x - ratio * (x - basePan.width),
+            height: y - ratio * (y - basePan.height)
+        ))
+        isZoomed = next > 1
+    }
+
+    /// As far as the edges of the screen, not further.
+    private func clamped(_ pan: CGSize) -> CGSize {
+        let width = size.width * (scale - 1) / 2
+        let height = size.height * (scale - 1) / 2
+        return CGSize(width: min(max(pan.width, -width), width), height: min(max(pan.height, -height), height))
+    }
+
+    private func resetZoom() {
+        withAnimation(.smooth(duration: 0.25)) {
+            scale = 1
+            pan = .zero
+        }
+        baseScale = 1
+        basePan = .zero
+        isZoomed = false
     }
 
     private func media(_ photo: Components.Schemas.Photo, playing: Bool) -> some View {

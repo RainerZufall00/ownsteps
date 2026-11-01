@@ -34,10 +34,11 @@ where it isn't obvious.
   suggests it for a new account.
 - iOS: writing a step works like a page in a journal, with photos, place and
   date in a bar above the keyboard, and a draft is never lost by accident.
-- iOS: photos and steps zoom open from where they were tapped. Touching and
-  holding offers the usual actions: trips and steps can be edited or shared
-  from there, photos saved, copied or sent on.
-- iOS: a tap opens a photo in the story full screen; swiping changes photos.
+- iOS: steps zoom open from their card. Touching and holding offers the usual
+  actions: trips and steps can be edited or shared from there, photos saved,
+  copied or sent on.
+- iOS: pinching zooms a photo right in the story, with place and text in view.
+  The separate full-screen viewer is gone.
 - iOS: when a picked photo has no location of its own, the app asks for photo
   access once to read it from the library.
 
