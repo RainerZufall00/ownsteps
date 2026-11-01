@@ -347,7 +347,7 @@ struct TripListView: View {
         ToolbarItem(placement: .topBarLeading) {
             // Accounts and signing out live in Settings, like in Apple's apps.
             Button { showingSettings = true } label: {
-                Image(systemName: "person.crop.circle")
+                Image(systemName: "gearshape")
             }
             .accessibilityLabel(Text("Settings"))
         }

@@ -327,7 +327,7 @@ struct TripView: View {
                 }
                 Section {
                     if isAuthor {
-                        Button("Album and Immich", systemImage: "square.and.arrow.down.on.square") { showingTripSettings = true }
+                        Button("Trip settings", systemImage: "gearshape") { showingTripSettings = true }
                         Button("Delete trip …", systemImage: "trash", role: .destructive) {
                             deleteConfirmation = ""
                             confirmingDelete = true

@@ -330,16 +330,6 @@
         }
       }
     },
-    "Album and Immich": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Album und Immich"
-          }
-        }
-      }
-    },
     "API key": {
       "localizations": {
         "de": {
