@@ -10,10 +10,18 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.6.1] – 2026-11-01
+
 ### Added
 
 - Every version tag now also creates a GitHub release with its changelog
   section.
+
+### Changed
+
+- Server: updated dependencies – Next.js 16.4.2, React 19.3.1, MapLibre GL
+  6.16, jose, Drizzle ORM and Zod – and a fresh base image. Nothing to do
+  when updating.
 
 ## [0.6.0] – 2026-10-13
 
@@ -226,7 +234,8 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.3.0...v0.4.0
