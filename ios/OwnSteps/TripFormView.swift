@@ -38,6 +38,10 @@ struct TripFormView: View {
 
     private var calendar: TripCalendar { model.calendar(for: account) }
 
+    private var hasChanges: Bool {
+        title != (trip?.title ?? "") || summary != (trip?.summary ?? "") || coverItem != nil
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -87,13 +91,15 @@ struct TripFormView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(role: .cancel) { dismiss() }
+                    DiscardButton(hasChanges: hasChanges) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(role: .confirm, action: save)
                         .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || busy)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
+            .interactiveDismissDisabled(hasChanges)
             .disabled(busy)
             .overlay { if busy { ProgressView().controlSize(.large) } }
             .onChange(of: coverItem) {

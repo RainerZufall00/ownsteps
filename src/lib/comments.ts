@@ -31,6 +31,22 @@ export async function addComment(input: {
   return created;
 }
 
+/**
+ * A comment keeps the name it was written under, so a new account name has
+ * to reach the old ones too – otherwise the name someone just got rid of
+ * stays on every trip.
+ */
+export async function renameCommentAuthor(userId: number, name: string) {
+  const renamed = await db
+    .update(comments)
+    .set({ authorName: name })
+    .where(eq(comments.userId, userId))
+    .returning({ id: comments.id, tripId: comments.tripId });
+  for (const comment of renamed) {
+    await recordChange(comment.tripId, "comment", comment.id, "upsert");
+  }
+}
+
 /** Returns whether there was a comment to delete. */
 export async function deleteComment(commentId: number) {
   const [deleted] = await db

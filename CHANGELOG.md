@@ -10,6 +10,38 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.7.0] – 2026-11-01
+
+### Added
+
+- iOS: privacy manifests for the app and the Share Extension, and an Xcode
+  Cloud script (`ios/ci_scripts/`) – ready for the App Store.
+- iOS: ready for iPhone Duo. An open trip keeps its layout when the phone
+  opens or closes, so a story or a step being written stays; the story view
+  and the map handle uneven safe areas; the sidebar sits next to the trip
+  whenever there's room.
+- `scripts/seed-demo.mjs` fills an instance with three demo trips, for the
+  App Review demo instance and the screenshots.
+- Privacy policy and support page under `docs/`, served by GitHub Pages;
+  App Store texts and a release checklist in `docs/app-store/`.
+- Authors can change their display name in the settings on the web and in
+  both apps (`PATCH /api/v1/me`). It also applies to comments they already
+  wrote.
+
+### Changed
+
+- OIDC sign-ins no longer overwrite an account's name: the provider only
+  suggests it for a new account.
+- iOS: writing a step works like a page in a journal, with photos, place and
+  date in a bar above the keyboard, and a draft is never lost by accident.
+- iOS: steps zoom open from their card. Touching and holding offers the usual
+  actions: trips and steps can be edited or shared from there, photos saved,
+  copied or sent on.
+- iOS: pinching zooms a photo right in the story, with place and text in view.
+  The separate full-screen viewer is gone.
+- iOS: when a picked photo has no location of its own, the app asks for photo
+  access once to read it from the library.
+
 ## [0.6.1] – 2026-11-01
 
 ### Added
@@ -234,7 +266,8 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.0...v0.7.0
 [0.6.1]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.4.0...v0.5.0

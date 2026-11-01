@@ -28,9 +28,9 @@ enum ShareTarget: Identifiable, Hashable {
 /// but it may only exist once sharing is switched on.
 enum ShareSheet {
     @MainActor
-    static func present(_ url: URL) {
+    static func present(_ item: Any) {
         guard let top = UIApplication.shared.topViewController else { return }
-        let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: [item], applicationActivities: nil)
         // iPad: anchored at the top right, where the menu was.
         controller.popoverPresentationController?.sourceView = top.view
         controller.popoverPresentationController?.sourceRect = CGRect(x: top.view.bounds.maxX - 60, y: 60, width: 1, height: 1)

@@ -33,6 +33,7 @@ import de.ownsteps.app.model
 import de.ownsteps.app.ui.compose.ComposerScreen
 import de.ownsteps.app.ui.compose.EditStepScreen
 import de.ownsteps.app.ui.compose.SuggestionsScreen
+import de.ownsteps.app.ui.settings.DisplayNameScreen
 import de.ownsteps.app.ui.settings.ImmichScreen
 import de.ownsteps.app.ui.settings.SettingsScreen
 import de.ownsteps.app.ui.trip.ReadersScreen
@@ -62,6 +63,7 @@ object Routes {
     @Serializable data class Suggestions(val accountId: String, val tripId: Long)
     @Serializable data object Settings
     @Serializable data object News
+    @Serializable data class DisplayName(val accountId: String)
     @Serializable data class Immich(val accountId: String)
 }
 
@@ -174,7 +176,14 @@ fun AppNavigation() {
                 NewsScreen(onOpen = { navController.navigate(Routes.Trip(it.accountId, it.tripId, it.stepId)) }, onClose = navController::popBackStack)
             }
             composable<Routes.Settings> {
-                SettingsScreen(onClose = navController::popBackStack, onImmich = { navController.navigate(Routes.Immich(it)) })
+                SettingsScreen(
+                    onClose = navController::popBackStack,
+                    onName = { navController.navigate(Routes.DisplayName(it)) },
+                    onImmich = { navController.navigate(Routes.Immich(it)) },
+                )
+            }
+            composable<Routes.DisplayName> { entry ->
+                WithAccount(entry.toRoute<Routes.DisplayName>().accountId, navController) { DisplayNameScreen(it, onClose = navController::popBackStack) }
             }
             composable<Routes.Immich> { entry ->
                 WithAccount(entry.toRoute<Routes.Immich>().accountId, navController) { ImmichScreen(it, onClose = navController::popBackStack) }

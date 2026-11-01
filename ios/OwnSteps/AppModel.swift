@@ -266,6 +266,14 @@ final class AppModel {
         startWatching(account)
     }
 
+    /// Changes the name on the server, then here.
+    func rename(_ account: Account, to name: String) async throws {
+        let user = try await client(for: account).rename(to: name)
+        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
+        accounts[index].displayName = user.name
+        store.save(accounts)
+    }
+
     // MARK: Following a trip ([D17])
 
     /// The name readers used last time, so a second invitation is quicker.
@@ -307,6 +315,14 @@ final class AppModel {
         return account
     }
 
+    /// Needs a connection, like every change to what the server has ([D19]).
+    func deleteTrip(_ tripID: Int, for account: Account) async throws {
+        try await client(for: account).deleteTrip(id: tripID)
+        forgetTrip(tripID, for: account)
+        await uploads.removeAll(for: account.id, tripID: tripID)
+        tripListRevision += 1
+    }
+
     /// Stops following: the server forgets the device (best effort), the
     /// app forgets the trip.
     func unfollow(_ account: Account) async {
@@ -316,11 +332,13 @@ final class AppModel {
 
     // MARK: News ([D16])
 
-    /// Ask for notifications and note where the change feed stands, so the
-    /// first background check has something to compare with.
+    /// Note where the change feed stands, so the first background check has
+    /// something to compare with. Readers are asked about notifications
+    /// here – following is why they'd want them. Authors are asked when
+    /// they write their first step, not on the way in.
     private func startWatching(_ account: Account) {
         Task {
-            await Notifications.requestPermission()
+            if account.kind != .author { await Notifications.requestPermission() }
             await checkForNews(notify: false)
         }
     }

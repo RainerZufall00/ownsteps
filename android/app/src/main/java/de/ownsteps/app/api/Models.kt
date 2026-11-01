@@ -289,6 +289,9 @@ internal data class StepViews(val stepIds: List<Long>)
 internal data class ImmichConnect(val url: String, val apiKey: String)
 
 @Serializable
+internal data class MePatch(val name: String)
+
+@Serializable
 internal data class CreatedMedia(val photo: Created)
 
 @Serializable

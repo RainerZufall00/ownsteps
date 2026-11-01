@@ -202,6 +202,33 @@ describe("authors", () => {
     expect(json.code).toBe("credentials_invalid");
   });
 
+  it("renames an author, also on their comments, and tells the change feed", async () => {
+    const token = await signIn();
+    const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Names" } });
+    const step = await call("POST", "/api/v1/trips/{id}/steps", {
+      token,
+      params: { id: trip.json.id },
+      body: { body: "Hello" },
+    });
+    await call("POST", "/api/v1/steps/{id}/comments", {
+      token,
+      params: { id: step.json.id },
+      body: { body: "Nice" },
+    });
+    const { json: start } = await call("GET", "/api/v1/changes", { token });
+
+    expect((await call("PATCH", "/api/v1/me", { token, body: { name: " " } })).status).toBe(400);
+    const renamed = await call("PATCH", "/api/v1/me", { token, body: { name: "Mat" } });
+    expect(renamed.status).toBe(200);
+    expect(renamed.json.name).toBe("Mat");
+
+    const detail = await call("GET", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } });
+    expect(detail.json.steps[0].comments[0].authorName).toBe("Mat");
+    const feed = await call("GET", "/api/v1/changes", { token, query: `?since=${start.cursor}` });
+    expect(feed.json.changes).toHaveLength(1);
+    expect(feed.json.changes[0]).toMatchObject({ entity: "comment", op: "upsert" });
+  });
+
   it("creates trips and steps, idempotent via clientUuid", async () => {
     const token = await signIn();
 

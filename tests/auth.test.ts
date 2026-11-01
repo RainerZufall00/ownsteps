@@ -12,6 +12,7 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { localPath } from "@/lib/origin";
+import { renameAccount } from "@/lib/services/accounts";
 import { jar } from "./helpers/cookie-jar";
 
 const PASSWORD = "correct horse battery";
@@ -106,6 +107,14 @@ describe("accounts", () => {
     const again = await upsertOidcUser({ subject: "sub-123", email: "new@example.com", emailTrusted: true });
     expect(again.id).toBe(first.id);
     expect(again.email).toBe("new@example.com");
+  });
+
+  it("keeps the name an account chose when the provider sends its own", async () => {
+    const first = await upsertOidcUser({ subject: "sub-9", email: "x@example.com", emailTrusted: true, name: "Full Name" });
+    const renamed = await renameAccount(first, { name: "Short" });
+    const again = await upsertOidcUser({ subject: "sub-9", email: "x@example.com", emailTrusted: true, name: "Full Name" });
+    expect(renamed.name).toBe("Short");
+    expect(again.name).toBe("Short");
   });
 
   it("never matches or overwrites an account by an unverified address", async () => {

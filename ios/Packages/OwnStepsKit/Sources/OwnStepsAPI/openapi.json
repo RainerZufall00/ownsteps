@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OwnSteps API",
-    "version": "0.6.1",
+    "version": "0.7.0",
     "description": "API for the OwnSteps apps. Authors authenticate with a device token (`osa_…`), readers with a viewer token (`osv_…`) for one trip. Only additive changes happen within v1."
   },
   "paths": {
@@ -201,6 +201,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 problem details, `code` is stable)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateMe",
+        "summary": "Change the author's name, also on their comments (authors)",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
                 }
               }
             }
@@ -1460,6 +1501,17 @@
         "required": [
           "code",
           "codeVerifier"
+        ]
+      },
+      "MePatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ]
       },
       "ImmichConnect": {

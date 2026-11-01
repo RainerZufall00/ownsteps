@@ -19,6 +19,9 @@ struct StepPager: View {
     let queue: UploadSnapshot
     /// Authors see how many readers saw each step.
     let showViews: Bool
+    let actions: StepActions
+    /// Where the step's page zooms out of.
+    let transition: Namespace.ID
     /// The card in view – the map follows it.
     @Binding var focusedItem: String?
     let open: (Int) -> Void
@@ -52,8 +55,18 @@ struct StepPager: View {
                                     pendingCount: queue.uploadsByStepID[step.id]?.count ?? 0,
                                     viewCount: showViews ? step.viewCount : nil
                                 )
+                                .matchedTransitionSource(id: step.id, in: transition)
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button("Open", systemImage: "arrow.up.forward.app") { open(step.id) }
+                                Button("Comments", systemImage: "bubble.left") { actions.comment(step) }
+                                if actions.isAuthor {
+                                    Button("Edit", systemImage: "pencil") { actions.edit(step) }
+                                    Button("Add photos", systemImage: "photo.badge.plus") { actions.addPhotos(step) }
+                                    Button("Share …", systemImage: "square.and.arrow.up") { actions.share(step) }
+                                }
+                            }
                             .accessibilityHint(Text("Opens the step"))
                         case .local(let local):
                             LocalStepCard(account: account, local: local, day: item.day, calendar: calendar)
@@ -83,7 +96,9 @@ struct StepPager: View {
 extension View {
     /// The solid surface of a card over the map.
     func cardSurface() -> some View {
-        background(Color(uiColor: .systemBackground), in: .rect(cornerRadius: StepPager.cornerRadius))
+        // Grouped: white in the light, a raised gray in the dark – on
+        // pure black the cards looked like holes in the map.
+        background(Color(uiColor: .secondarySystemGroupedBackground), in: .rect(cornerRadius: StepPager.cornerRadius))
             .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
     }
 }
@@ -140,8 +155,8 @@ struct TripCoverCard: View {
     }
 }
 
-/// The trip at a glance, at the top of the map: cover, dates, how far it
-/// has come. Tapping it shows the whole route – the overview the trip card
+/// The trip at a glance, at the top of the map: cover, title, dates, how
+/// far it has come. Tapping it shows the whole route – the overview the trip card
 /// used to give, without scrolling to the far left for it.
 struct TripOverviewBar: View {
     let account: Account
@@ -158,15 +173,13 @@ struct TripOverviewBar: View {
                     .overlay { TripCover(account: account, trip: trip.withoutSteps, variant: .thumb, symbolSize: 14) }
                     .clipShape(.circle)
                 VStack(alignment: .leading, spacing: 1) {
-                    if let range = TripDates.range(of: trip.withoutSteps, calendar: calendar) {
-                        Text(range)
-                            .font(.subheadline.weight(.semibold))
-                    }
+                    Text(trip.title)
+                        .font(.subheadline.weight(.semibold))
                     Group {
                         if let staleSince {
                             OfflineNote(fetchedAt: staleSince)
                         } else {
-                            Text("\(trip.stepCount) steps") + Text(verbatim: " · ") + Text("\(trip.photoCount) photos")
+                            TripMetaLine(trip: trip.withoutSteps, calendar: calendar)
                         }
                     }
                     .font(.caption)
@@ -240,6 +253,7 @@ struct StepPreviewCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .multilineTextAlignment(.leading)
         .contentShape(.rect(cornerRadius: StepPager.cornerRadius))
+        .contentShape(.contextMenuPreview, .rect(cornerRadius: StepPager.cornerRadius))
         .cardSurface()
     }
 }
@@ -337,9 +351,8 @@ struct StepDetailPager: View {
     @Environment(\.dismiss) private var dismiss
     /// The photo each step is at – kept while moving between steps.
     @State private var photoIndex: [Int: Int] = [:]
-    @State private var commentsFor: CommentsRequest?
-    /// Pinching a photo opens it full screen to zoom.
-    @State private var viewer: ViewerRequest?
+    /// A zoomed photo keeps the drags for itself.
+    @State private var photoZoomed = false
     @State private var position = ScrollPosition(idType: Int.self)
     /// A soft knock when tapping past the first or last photo.
     @State private var edgeBump = 0
@@ -348,11 +361,16 @@ struct StepDetailPager: View {
         let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.steps.first?.occurredAt)
         let steps = trip.steps
         let current = steps.first { $0.id == stepID }
-        // The bars' heights are read before the safe area is ignored: the
-        // photos run under them, the controls stay clear of them.
+        // The bars' sizes are read before the safe area is ignored: the
+        // backdrop runs under them, the controls stay clear of them. Each
+        // side counts on its own – on iPhone Duo's inner display the bars and
+        // the status bar can sit on one side only.
         GeometryReader { geometry in
             let insets = geometry.safeAreaInsets
-            let size = CGSize(width: geometry.size.width, height: geometry.size.height + insets.top + insets.bottom)
+            let size = CGSize(
+                width: geometry.size.width + insets.leading + insets.trailing,
+                height: geometry.size.height + insets.top + insets.bottom
+            )
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
                     ForEach(steps) { step in
@@ -367,24 +385,26 @@ struct StepDetailPager: View {
                                 get: { min(photoIndex[step.id] ?? 0, max(step.photos.count - 1, 0)) },
                                 set: { photoIndex[step.id] = $0 }
                             ),
-                            // Not while the viewer is open over it: its videos play there.
-                            isCurrent: step.id == stepID && viewer == nil,
+                            isCurrent: step.id == stepID,
                             size: size,
                             insets: insets,
                             next: { advance(from: step, by: 1) },
                             previous: { advance(from: step, by: -1) },
-                            showComments: { commentsFor = CommentsRequest(stepID: step.id) },
+                            showComments: { actions.comment(step) },
                             showOnMap: { actions.showOnMap(step) },
-                            zoom: { viewer = ViewerRequest(stepID: step.id, index: photoIndex[step.id] ?? 0) }
+                            isZoomed: $photoZoomed
                         )
                         .frame(width: size.width, height: size.height)
                         .id(step.id)
                     }
                 }
                 .scrollTargetLayout()
+                // The first and last step end the trip, with nothing behind them.
+                .background(NoBounce())
             }
             .scrollTargetBehavior(OneStepPaging(axis: .vertical))
             .scrollIndicators(.hidden)
+            .scrollDisabled(photoZoomed)
             .scrollPosition($position)
             // Taken over only once the scroll has settled: reported while a
             // programmatic scroll was still running, the old step won and
@@ -422,24 +442,6 @@ struct StepDetailPager: View {
         .onChange(of: steps.map(\.id)) { _, ids in
             if !ids.contains(stepID) { dismiss() }
         }
-        .fullScreenCover(item: $viewer) { request in
-            if let step = steps.first(where: { $0.id == request.stepID }) {
-                PhotoViewer(account: account, photos: step.photos, startIndex: request.index)
-            }
-        }
-        .sheet(item: $commentsFor) { request in
-            if let step = steps.first(where: { $0.id == request.stepID }) {
-                StepCommentsSheet(step: step, isAuthor: actions.isAuthor, delete: actions.deleteComment) {
-                    // The composer is presented by the trip; one sheet at a time.
-                    commentsFor = nil
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(450))
-                        actions.comment(step)
-                    }
-                }
-                .presentationDetents([.medium, .large])
-            }
-        }
     }
 
     /// Next or previous photo within the step. Days change only by swiping
@@ -456,6 +458,21 @@ struct StepDetailPager: View {
     }
 }
 
+/// Stops the scroll view around it at its ends. `scrollBounceBehavior` can't:
+/// it only leaves out the bounce for content that fits.
+private struct NoBounce: UIViewRepresentable {
+    final class Probe: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            let ancestors = sequence(first: self as UIView) { $0.superview }
+            ancestors.lazy.compactMap { $0 as? UIScrollView }.first?.bounces = false
+        }
+    }
+
+    func makeUIView(context: Context) -> Probe { Probe() }
+    func updateUIView(_ view: Probe, context: Context) {}
+}
+
 struct CommentsRequest: Identifiable {
     let stepID: Int
     var id: Int { stepID }
@@ -463,7 +480,8 @@ struct CommentsRequest: Identifiable {
 
 /// One step as a story: its photos side by side over the whole screen, all
 /// of them equal – none is the step's "title photo". They follow the finger
-/// sideways; a tap on the right goes on, on the left back. Each layer has
+/// sideways; a tap on the right goes on, on the left back, and pinching
+/// zooms right here, with the text in view. Each layer has
 /// its own place, so it's clear what belongs to what: day and place at the
 /// top under the bars, like the sender of a status, and the day's text at
 /// the bottom – both stay while swiping. The photo sits between them, never
@@ -487,9 +505,16 @@ struct StepStoryPage: View {
     let previous: () -> Void
     let showComments: () -> Void
     let showOnMap: () -> Void
-    let zoom: () -> Void
+    /// The shown photo is zoomed in.
+    @Binding var isZoomed: Bool
 
     @State private var reading = false
+    /// The shown photo's zoom and where it was dragged to, each with the
+    /// value the running gesture started from.
+    @State private var scale: CGFloat = 1
+    @State private var baseScale: CGFloat = 1
+    @State private var pan: CGSize = .zero
+    @State private var basePan: CGSize = .zero
     @State private var position = ScrollPosition(idType: Int.self)
     /// Heights of the day header and the text below – the photos keep clear
     /// of both.
@@ -511,6 +536,8 @@ struct StepStoryPage: View {
         .overlay(alignment: .bottom) { bottom }
         .foregroundStyle(.white)
         .clipped()
+        // Leaving the step behind leaves its zoom behind.
+        .onChange(of: isCurrent) { if scale > 1 { resetZoom() } }
         .sheet(isPresented: $reading) {
             StepTextSheet(step: step, day: day, calendar: calendar)
                 .presentationDetents([.medium, .large])
@@ -521,6 +548,7 @@ struct StepStoryPage: View {
 
     /// Black between photos while swiping, like the Photos app.
     private static let gap: CGFloat = 20
+    private static let maxZoom: CGFloat = 4
 
     /// Paged like the Photos app: one photo per swipe with the system's own
     /// paging, a gap between photos, and the blurred backdrop standing
@@ -544,6 +572,7 @@ struct StepStoryPage: View {
             .frame(width: size.width, alignment: .leading)
             .scrollTargetBehavior(.paging)
             .scrollIndicators(.hidden)
+            .scrollDisabled(scale > 1)
             .scrollPosition($position)
             // Taken over once the scroll has settled, like the steps.
             .onScrollPhaseChange { _, phase in
@@ -587,6 +616,11 @@ struct StepStoryPage: View {
         VStack(spacing: 12) {
             media(photo, playing: isCurrent && offset == index)
                 .aspectRatio(Self.aspectRatio(of: photo), contentMode: .fit)
+                .contextMenu {
+                    if photo.mediaType == .photo { PhotoMenu(account: account, photo: photo) }
+                }
+                .scaleEffect(offset == index ? scale : 1)
+                .offset(offset == index ? pan : .zero)
             if let caption = Self.caption(of: photo) {
                 // The photo's own note, set like a caption under a print.
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -607,22 +641,79 @@ struct StepStoryPage: View {
         }
         .padding(.top, topHeight + 4)
         .padding(.bottom, bottomHeight + 4)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(.rect)
             // A video takes the taps on itself for its sound, all but its edges.
             .gesture(SpatialTapGesture().onEnded { value in
-                value.location.x < size.width / 3 ? previous() : next()
+                if scale > 1 {
+                    resetZoom()
+                } else {
+                    value.location.x < size.width / 3 ? previous() : next()
+                }
             })
             .simultaneousGesture(
-                MagnifyGesture().onEnded { value in
-                    if value.magnification > 1.15 && photo.mediaType == .photo { zoom() }
-                }
+                MagnifyGesture()
+                    .onChanged { value in
+                        guard photo.mediaType == .photo else { return }
+                        zoom(to: baseScale * value.magnification, around: value.startLocation)
+                    }
+                    .onEnded { _ in
+                        baseScale = scale
+                        basePan = pan
+                        if scale < 1.05 { resetZoom() }
+                    }
+            )
+            // Looking around, only while zoomed: otherwise the drags page.
+            .simultaneousGesture(
+                DragGesture()
+                    .onChanged { value in
+                        pan = clamped(CGSize(
+                            width: basePan.width + value.translation.width,
+                            height: basePan.height + value.translation.height
+                        ))
+                    }
+                    .onEnded { _ in basePan = pan },
+                isEnabled: scale > 1
             )
             // A video's own actions (sound, playback controls) stay reachable.
             .accessibilityElement(children: photo.mediaType == .video ? .combine : .ignore)
             .accessibilityLabel(Text(photo.caption ?? String(localized: "Photo \(offset + 1)")))
             .accessibilityAction(named: Text("Next photo"), next)
             .accessibilityAction(named: Text("Previous photo"), previous)
+    }
+
+    /// Keeps the spot between the fingers where it is.
+    private func zoom(to target: CGFloat, around location: CGPoint) {
+        let next = min(max(target, 1), Self.maxZoom)
+        let ratio = next / baseScale
+        // The photo's middle, which lies between the header and the text.
+        let x = location.x - size.width / 2
+        let y = location.y - (size.height + topHeight - bottomHeight) / 2
+        scale = next
+        pan = clamped(CGSize(
+            width: x - ratio * (x - basePan.width),
+            height: y - ratio * (y - basePan.height)
+        ))
+        isZoomed = next > 1
+    }
+
+    /// As far as the edges of the screen, not further.
+    private func clamped(_ pan: CGSize) -> CGSize {
+        let width = size.width * (scale - 1) / 2
+        let height = size.height * (scale - 1) / 2
+        return CGSize(width: min(max(pan.width, -width), width), height: min(max(pan.height, -height), height))
+    }
+
+    private func resetZoom() {
+        withAnimation(.smooth(duration: 0.25)) {
+            scale = 1
+            pan = .zero
+        }
+        baseScale = 1
+        basePan = .zero
+        isZoomed = false
     }
 
     private func media(_ photo: Components.Schemas.Photo, playing: Bool) -> some View {
@@ -650,6 +741,8 @@ struct StepStoryPage: View {
                     .padding(.horizontal, 32)
                     .padding(.top, topHeight + 16)
                     .padding(.bottom, bottomHeight + 16)
+                    .padding(.leading, insets.leading)
+                    .padding(.trailing, insets.trailing)
             }
         }
         .contentShape(.rect)
@@ -708,6 +801,8 @@ struct StepStoryPage: View {
         }
         .padding(.top, insets.top + 6)
         .padding(.bottom, 12)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { topHeight = $0 }
         .background {
@@ -756,6 +851,8 @@ struct StepStoryPage: View {
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, insets.bottom + 12)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bottomHeight = $0 }
         .background {
@@ -887,34 +984,105 @@ struct StepTextSheet: View {
     }
 }
 
-/// The comments of a step, opened from its story.
+/// The comments of a step, with the field to write one right below them,
+/// like in Messages. Sending needs a connection ([D19]).
 struct StepCommentsSheet: View {
+    let account: Account
     let step: Components.Schemas.Step
     let isAuthor: Bool
     let delete: (Components.Schemas.Comment) -> Void
-    let write: () -> Void
+    let refresh: () async -> Void
+
+    @Environment(AppModel.self) private var model
+    @State private var text = ""
+    @State private var sending = false
+    @State private var error: String?
+
+    private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         NavigationStack {
-            List {
-                if step.comments.isEmpty {
-                    Text("No comments yet")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(step.comments, id: \.id) { comment in
-                    CommentRow(comment: comment)
-                        .swipeActions {
-                            if isAuthor {
-                                Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
+            ScrollViewReader { proxy in
+                List {
+                    if step.comments.isEmpty {
+                        Text("No comments yet")
+                            .foregroundStyle(.secondary)
+                            .listRowBackground(Color.clear)
+                    }
+                    ForEach(step.comments, id: \.id) { comment in
+                        CommentRow(comment: comment)
+                            .id(comment.id)
+                            .swipeActions {
+                                if isAuthor {
+                                    Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
+                                }
                             }
-                        }
+                            .contextMenu {
+                                Button("Copy", systemImage: "doc.on.doc") { UIPasteboard.general.string = comment.body }
+                                if isAuthor {
+                                    Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
+                                }
+                            }
+                    }
                 }
-                Button(action: write) {
-                    Label("Write a comment", systemImage: "square.and.pencil")
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: step.comments.last?.id) { _, id in
+                    if let id { withAnimation { proxy.scrollTo(id, anchor: .bottom) } }
                 }
             }
+            .safeAreaBar(edge: .bottom) { inputBar }
             .navigationTitle("Comments")
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private var inputBar: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let error {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 6)
+            }
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Comment as \(account.displayName)", text: $text, axis: .vertical)
+                    .lineLimit(1...5)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+                Button(action: send) {
+                    Group {
+                        if sending {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.up")
+                                .font(.body.weight(.semibold))
+                        }
+                    }
+                    .frame(width: 26, height: 26)
+                }
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.circle)
+                .disabled(trimmed.isEmpty || sending)
+                .accessibilityLabel(Text("Send"))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func send() {
+        sending = true
+        error = nil
+        Task {
+            defer { sending = false }
+            do {
+                _ = try await model.client(for: account).comment(stepID: step.id, body: trimmed)
+                text = ""
+                await refresh()
+            } catch {
+                self.error = ErrorText.message(for: error)
+            }
         }
     }
 }

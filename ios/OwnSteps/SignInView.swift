@@ -15,6 +15,10 @@ struct SignInView: View {
 
     private var auth: Components.Schemas.Info.AuthPayload { server.info.auth }
 
+    private func formMargin(_ safeArea: CGFloat, width: CGFloat) -> CGFloat {
+        max(20, safeArea, (width - 600) / 2)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             Form {
@@ -103,7 +107,10 @@ struct SignInView: View {
                 }
             }
             // A readable column on the iPad instead of a form across the screen.
-            .contentMargins(.horizontal, max(0, (geometry.size.width - 600) / 2), for: .scrollContent)
+            // Each side stays clear of its own safe area: on iPhone Duo the
+            // right one holds the status bar, and the rows keep to it anyway.
+            .contentMargins(.leading, formMargin(geometry.safeAreaInsets.leading, width: geometry.size.width), for: .scrollContent)
+            .contentMargins(.trailing, formMargin(geometry.safeAreaInsets.trailing, width: geometry.size.width), for: .scrollContent)
         }
         .navigationTitle("Sign in")
         .navigationBarTitleDisplayMode(.inline)

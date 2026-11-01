@@ -23,8 +23,11 @@ struct TripListView: View {
     @State private var errors: [UUID: String] = [:]
     /// The open trip on the iPhone …
     @State private var path: [TripRoute] = []
-    /// … and in the sidebar. Handed over when the size class changes.
+    /// … and in the sidebar.
     @State private var selection: TripRoute?
+    /// The layout on screen, nil until the size class is known. It only
+    /// follows the size class while no trip is open, see `updateLayout`.
+    @State private var splitLayout: Bool?
     /// The sidebar starts open; once a trip is chosen, the system decides.
     @State private var columns: NavigationSplitViewVisibility = .all
     @State private var newTripFor: Account?
@@ -34,9 +37,26 @@ struct TripListView: View {
     /// Chosen in the news list; opened once the sheet is gone.
     @State private var newsTarget: TripRoute?
     @State private var accountToUnfollow: Account?
+    /// From a trip's menu in the list.
+    @State private var editingTrip: TripTarget?
+    @State private var readersOf: TripTarget?
+    @State private var tripToDelete: TripTarget?
+    /// The trip's name, typed to confirm deleting it – as inside the trip.
+    @State private var deleteConfirmation = ""
+    @State private var deleteError: String?
     @Namespace private var cardTransition
 
-    private var isSplit: Bool { sizeClass == .regular }
+    private var isSplit: Bool { splitLayout ?? (sizeClass == .regular) }
+    private var tripIsOpen: Bool { !path.isEmpty || selection != nil }
+
+    /// Swapping stack and split view rebuilds everything inside. Opening or
+    /// closing an iPhone Duo changes the size class mid-use, and that must
+    /// not cost the story being read or the step being written – an open
+    /// trip keeps its layout (the split view collapses by itself) and the
+    /// other one takes over once it's closed.
+    private func updateLayout() {
+        splitLayout = tripIsOpen ? isSplit : sizeClass == .regular
+    }
 
     var body: some View {
         // Read here, not only in the lazy containers' closures – otherwise
@@ -45,17 +65,22 @@ struct TripListView: View {
         Group {
             if isSplit { splitView(lists) } else { stackView(lists) }
         }
-        .onChange(of: isSplit) { _, split in
-            if split {
-                selection = path.last?.trip
-            } else {
-                path = selection.map { [$0] } ?? []
-            }
-        }
+        .onChange(of: sizeClass, initial: true) { updateLayout() }
+        .onChange(of: tripIsOpen) { updateLayout() }
         .sheet(item: $newTripFor) { account in
             TripFormView(account: account, trip: nil, calendar: model.calendar(for: account)) { trip in
                 tripsByAccount[account.id, default: []].insert(trip, at: 0)
                 open(TripRoute(accountID: account.id, tripID: trip.id))
+            }
+        }
+        .sheet(item: $editingTrip) { target in
+            TripFormView(account: target.account, trip: target.trip, calendar: model.calendar(for: target.account)) { _ in
+                Task { await refresh() }
+            }
+        }
+        .sheet(item: $readersOf) { target in
+            ReadersView(account: target.account, trip: target.trip) { _ in
+                Task { await refresh() }
             }
         }
         .sheet(isPresented: $showingSettings) { SettingsView() }
@@ -83,6 +108,26 @@ struct TripListView: View {
             Button("Cancel", role: .cancel) {}
         } message: { _ in
             Text("You can follow again with the link.")
+        }
+        .alert(
+            "Delete this trip?",
+            isPresented: Binding(get: { tripToDelete != nil }, set: { if !$0 { tripToDelete = nil } }),
+            presenting: tripToDelete
+        ) { target in
+            TextField("Name of the trip", text: $deleteConfirmation)
+            Button("Delete", role: .destructive) { Task { await delete(target) } }
+                .disabled(!deleteConfirmed(target))
+            Button("Cancel", role: .cancel) {}
+        } message: { target in
+            Text("All its steps, photos and comments will be gone for good. Type “\(target.trip.title)” to confirm.")
+        }
+        .alert(
+            "Something went wrong",
+            isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deleteError ?? "")
         }
         .onChange(of: model.openTrip, initial: true) { _, route in
             guard let route else { return }
@@ -163,6 +208,7 @@ struct TripListView: View {
                                 .matchedTransitionSource(id: route, in: cardTransition)
                         }
                         .buttonStyle(CardButtonStyle())
+                        .contextMenu { tripMenu(TripTarget(account: account, trip: trip)) }
                     }
                 }
             }
@@ -229,6 +275,8 @@ struct TripListView: View {
                 }
             }
             .navigationTitle("Trips")
+            // The buttons next to it would leave three letters of it.
+            .toolbar(removing: .title)
             .toolbar { toolbar }
             .refreshable {
                 await refresh()
@@ -248,10 +296,11 @@ struct TripListView: View {
                 }
             }
         }
-        // In portrait the trip gets the whole width; the sidebar slides over it.
-        .navigationSplitViewStyle(.prominentDetail)
+        // Side by side with room for it (iPad in landscape, the inner display
+        // of iPhone Duo); otherwise the sidebar slides over the trip.
+        .navigationSplitViewStyle(.automatic)
         .onChange(of: selection) { _, route in
-            if route != nil { columns = .automatic }
+            columns = route == nil ? .all : .automatic
         }
     }
 
@@ -263,6 +312,7 @@ struct TripListView: View {
             ForEach(trips, id: \.id) { trip in
                 TripSidebarRow(account: account, trip: trip, calendar: model.calendar(for: account))
                     .tag(TripRoute(accountID: account.id, tripID: trip.id))
+                    .contextMenu { tripMenu(TripTarget(account: account, trip: trip)) }
             }
         } else if let message = lists.errors[account.id] {
             Text(message).foregroundStyle(.secondary)
@@ -297,7 +347,7 @@ struct TripListView: View {
         ToolbarItem(placement: .topBarLeading) {
             // Accounts and signing out live in Settings, like in Apple's apps.
             Button { showingSettings = true } label: {
-                Image(systemName: "person.crop.circle")
+                Image(systemName: "gearshape")
             }
             .accessibilityLabel(Text("Settings"))
         }
@@ -331,6 +381,43 @@ struct TripListView: View {
                 Image(systemName: "plus")
             }
             .accessibilityLabel(Text("Add"))
+        }
+    }
+
+    /// Touch and hold on a trip of your own.
+    @ViewBuilder private func tripMenu(_ target: TripTarget) -> some View {
+        Button("Open", systemImage: "arrow.up.forward.app") { open(target.route) }
+        Button("Share trip …", systemImage: "square.and.arrow.up") {
+            // Off so far: the readers sheet is where sharing is switched on.
+            if let url = ShareTarget.trip.url(in: target.trip.share) {
+                ShareSheet.present(url)
+            } else {
+                readersOf = target
+            }
+        }
+        Button("Edit trip", systemImage: "pencil") { editingTrip = target }
+        Button("Readers", systemImage: "person.2") { readersOf = target }
+        Section {
+            Button("Delete trip …", systemImage: "trash", role: .destructive) {
+                deleteConfirmation = ""
+                tripToDelete = target
+            }
+        }
+    }
+
+    private func deleteConfirmed(_ target: TripTarget) -> Bool {
+        deleteConfirmation.trimmingCharacters(in: .whitespaces) == target.trip.title.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func delete(_ target: TripTarget) async {
+        guard deleteConfirmed(target) else { return }
+        do {
+            try await model.deleteTrip(target.trip.id, for: target.account)
+            tripsByAccount[target.account.id]?.removeAll { $0.id == target.trip.id }
+        } catch let api as APIError where api.isUnauthorized {
+            model.signedOutByServer(target.account)
+        } catch {
+            deleteError = ErrorText.message(for: error)
         }
     }
 
@@ -381,6 +468,15 @@ struct TripListView: View {
         // Once for all accounts: the Share Extension's trip list.
         model.publishShareTargets()
     }
+}
+
+/// A trip and the account it belongs to, for what its menu opens.
+private struct TripTarget: Identifiable {
+    let account: Account
+    let trip: Components.Schemas.Trip
+
+    var id: TripRoute { route }
+    var route: TripRoute { TripRoute(accountID: account.id, tripID: trip.id) }
 }
 
 /// What the lists show, handed down from `body`.

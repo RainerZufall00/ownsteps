@@ -36,17 +36,18 @@ enum MediaImporter {
     ) async throws -> [PreparedMedia] {
         var prepared: [PreparedMedia] = []
         for item in items {
-            let asset = libraryAsset(for: item)
             if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
                 guard let movie = try await item.loadTransferable(type: PickedMovie.self) else {
                     throw MediaPreparation.Problem.unreadableVideo
                 }
+                let asset = await libraryAsset(for: item)
                 prepared.append(try await video(at: movie.url, original: originalVideos, asset: asset, assetID: item.itemIdentifier))
             } else {
                 // For a Live Photo this is the still image.
                 guard let data = try await item.loadTransferable(type: Data.self) else {
                     throw MediaPreparation.Problem.unreadableImage
                 }
+                let asset = await libraryAsset(for: item, asking: MediaPreparation.location(in: data) == nil)
                 prepared.append(try await photo(data, asset: asset, timeZone: timeZone, assetID: item.itemIdentifier))
             }
         }
@@ -74,9 +75,13 @@ enum MediaImporter {
 
     /// The library asset behind a picker item – only readable when the user
     /// granted photo access. It supplies location and date when the file
-    /// itself has none.
-    private static func libraryAsset(for item: PhotosPickerItem) -> PHAsset? {
-        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    /// itself has none, e.g. when the picker's "Without Location" is on;
+    /// `asking` then requests the access nobody needed so far.
+    private static func libraryAsset(for item: PhotosPickerItem, asking: Bool = false) async -> PHAsset? {
+        var status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        if asking, status == .notDetermined {
+            status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+        }
         guard let id = item.itemIdentifier, status == .authorized || status == .limited else { return nil }
         return PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject
     }

@@ -173,7 +173,7 @@ export async function upsertOidcUser(claims: {
       .set({
         // An unverified address must not overwrite the one on record.
         email: claims.emailTrusted ? email : linked.email,
-        name: claims.name?.trim() || linked.name,
+        // The name stays: the provider only suggests it for a new account.
         avatarUrl: claims.picture ?? linked.avatarUrl,
       })
       .where(eq(users.id, linked.id))

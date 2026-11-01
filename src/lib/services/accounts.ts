@@ -13,10 +13,12 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { PASSWORD_LOGIN } from "@/lib/env";
+import { renameCommentAuthor } from "@/lib/comments";
 import { revokeAllApiTokens } from "@/lib/tokens";
 import { ServiceError } from "@/lib/errors";
 import { checkWithBrakes, createRateLimit } from "@/lib/rate-limit";
 import {
+  accountNameInput,
   credentialsInput,
   newAccountInput,
   parseInput,
@@ -34,6 +36,14 @@ export async function createFirstAccount(raw: unknown) {
   // Early answer without hashing; createUser checks again atomically.
   if ((await countUsers()) > 0) throw new ServiceError("account_exists");
   return addAccount(raw, { onlyIfFirst: true });
+}
+
+/** An account picks its own name, whatever the sign-in provider calls it. */
+export async function renameAccount(user: User, raw: unknown) {
+  const { name } = parseInput(accountNameInput, raw);
+  const [renamed] = await db.update(users).set({ name }).where(eq(users.id, user.id)).returning();
+  await renameCommentAuthor(user.id, name);
+  return renamed;
 }
 
 /** Every attempt from one address – web form and app alike. */

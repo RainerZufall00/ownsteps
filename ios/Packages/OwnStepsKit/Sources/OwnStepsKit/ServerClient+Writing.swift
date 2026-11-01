@@ -4,6 +4,16 @@ import OwnStepsAPI
 /// Everything an author changes. Optional fields left `nil` keep their value
 /// on the server; an empty string clears a text or date field.
 extension ServerClient {
+    // MARK: Account
+
+    /// The name the author shows under their comments, the old ones included.
+    public func rename(to name: String) async throws -> Components.Schemas.User {
+        switch try await client.updateMe(body: .json(.init(name: name))) {
+        case .ok(let response): return try response.body.json
+        case .default(let status, let response): throw problem(response.body, status: status)
+        }
+    }
+
     // MARK: Trips
 
     public func createTrip(

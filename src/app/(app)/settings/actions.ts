@@ -8,7 +8,7 @@ import { destroySession, requireUser } from "@/lib/auth";
 import { connectImmich, disconnectImmich } from "@/lib/export/immich";
 import { accountFields, formString } from "@/lib/form-data";
 import { clientAddress } from "@/lib/rate-limit";
-import { addAccount, changePassword } from "@/lib/services/accounts";
+import { addAccount, changePassword, renameAccount } from "@/lib/services/accounts";
 import { revokeApiToken } from "@/lib/tokens";
 import type { ActionState } from "../actions";
 
@@ -33,6 +33,20 @@ export async function addUserAction(
   await requireUser();
   try {
     await addAccount(accountFields(formData));
+  } catch (error) {
+    return failure(error);
+  }
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function renameAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await requireUser();
+  try {
+    await renameAccount(user, { name: formString(formData, "name") });
   } catch (error) {
     return failure(error);
   }

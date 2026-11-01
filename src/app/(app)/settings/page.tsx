@@ -13,6 +13,7 @@ import { messageFor } from "@/lib/messages";
 import { disconnectImmichAction, logoutAction, revokeDeviceAction } from "./actions";
 import AddUserForm from "./AddUserForm";
 import ImmichForm from "./ImmichForm";
+import NameForm from "./NameForm";
 import PasswordForm from "./PasswordForm";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,12 @@ export default async function SettingsPage() {
       </p>
 
       <section className="card mt-6 p-6">
+        <h2 className="mb-1 text-lg font-semibold">{t.settings.nameHeading}</h2>
+        <p className="mb-4 text-[15px] text-ink-soft">{t.settings.nameText}</p>
+        <NameForm name={user?.name ?? ""} />
+      </section>
+
+      <section className="card mt-5 p-6">
         <h2 className="mb-1 text-lg font-semibold">{t.settings.accountsHeading}</h2>
         <p className="mb-4 text-[15px] text-ink-soft">
           {t.settings.accountsText}

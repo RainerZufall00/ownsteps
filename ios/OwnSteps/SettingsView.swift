@@ -31,6 +31,11 @@ struct SettingsView: View {
                         }
                         if account.kind == .author {
                             NavigationLink {
+                                DisplayNameView(account: account)
+                            } label: {
+                                Label("Display name", systemImage: "person.text.rectangle")
+                            }
+                            NavigationLink {
                                 ImmichSettingsView(account: account)
                             } label: {
                                 Label("Immich", systemImage: "photo.on.rectangle.angled")
@@ -47,7 +52,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .close) { dismiss() }
                 }
             }
@@ -61,6 +66,67 @@ struct SettingsView: View {
                 }
             } message: { account in
                 Text("This device stops having access to \(account.host).")
+            }
+        }
+    }
+}
+
+/// The name shown with the author's comments. With single sign-on it starts
+/// as whatever the provider sends, usually the full name.
+private struct DisplayNameView: View {
+    let account: Account
+
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var saving = false
+    @State private var error: String?
+    @FocusState private var writing: Bool
+
+    init(account: Account) {
+        self.account = account
+        _name = State(initialValue: account.displayName)
+    }
+
+    private var trimmed: String { name.trimmingCharacters(in: .whitespaces) }
+    /// The server's limits for a name.
+    private var canSave: Bool { (2...60).contains(trimmed.count) && trimmed != account.displayName && !saving }
+
+    var body: some View {
+        Form {
+            Section {
+                TextField("Display name", text: $name)
+                    .textContentType(.nickname)
+                    .focused($writing)
+                    .submitLabel(.done)
+                    .onSubmit { if canSave { save() } }
+            } footer: {
+                Text("Shown with your comments, also on the ones you already wrote.")
+            }
+            if let error {
+                Section { Text(error).foregroundStyle(.red) }
+            }
+        }
+        .navigationTitle("Display name")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button(role: .confirm, action: save).disabled(!canSave)
+            }
+        }
+        .onAppear { writing = true }
+    }
+
+    private func save() {
+        saving = true
+        error = nil
+        Task {
+            defer { saving = false }
+            do {
+                try await model.rename(account, to: trimmed)
+                dismiss()
+            } catch {
+                self.error = ErrorText.message(for: error) ?? error.localizedDescription
             }
         }
     }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
@@ -47,7 +48,7 @@ import de.ownsteps.app.ui.rememberAction
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(onClose: () -> Unit, onImmich: (accountId: String) -> Unit) {
+fun SettingsScreen(onClose: () -> Unit, onName: (accountId: String) -> Unit, onImmich: (accountId: String) -> Unit) {
     val context = LocalContext.current
     val model = context.model
     val accounts by model.accounts.collectAsState()
@@ -79,6 +80,13 @@ fun SettingsScreen(onClose: () -> Unit, onImmich: (accountId: String) -> Unit) {
             ListItem(headlineContent = { Text(account.displayName) }, supportingContent = account.email?.let { { Text(it) } }, colors = plain)
             if (account.isAuthor) {
                 ListItem(
+                    headlineContent = { Text(stringResource(R.string.display_name)) },
+                    leadingContent = { Icon(Icons.Filled.Badge, null) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
+                    colors = plain,
+                    modifier = Modifier.clickable { onName(account.id) },
+                )
+                ListItem(
                     headlineContent = { Text(stringResource(R.string.immich)) },
                     leadingContent = { Icon(Icons.Filled.PhotoLibrary, null) },
                     trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
@@ -102,6 +110,29 @@ fun SettingsScreen(onClose: () -> Unit, onImmich: (accountId: String) -> Unit) {
             stringResource(R.string.sign_out_title), stringResource(R.string.sign_out_text, account.host), stringResource(R.string.sign_out),
             onConfirm = { model.scope.launch { model.signOut(account) } }, onDismiss = { signOut = null },
         )
+    }
+}
+
+/** The name shown with the author's comments. With single sign-on it starts as whatever the provider sends. */
+@Composable
+fun DisplayNameScreen(account: Account, onClose: () -> Unit) {
+    val model = LocalContext.current.model
+    var name by rememberSaveable { mutableStateOf(account.displayName) }
+    val action = rememberAction()
+    val trimmed = name.trim()
+
+    FormScreen(stringResource(R.string.display_name), onClose, back = true, busy = action.busy, error = action.error) {
+        OutlinedTextField(
+            name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.display_name)) },
+            singleLine = true,
+        )
+        Hint(stringResource(R.string.display_name_hint))
+        Button(
+            onClick = { action.run { model.rename(account, trimmed); onClose() } },
+            // The server's limits for a name.
+            enabled = trimmed.length in 2..60 && trimmed != account.displayName && !action.busy,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(stringResource(R.string.save)) }
     }
 }
 
