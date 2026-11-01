@@ -108,6 +108,9 @@ export const authorNameInput = z
   .min(2, { error: "comment_name_missing" })
   .max(NAME_MAX_LENGTH, { error: "comment_name_too_long" });
 
+/** The name an account shows under its comments and steps. */
+export const accountNameInput = z.object({ name: authorNameInput });
+
 export const commentInput = z.object({
   authorName: authorNameInput,
   body: z

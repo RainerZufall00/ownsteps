@@ -69,6 +69,9 @@ class ServerClient(val baseUrl: HttpUrl, private val token: String?, private val
         return info
     }
 
+    /** The name the author shows under their comments, the old ones included. */
+    suspend fun rename(name: String) = call("PATCH", "me", User.serializer(), json(MePatch(name)))
+
     suspend fun signIn(email: String, password: String, deviceName: String) =
         call("POST", "auth/token", AuthorToken.serializer(), json(TokenRequest(email, password, deviceName)))
 

@@ -116,6 +116,8 @@
     <string name="offline_album">Offline album</string>
     <string name="export_album">Export album</string>
     <string name="offline_album_hint">A ZIP with one page and all photos and videos, the text, the captions and a map of the route. It opens in any browser, also offline.</string>
+    <string name="display_name">Display name</string>
+    <string name="display_name_hint">Shown with your comments, also on the ones you already wrote.</string>
     <string name="immich">Immich</string>
     <string name="connect_immich">Connect Immich</string>
     <string name="immich_sending">Sending %1$d of %2$d …</string>

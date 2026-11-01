@@ -115,6 +115,8 @@
     <string name="offline_album">Offline-Album</string>
     <string name="export_album">Album exportieren</string>
     <string name="offline_album_hint">Eine ZIP-Datei mit einer Seite und allen Fotos und Videos, den Texten, Bildbeschreibungen und einer Karte der Route. Sie öffnet sich in jedem Browser, auch offline.</string>
+    <string name="display_name">Anzeigename</string>
+    <string name="display_name_hint">Steht bei deinen Kommentaren, auch bei denen, die du schon geschrieben hast.</string>
     <string name="immich">Immich</string>
     <string name="connect_immich">Immich verbinden</string>
     <string name="immich_sending">Sende %1$d von %2$d …</string>

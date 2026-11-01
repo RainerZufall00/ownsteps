@@ -13,6 +13,7 @@ import {
   immichConnectionSchema,
   immichStatusSchema,
   infoSchema,
+  mePatchSchema,
   meSchema,
   mediaUploadSchema,
   oidcExchangeSchema,
@@ -30,6 +31,7 @@ import {
   tripListSchema,
   tripPatchSchema,
   tripSchema,
+  userSchema,
   viewerListSchema,
   viewerTokenSchema,
 } from "./schemas";
@@ -173,6 +175,13 @@ export function buildOpenApiDocument() {
           summary: "Who the token belongs to",
           security: secured,
           responses: { "200": ok(meSchema) },
+        }),
+        patch: op({
+          operationId: "updateMe",
+          summary: "Change the author's name, also on their comments (authors)",
+          security: secured,
+          requestBody: jsonBody(mePatchSchema),
+          responses: { "200": ok(userSchema) },
         }),
       },
       "/api/v1/me/immich": {

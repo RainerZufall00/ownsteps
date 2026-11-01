@@ -238,6 +238,12 @@ class AppModel(private val context: Context) {
         startWatching()
     }
 
+    /** Changes the name on the server, then here. */
+    suspend fun rename(account: Account, name: String) {
+        val user = withClient(account) { it.rename(name) }
+        accountStore.update { list -> list.map { if (it.id == account.id) it.copy(displayName = user.name) else it } }
+    }
+
     // Following a trip ([D17])
 
     /** Redeems an invitation: the share link plus a name. The device then reads that one trip. */

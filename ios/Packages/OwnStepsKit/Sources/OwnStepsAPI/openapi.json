@@ -216,6 +216,47 @@
             }
           }
         }
+      },
+      "patch": {
+        "operationId": "updateMe",
+        "summary": "Change the author's name, also on their comments (authors)",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 problem details, `code` is stable)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/me/immich": {
@@ -1460,6 +1501,17 @@
         "required": [
           "code",
           "codeVerifier"
+        ]
+      },
+      "MePatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ]
       },
       "ImmichConnect": {

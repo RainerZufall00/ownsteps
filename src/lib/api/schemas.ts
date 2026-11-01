@@ -131,6 +131,8 @@ export const userSchema = z
   .object({ id: z.number().int(), name: z.string(), email: z.string() })
   .meta({ id: "User" });
 
+export const mePatchSchema = z.object({ name: z.string() }).meta({ id: "MePatch" });
+
 export const viewerSchema = z
   .object({
     id: z.number().int(),
