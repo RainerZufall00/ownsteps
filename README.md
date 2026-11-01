@@ -368,8 +368,9 @@ Without `DATA_DIR`, database and photos go into the `./data` folder.
 with three demo trips.
 
 A new release is a version tag: `git tag v1.2.3 && git push --tags` builds the
-image for both architectures and publishes it to the GitHub Container
-Registry (`.github/workflows/docker.yml`).
+image for both architectures, publishes it to the GitHub Container Registry
+and creates the GitHub release from that version's section in `CHANGELOG.md`
+(`.github/workflows/docker.yml`) – so the section has to exist before tagging.
 
 **Tech:** Next.js 16 (App Router) · SQLite via Drizzle · sharp for the image
 sizes · exifr for GPS and capture time · MapLibre GL for the map · Tailwind
