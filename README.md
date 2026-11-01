@@ -286,8 +286,9 @@ Without `DATA_DIR`, database and photos go into the `./data` folder.
 `docker-compose.yml`.
 
 A new release is a version tag: `git tag v1.2.3 && git push --tags` builds the
-image for both architectures and publishes it to the GitHub Container
-Registry (`.github/workflows/docker.yml`).
+image for both architectures, publishes it to the GitHub Container Registry
+and creates the GitHub release from that version's section in `CHANGELOG.md`
+(`.github/workflows/docker.yml`) – so the section has to exist before tagging.
 
 ## Tech
 

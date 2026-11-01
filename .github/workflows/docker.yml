@@ -1,5 +1,6 @@
 # Builds the Docker image for amd64 and arm64 and publishes it to the GitHub
-# Container Registry when a version is tagged (git tag v1.2.3 && git push --tags).
+# Container Registry when a version is tagged (git tag v1.2.3 && git push --tags),
+# then creates the GitHub release from that version's section in CHANGELOG.md.
 # Installations update with `docker compose pull && docker compose up -d`.
 name: Docker image
 
@@ -51,3 +52,29 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Only this job may write to the repository, the image build doesn't need to.
+  # A manual run of the workflow rebuilds the image and creates no release.
+  release:
+    needs: image
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Everything between "## [1.2.3] – date" and the next version heading.
+          awk -v heading="## [${GITHUB_REF_NAME#v}]" \
+            'index($0, "## [") == 1 { found = index($0, heading) == 1; next } found' \
+            CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no section for $GITHUB_REF_NAME"
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" --verify-tag \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md
