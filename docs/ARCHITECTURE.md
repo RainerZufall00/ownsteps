@@ -1,10 +1,11 @@
 # OwnSteps – Architecture and decisions
 
 This file is for everyone working on the code. It describes how the pieces
-fit together and **why** they are built the way they are. The usage and
-deployment guide lives in the [README](../README.md), a summary of the most
-important rules in [AGENTS.md](../AGENTS.md), and the agreed plan for the API,
-the iOS app and the open source release in [ROADMAP.md](ROADMAP.md).
+fit together and **why** they are built the way they are. The usage guide
+lives in [USER-GUIDE.md](USER-GUIDE.md), the deployment guide in
+[SELF-HOSTING.md](SELF-HOSTING.md), a summary of the most important rules in
+[AGENTS.md](../AGENTS.md), and the agreed plan for the API, the iOS app and
+the open source release in [ROADMAP.md](ROADMAP.md).
 
 Code, comments, docs and commits are in English ([E15]). The user interface
 speaks English (default) and German ([E16]).
@@ -330,7 +331,7 @@ public IP – Docker publishes ports past ufw – anyone can reach the app witho
 the proxy and write `X-Forwarded-For` themselves; the per-account and per-trip
 brakes still hold. The default stays `0.0.0.0` like in most self-hosted
 projects, so a setup without a proxy works out of the box; `.env.example` and
-the README say when to use `127.0.0.1`. Two warnings were considered and
+`docs/SELF-HOSTING.md` say when to use `127.0.0.1`. Two warnings were considered and
 dropped: one at startup would fire for every fresh copy of the template,
 firewalled or not; one for requests arriving without `X-Forwarded-For` can't
 work, because Next fills in that header (and `X-Forwarded-Host`, `-Proto`,
