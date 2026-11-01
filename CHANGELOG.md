@@ -14,6 +14,10 @@ where it isn't obvious.
 
 - iOS: privacy manifests for the app and the Share Extension, and an Xcode
   Cloud script (`ios/ci_scripts/`) – ready for the App Store.
+- iOS: ready for iPhone Duo. An open trip keeps its layout when the phone
+  opens or closes, so a story or a step being written stays; the story view
+  and the map handle uneven safe areas; the sidebar sits next to the trip
+  whenever there's room.
 - `scripts/seed-demo.mjs` fills an instance with three demo trips, for the
   App Review demo instance and the screenshots.
 - Privacy policy and support page under `docs/`, served by GitHub Pages;

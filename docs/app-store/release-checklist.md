@@ -3,9 +3,11 @@
 ## GitHub
 
 - [x] Repository public.
-- [ ] Settings → Pages → *Deploy from a branch* → `main` / `docs`. Privacy
-      policy and support page are then at
-      `https://rainerzufall00.github.io/ownsteps/privacy` and `…/support`.
+- [x] Settings → Pages → *Deploy from a branch* → `main` / `docs`.
+- [ ] Merge `docs/privacy.md` and `docs/support.md` to `main`. Privacy policy
+      and support page are then at
+      `https://rainerzufall00.github.io/ownsteps/privacy` and `…/support`;
+      App Store Connect needs both to answer.
       (Everything else in `docs/` is published too – it's public in the repo
       anyway.)
 - [ ] Optional: enable Discussions, switch on private vulnerability reporting
@@ -40,7 +42,8 @@
       (`python3 docs/app-store/check-lengths.py`).
 - [ ] App Privacy: *Data Not Collected*. Privacy Policy URL from GitHub Pages.
 - [ ] Age rating questionnaire.
-- [ ] Screenshots: iPhone 6.9" (6.3" from `iphone-6.3/`) and iPad 13", German and English, from
+- [ ] Screenshots: iPhone 6.9" (6.3" from `iphone-6.3/`), iPhone Duo outer and
+      inner display and iPad 13", German and English, from
       `docs/app-store/screenshots/` (see `listing.md`).
 - [ ] App Review information: demo account, notes, contact details.
 
@@ -48,9 +51,11 @@
 
 - [ ] Xcode → Integrate → Create Workflow on `ios/OwnSteps.xcodeproj`: start
       condition *branch changes* on `main` (or manual), action
-      *Archive – iOS*, post-action *TestFlight Internal Testing*. Grant
-      access to the GitHub repository. `ios/ci_scripts/ci_post_clone.sh`
-      writes `Secrets.xcconfig` and lets the OpenAPI build plugin run.
+      *Archive – iOS*, post-action *TestFlight Internal Testing*, Xcode
+      version 27.1 or later – only the iOS 27.1 SDK runs edge to edge on
+      iPhone Duo. Grant access to the GitHub repository.
+      `ios/ci_scripts/ci_post_clone.sh` writes `Secrets.xcconfig` and lets
+      the OpenAPI build plugin run.
 - [ ] Bump `MARKETING_VERSION` for a new version (1.0 for the first one).
       The build number is set by Xcode Cloud.
 - [ ] Test on a real device: sign-in with password and OIDC, upload photos

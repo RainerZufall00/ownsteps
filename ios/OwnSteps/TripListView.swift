@@ -23,8 +23,11 @@ struct TripListView: View {
     @State private var errors: [UUID: String] = [:]
     /// The open trip on the iPhone …
     @State private var path: [TripRoute] = []
-    /// … and in the sidebar. Handed over when the size class changes.
+    /// … and in the sidebar.
     @State private var selection: TripRoute?
+    /// The layout on screen, nil until the size class is known. It only
+    /// follows the size class while no trip is open, see `updateLayout`.
+    @State private var splitLayout: Bool?
     /// The sidebar starts open; once a trip is chosen, the system decides.
     @State private var columns: NavigationSplitViewVisibility = .all
     @State private var newTripFor: Account?
@@ -43,7 +46,17 @@ struct TripListView: View {
     @State private var deleteError: String?
     @Namespace private var cardTransition
 
-    private var isSplit: Bool { sizeClass == .regular }
+    private var isSplit: Bool { splitLayout ?? (sizeClass == .regular) }
+    private var tripIsOpen: Bool { !path.isEmpty || selection != nil }
+
+    /// Swapping stack and split view rebuilds everything inside. Opening or
+    /// closing an iPhone Duo changes the size class mid-use, and that must
+    /// not cost the story being read or the step being written – an open
+    /// trip keeps its layout (the split view collapses by itself) and the
+    /// other one takes over once it's closed.
+    private func updateLayout() {
+        splitLayout = tripIsOpen ? isSplit : sizeClass == .regular
+    }
 
     var body: some View {
         // Read here, not only in the lazy containers' closures – otherwise
@@ -52,13 +65,8 @@ struct TripListView: View {
         Group {
             if isSplit { splitView(lists) } else { stackView(lists) }
         }
-        .onChange(of: isSplit) { _, split in
-            if split {
-                selection = path.last?.trip
-            } else {
-                path = selection.map { [$0] } ?? []
-            }
-        }
+        .onChange(of: sizeClass, initial: true) { updateLayout() }
+        .onChange(of: tripIsOpen) { updateLayout() }
         .sheet(item: $newTripFor) { account in
             TripFormView(account: account, trip: nil, calendar: model.calendar(for: account)) { trip in
                 tripsByAccount[account.id, default: []].insert(trip, at: 0)
@@ -267,6 +275,8 @@ struct TripListView: View {
                 }
             }
             .navigationTitle("Trips")
+            // The buttons next to it would leave three letters of it.
+            .toolbar(removing: .title)
             .toolbar { toolbar }
             .refreshable {
                 await refresh()
@@ -286,10 +296,11 @@ struct TripListView: View {
                 }
             }
         }
-        // In portrait the trip gets the whole width; the sidebar slides over it.
-        .navigationSplitViewStyle(.prominentDetail)
+        // Side by side with room for it (iPad in landscape, the inner display
+        // of iPhone Duo); otherwise the sidebar slides over the trip.
+        .navigationSplitViewStyle(.automatic)
         .onChange(of: selection) { _, route in
-            if route != nil { columns = .automatic }
+            columns = route == nil ? .all : .automatic
         }
     }
 
