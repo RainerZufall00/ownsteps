@@ -348,11 +348,16 @@ struct StepDetailPager: View {
         let start = calendar.tripStart(startDate: trip.startDate, firstStepAt: trip.steps.first?.occurredAt)
         let steps = trip.steps
         let current = steps.first { $0.id == stepID }
-        // The bars' heights are read before the safe area is ignored: the
-        // photos run under them, the controls stay clear of them.
+        // The bars' sizes are read before the safe area is ignored: the
+        // backdrop runs under them, the controls stay clear of them. Each
+        // side counts on its own – on iPhone Duo's inner display the bars and
+        // the status bar can sit on one side only.
         GeometryReader { geometry in
             let insets = geometry.safeAreaInsets
-            let size = CGSize(width: geometry.size.width, height: geometry.size.height + insets.top + insets.bottom)
+            let size = CGSize(
+                width: geometry.size.width + insets.leading + insets.trailing,
+                height: geometry.size.height + insets.top + insets.bottom
+            )
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
                     ForEach(steps) { step in
@@ -607,6 +612,8 @@ struct StepStoryPage: View {
         }
         .padding(.top, topHeight + 4)
         .padding(.bottom, bottomHeight + 4)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(.rect)
             // A video takes the taps on itself for its sound, all but its edges.
@@ -650,6 +657,8 @@ struct StepStoryPage: View {
                     .padding(.horizontal, 32)
                     .padding(.top, topHeight + 16)
                     .padding(.bottom, bottomHeight + 16)
+                    .padding(.leading, insets.leading)
+                    .padding(.trailing, insets.trailing)
             }
         }
         .contentShape(.rect)
@@ -708,6 +717,8 @@ struct StepStoryPage: View {
         }
         .padding(.top, insets.top + 6)
         .padding(.bottom, 12)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { topHeight = $0 }
         .background {
@@ -756,6 +767,8 @@ struct StepStoryPage: View {
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, insets.bottom + 12)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bottomHeight = $0 }
         .background {

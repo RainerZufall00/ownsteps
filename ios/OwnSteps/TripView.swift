@@ -112,7 +112,9 @@ struct TripView: View {
             // map's controls above them.
             .safeAreaPadding(.bottom, StepPager.height + DayTrack.height + 18)
             // Room for the overview bar, so the route isn't framed under it.
-            .safeAreaPadding(.top, trip?.steps.isEmpty == false ? 56 : 0)
+            // The markers stand on their coordinate: the northernmost one
+            // needs its own height on top of that.
+            .safeAreaPadding(.top, trip?.steps.isEmpty == false ? 100 : 0)
             pager
         }
         .overlay(alignment: .topLeading) {

@@ -138,7 +138,12 @@ The demo server is reset every night.
 Required: iPhone 6.9" (1320 × 2868) and iPad 13" (2064 × 2752), per language.
 App Store Connect may also ask for iPhone 6.1"/6.3" (1206 × 2622); those are
 scaled down from the 6.9" set (step 7 below) and live in `iphone-6.3/`.
-In `docs/app-store/screenshots/<en|de>/<iphone|iphone-6.3|ipad>/`
+iPhone Duo has two sets of its own, outer display (1398 × 2034) and inner
+display (2853 × 2007, the simulator's open pose): optional for now and what earns the "Made for iPhone
+Duo" badge, required from April 2027 for builds with the iOS 27.1 SDK. They
+can't be scaled from the other sets – the inner display shows the sidebar
+layout at another aspect ratio. See "iPhone Duo" below.
+In `docs/app-store/screenshots/<en|de>/<iphone|iphone-6.3|iphone-duo-outer|iphone-duo-inner|ipad>/`
 (git-ignored), in upload order:
 
 | # | iPhone | iPad |
@@ -165,7 +170,31 @@ How they were taken, to repeat them for a new version:
    `xcrun simctl addmedia` and pick them – don't save the step.
 5. For the news list, post a few reader comments after signing in, then send
    the app to the background and back.
-6. `xcrun simctl io <device> screenshot <file>.png`.
-7. Scale the iPhone set to 6.3" and drop the alpha channel, which App Store
-   Connect rejects (same aspect ratio, so nothing is cropped):
+6. `xcrun simctl io <device> screenshot <file>.png`, then drop the alpha
+   channel, which App Store Connect rejects – the simulator's PNGs have one:
+   `ffmpeg -i <file>.png -pix_fmt rgb24 <out>.png`.
+7. Scale the iPhone set to 6.3" (same aspect ratio, so nothing is cropped):
    `ffmpeg -i iphone/<file>.png -vf scale=1206:2622:flags=lanczos -pix_fmt rgb24 iphone-6.3/<file>.png`.
+
+### iPhone Duo
+
+Needs Xcode 27.1 or later and its iOS simulator runtime for iPhone Duo, a
+separate download. Xcode 27.0 has no iPhone Duo simulator, and a build with
+its SDK isn't the layout that ships.
+
+1. Create a device of its own, so another session's app doesn't turn up on it
+   (the runtime's name follows the installed Xcode, see `xcrun simctl list runtimes`):
+   `xcrun simctl create "OwnSteps Screenshots Duo" com.apple.CoreSimulator.SimDeviceType.iPhone-Duo com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4`.
+   A boot status of "Data Migration Failed" did no harm.
+2. Use the same steps as above, switching poses with the buttons in Device
+   Hub (`simctl` has no pose command). Geotagged photos for the new-step
+   screen can come from `.demo-photos`, with GPS added by sharp's `withExif`.
+3. Screenshots are per display:
+   `xcrun simctl io <device> screenshot --display=primary <file>.png` for the
+   outer one, `--display=primary-1` for the inner one. Right after booting
+   they can come out black for a few minutes.
+4. Check on the inner display: sidebar with a trip, a story, a sheet; on the
+   outer one the vertical bars right of the content. Then open and close the
+   phone with a story and with the step composer open – both have to stay.
+   The simulator's *Closed* button didn't always take; a device booted fresh
+   starts closed, which is enough for the outer screenshots.
