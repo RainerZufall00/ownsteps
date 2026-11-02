@@ -10,6 +10,8 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.7.1] – 2026-11-02
+
 ### Added
 
 - Comments can be answered directly, on the web and in both apps. Answers show
@@ -279,7 +281,8 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.0...v0.7.0
 [0.6.1]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.5.0...v0.6.0
