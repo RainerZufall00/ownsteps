@@ -25,6 +25,15 @@ npm test           # Vitest against a throwaway SQLite database
 npm run build      # what the Docker image runs
 ```
 
+Without `DATA_DIR`, database and photos go into the `./data` folder. To try
+your own Docker image, build it with `docker build -t ownsteps .` and put
+`image: ownsteps` into `docker-compose.yml`. `node scripts/seed-demo.mjs` fills
+an empty instance with three demo trips.
+
+**Tech:** Next.js 16 (App Router) · SQLite via Drizzle · sharp for the image
+sizes · exifr for GPS and capture time · MapLibre GL for the map · Tailwind
+CSS v4 · SwiftUI and Jetpack Compose for the apps.
+
 The ground rules are in [AGENTS.md](AGENTS.md) – written for coding agents,
 but they apply to everyone. The ones that trip people up most:
 
@@ -68,6 +77,13 @@ New strings go into `res/values/strings.xml` and `res/values-de/strings.xml`.
   it there – the reasoning matters as much as the code.
 - User-visible changes get a line in [CHANGELOG.md](CHANGELOG.md) under
   *Unreleased*.
+
+## Releases
+
+A new release is a version tag: `git tag v1.2.3 && git push --tags` builds the
+image for both architectures, publishes it to the GitHub Container Registry
+and creates the GitHub release from that version's section in `CHANGELOG.md`
+(`.github/workflows/docker.yml`) – so the section has to exist before tagging.
 
 ## License
 

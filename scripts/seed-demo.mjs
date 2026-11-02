@@ -2,7 +2,7 @@
 // Fills an OwnSteps instance with three demo trips through /api/v1 – for the
 // App Store screenshots and the App Review demo instance (D25 in
 // docs/ROADMAP.md). The photos come from Unsplash (Unsplash License, credited
-// below and in the README); they're downloaded once into a cache folder.
+// below and in docs/CREDITS.md); they're downloaded once into a cache folder.
 //
 //   node scripts/seed-demo.mjs --server http://localhost:2555 \
 //     --email demo@example.com --password '…' [--lang de] [--cache .demo-photos]
