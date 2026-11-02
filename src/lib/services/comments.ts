@@ -1,7 +1,13 @@
 import "server-only";
 
 import type { Trip } from "@/db/schema";
-import { addComment, type CommentSender, deleteComment, isCommentableStep } from "@/lib/comments";
+import {
+  addComment,
+  type CommentSender,
+  deleteComment,
+  isCommentableStep,
+  threadRoot,
+} from "@/lib/comments";
 import { ServiceError } from "@/lib/errors";
 import { createRateLimit } from "@/lib/rate-limit";
 import { commentInput, parseInput } from "@/lib/schemas";
@@ -29,7 +35,7 @@ export async function postComment(input: {
   if (!Number.isInteger(input.tripId) || !Number.isInteger(input.stepId)) {
     throw new ServiceError("step_not_found");
   }
-  const { authorName, body } = parseInput(commentInput, input.raw);
+  const { authorName, body, parentId } = parseInput(commentInput, input.raw);
 
   const trip = await requireTrip(input.tripId);
   const access = await input.resolveAccess(trip);
@@ -39,6 +45,8 @@ export async function postComment(input: {
   if (!(await isCommentableStep(input.stepId, trip.id))) {
     throw new ServiceError("step_not_found");
   }
+  const rootId = parentId ? await threadRoot(parentId, input.stepId) : null;
+  if (rootId === undefined) throw new ServiceError("comment_not_found");
   if (!commentsPerSender.allow(input.clientKey)) {
     throw new ServiceError("comment_rate_limited");
   }
@@ -49,6 +57,7 @@ export async function postComment(input: {
     authorName,
     body,
     sender: input.sender,
+    parentId: rootId,
   });
   return { trip, comment };
 }

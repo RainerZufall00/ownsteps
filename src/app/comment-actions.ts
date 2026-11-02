@@ -26,8 +26,10 @@ export async function addCommentAction(
       tripId: Number(formData.get("tripId")),
       stepId: Number(formData.get("stepId")),
       raw: {
-        authorName: formString(formData, "authorName"),
+        // Signed in, the account's name counts; only guests give one.
+        authorName: user?.name ?? formString(formData, "authorName"),
         body: formString(formData, "body"),
+        parentId: Number(formData.get("parentId")) || null,
       },
       clientKey: clientAddress(await headers()),
       // Signed in, it's the author's own – the apps then don't report it back to them.

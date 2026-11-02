@@ -182,6 +182,7 @@ erDiagram
         int trip_id FK
         int step_id FK
         text author_name "freely chosen, no account"
+        integer parent_id FK "the comment answered, one level deep"
         text body
         int created_at
     }

@@ -6,6 +6,7 @@ import {
   real,
   sqliteTable,
   text,
+  type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 
 const now = sql`(unixepoch() * 1000)`;
@@ -150,8 +151,18 @@ export const comments = sqliteTable(
     viewerDeviceId: integer("viewer_device_id").references(() => viewerDevices.id, {
       onDelete: "set null",
     }),
+    /**
+     * The comment this one answers. Threads are one level deep. Deleting a
+     * comment leaves its answers standing – they're someone else's words.
+     */
+    parentId: integer("parent_id").references((): AnySQLiteColumn => comments.id, {
+      onDelete: "set null",
+    }),
   },
-  (t) => [index("comments_step_idx").on(t.stepId, t.createdAt)],
+  (t) => [
+    index("comments_step_idx").on(t.stepId, t.createdAt),
+    index("comments_parent_idx").on(t.parentId),
+  ],
 );
 
 /** Device tokens of signed-in authors, used by the app (`Authorization: Bearer`). */

@@ -51,6 +51,10 @@ export const commentSchema = z
     authorName: z.string(),
     body: z.string(),
     createdAt: isoDateTime,
+    /** The comment this one answers. Threads are one level deep. Left out by servers before 0.7.1. */
+    parentId: z.number().int().nullable().optional(),
+    /** Written with an author's account, for the badge. Left out by servers before 0.7.1. */
+    fromAuthor: z.boolean().optional(),
     /**
      * Written by the account or reader device asking – by identity, not by
      * name. Optional for servers before 0.6; clients then compare names.
@@ -285,6 +289,8 @@ export const commentCreateSchema = z
     body: z.string(),
     /** Ignored – authors comment under their account name, viewers under theirs. */
     authorName: z.string().optional(),
+    /** The comment being answered; an answer to an answer joins its thread. */
+    parentId: z.number().int().nullable().optional(),
   })
   .meta({ id: "CommentCreate" });
 

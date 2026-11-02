@@ -16,6 +16,8 @@ export async function addComment(input: {
   body: string;
   /** None for guests on the web. */
   sender?: CommentSender;
+  /** The comment being answered, see `threadRoot`. */
+  parentId?: number | null;
 }) {
   const [created] = await db
     .insert(comments)
@@ -24,6 +26,7 @@ export async function addComment(input: {
       tripId: input.tripId,
       authorName: input.authorName.trim().slice(0, NAME_MAX_LENGTH),
       body: input.body.trim().slice(0, COMMENT_MAX_LENGTH),
+      parentId: input.parentId ?? null,
       ...input.sender,
     })
     .returning();
@@ -45,6 +48,19 @@ export async function renameCommentAuthor(userId: number, name: string) {
   for (const comment of renamed) {
     await recordChange(comment.tripId, "comment", comment.id, "upsert");
   }
+}
+
+/**
+ * Threads are one level deep: answering an answer joins the same thread.
+ * Undefined when the comment isn't on this step.
+ */
+export async function threadRoot(commentId: number, stepId: number) {
+  const parent = await db
+    .select({ id: comments.id, parentId: comments.parentId })
+    .from(comments)
+    .where(and(eq(comments.id, commentId), eq(comments.stepId, stepId)))
+    .get();
+  return parent && (parent.parentId ?? parent.id);
 }
 
 /** Returns whether there was a comment to delete. */

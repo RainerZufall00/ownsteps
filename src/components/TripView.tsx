@@ -37,6 +37,8 @@ type Props = {
   shareToken?: string;
   /** Readers per step – only on the authors' page. */
   viewCounts?: Record<number, number>;
+  /** The signed-in account's name; only guests type one to comment. */
+  accountName?: string;
   /**
    * Header contributed by the respective page (title, actions). On phones and
    * tablets it moves into the "about this trip" sheet.
@@ -54,6 +56,7 @@ export default function TripView({
   mediaBase = "/api/photos",
   shareToken,
   viewCounts,
+  accountName,
   header,
   mobileActions,
 }: Props) {
@@ -163,6 +166,7 @@ export default function TripView({
       */}
       <div className="w-full xl:hidden">
         <MobileTripView
+          accountName={accountName}
           trip={trip}
           steps={steps}
           mapStyle={mapStyle}
@@ -283,6 +287,7 @@ export default function TripView({
                           shareToken={shareToken}
                           comments={step.comments}
                           canDelete={editable}
+                          accountName={accountName}
                         />
 
                         {editable && (

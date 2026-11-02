@@ -10,6 +10,19 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Added
+
+- Comments can be answered directly, on the web and in both apps. Answers show
+  under their comment, one level deep.
+- A small green walker marks comments written by the people on the trip.
+
+### Fixed
+
+- Web: signed in, comments go under the account's name without asking for it.
+- Web: in the story, a tap no longer changes the photo while pinched in, and
+  the steps stop at their ends instead of bouncing into the black behind them.
+- iOS: changing the photo never carries a zoom along.
+
 ## [0.7.0] – 2026-11-01
 
 ### Added

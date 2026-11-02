@@ -4,10 +4,11 @@ import { useActionState, useEffect, useState } from "react";
 import { addCommentAction, deleteCommentAction, type CommentState } from "@/app/comment-actions";
 import { formatDateShort } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
+import { fill } from "@/lib/i18n/text";
 import { COMMENT_MAX_LENGTH, NAME_MAX_LENGTH } from "@/lib/limits";
 import FormFeedback from "./FormFeedback";
-import { CloseIcon, CommentIcon } from "./icons";
-import type { ViewComment } from "@/lib/view-types";
+import { CloseIcon, CommentIcon, TeamIcon } from "./icons";
+import { commentThreads, type ViewComment } from "@/lib/view-types";
 
 const initial: CommentState = {};
 
@@ -17,24 +18,108 @@ const initial: CommentState = {};
  */
 const NAME_KEY = "ownsteps_kommentar_name";
 
+function CommentRow({
+  comment,
+  tripId,
+  onReply,
+  onDelete,
+}: {
+  comment: ViewComment;
+  tripId: number;
+  onReply: () => void;
+  onDelete?: (formData: FormData) => Promise<void>;
+}) {
+  const { locale, t } = useI18n();
+
+  return (
+    <div className="flex gap-2.5">
+      <span
+        className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-surface-muted text-[11px] font-bold text-ink-soft"
+        aria-hidden="true"
+      >
+        {comment.authorName.trim().charAt(0).toUpperCase()}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-center gap-x-1.5 text-[13px] font-semibold">
+          {comment.authorName}
+          {comment.fromAuthor && (
+            <span role="img" aria-label={t.comments.authorBadge} title={t.comments.authorBadge}>
+              <TeamIcon />
+            </span>
+          )}
+          <span className="ml-0.5 font-normal text-ink-faint">
+            {formatDateShort(comment.createdAt, locale)}
+          </span>
+        </p>
+        <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink/90">
+          {comment.body}
+        </p>
+        <button
+          type="button"
+          onClick={onReply}
+          className="text-[13px] font-semibold text-ink-soft transition hover:text-accent"
+        >
+          {t.comments.reply}
+        </button>
+      </div>
+      {onDelete && (
+        <form action={onDelete}>
+          <input type="hidden" name="commentId" value={comment.id} />
+          <input type="hidden" name="tripId" value={tripId} />
+          <button
+            type="submit"
+            aria-label={t.comments.delete}
+            className="text-ink-faint transition hover:text-accent"
+          >
+            <CloseIcon />
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+
 export default function CommentSection({
   tripId,
   stepId,
   shareToken,
   comments,
   canDelete,
+  accountName,
 }: {
   tripId: number;
   stepId: number;
   shareToken?: string;
   comments: ViewComment[];
   canDelete: boolean;
+  /** Signed in: comments go under this name, nobody has to type it. */
+  accountName?: string;
 }) {
   const [state, action, pending] = useActionState(addCommentAction, initial);
   const [list, setList] = useState<ViewComment[]>(comments);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const { locale, t } = useI18n();
+  const [replyTo, setReplyTo] = useState<ViewComment | null>(null);
+  const { t } = useI18n();
+
+  function reply(comment: ViewComment) {
+    setReplyTo(comment);
+    setOpen(true);
+  }
+
+  function close() {
+    setReplyTo(null);
+    setOpen(false);
+  }
+
+  const remove = canDelete
+    ? async (formData: FormData) => {
+        const id = Number(formData.get("commentId"));
+        setList((current) => current.filter((comment) => comment.id !== id));
+        await deleteCommentAction(formData);
+      }
+    : undefined;
 
   useEffect(() => {
     setName(window.localStorage.getItem(NAME_KEY) ?? "");
@@ -49,49 +134,30 @@ export default function CommentSection({
         : [...current, state.comment!],
     );
     setOpen(false);
-    window.localStorage.setItem(NAME_KEY, name);
-  }, [state.comment, name]);
+    setReplyTo(null);
+    if (!accountName) window.localStorage.setItem(NAME_KEY, name);
+  }, [state.comment, name, accountName]);
 
   return (
     <section className="mt-4 border-t border-line pt-3">
       {list.length > 0 && (
         <ul className="mb-3 space-y-2.5">
-          {list.map((comment) => (
-            <li key={comment.id} className="flex gap-2.5">
-              <span
-                className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-surface-muted text-[11px] font-bold text-ink-soft"
-                aria-hidden="true"
-              >
-                {comment.authorName.trim().charAt(0).toUpperCase()}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold">
-                  {comment.authorName}
-                  <span className="ml-2 font-normal text-ink-faint">
-                    {formatDateShort(comment.createdAt, locale)}
-                  </span>
-                </p>
-                <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink/90">
-                  {comment.body}
-                </p>
-              </div>
-              {canDelete && (
-                <form
-                  action={async (formData) => {
-                    setList((c) => c.filter((x) => x.id !== comment.id));
-                    await deleteCommentAction(formData);
-                  }}
-                >
-                  <input type="hidden" name="commentId" value={comment.id} />
-                  <input type="hidden" name="tripId" value={tripId} />
-                  <button
-                    type="submit"
-                    aria-label={t.comments.delete}
-                    className="text-ink-faint transition hover:text-accent"
-                  >
-                    <CloseIcon />
-                  </button>
-                </form>
+          {commentThreads(list).map(({ comment, answers }) => (
+            <li key={comment.id} className="space-y-2.5">
+              <CommentRow comment={comment} tripId={tripId} onReply={() => reply(comment)} onDelete={remove} />
+              {answers.length > 0 && (
+                <ul className="ml-[38px] space-y-2.5">
+                  {answers.map((answer) => (
+                    <li key={answer.id}>
+                      <CommentRow
+                        comment={answer}
+                        tripId={tripId}
+                        onReply={() => reply(answer)}
+                        onDelete={remove}
+                      />
+                    </li>
+                  ))}
+                </ul>
               )}
             </li>
           ))}
@@ -103,30 +169,44 @@ export default function CommentSection({
           <input type="hidden" name="tripId" value={tripId} />
           <input type="hidden" name="stepId" value={stepId} />
           {shareToken && <input type="hidden" name="shareToken" value={shareToken} />}
-          <input
-            name="authorName"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            required
-            maxLength={NAME_MAX_LENGTH}
-            className="field py-2 text-[15px]"
-            placeholder={t.comments.namePlaceholder}
-            aria-label={t.comments.namePlaceholder}
-          />
+          {replyTo && (
+            <>
+              <input type="hidden" name="parentId" value={replyTo.id} />
+              <p className="text-[13px] font-semibold text-ink-soft">
+                {fill(t.comments.replyingTo, { name: replyTo.authorName })}
+              </p>
+            </>
+          )}
+          {!accountName && (
+            <input
+              name="authorName"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              required
+              maxLength={NAME_MAX_LENGTH}
+              className="field py-2 text-[15px]"
+              placeholder={t.comments.namePlaceholder}
+              aria-label={t.comments.namePlaceholder}
+            />
+          )}
           <textarea
             name="body"
             required
             rows={3}
             maxLength={COMMENT_MAX_LENGTH}
             className="field resize-none py-2 text-[15px]"
-            placeholder={t.comments.bodyPlaceholder}
+            placeholder={
+              accountName
+                ? fill(t.comments.commentAs, { name: accountName })
+                : t.comments.bodyPlaceholder
+            }
             aria-label={t.comments.bodyLabel}
           />
           <FormFeedback error={state.error} />
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={close}
               className="btn btn-ghost flex-1 py-2 text-sm"
             >
               {t.common.cancel}
