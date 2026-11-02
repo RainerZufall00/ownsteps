@@ -14,7 +14,13 @@ export type ViewPhoto = Pick<
   mediaType: "photo" | "video";
 };
 
-export type ViewComment = Pick<Comment, "id" | "authorName" | "body" | "createdAt">;
+export type ViewComment = Pick<Comment, "id" | "authorName" | "body" | "createdAt" | "parentId"> & {
+  /** Written with an author's account, not by a guest or reader. */
+  fromAuthor: boolean;
+};
+
+/** The row a `ViewComment` is made from. */
+type CommentRow = Omit<ViewComment, "fromAuthor"> & Pick<Comment, "userId">;
 
 export type ViewStep = Pick<Step, "id" | "body" | "lat" | "lon" | "placeName" | "occurredAt"> & {
   photos: ViewPhoto[];
@@ -60,17 +66,32 @@ export function toViewPhoto(photo: ViewPhoto): ViewPhoto {
   };
 }
 
-export function toViewComment(comment: ViewComment): ViewComment {
+export function toViewComment(comment: CommentRow): ViewComment {
   return {
     id: comment.id,
     authorName: comment.authorName,
     body: comment.body,
     createdAt: comment.createdAt,
+    parentId: comment.parentId,
+    fromAuthor: comment.userId !== null,
   };
 }
 
+/** Each comment with its answers. An answer whose comment is gone stands alone. */
+export function commentThreads(comments: ViewComment[]) {
+  const ids = new Set(comments.map((comment) => comment.id));
+  const isAnswer = (comment: ViewComment) =>
+    comment.parentId !== null && ids.has(comment.parentId);
+  return comments
+    .filter((comment) => !isAnswer(comment))
+    .map((comment) => ({
+      comment,
+      answers: comments.filter((other) => isAnswer(other) && other.parentId === comment.id),
+    }));
+}
+
 export function toViewStep(
-  step: Omit<ViewStep, "comments"> & { comments?: ViewComment[] },
+  step: Omit<ViewStep, "comments"> & { comments?: CommentRow[] },
 ): ViewStep {
   return {
     id: step.id,

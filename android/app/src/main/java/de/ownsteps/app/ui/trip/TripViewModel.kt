@@ -194,8 +194,8 @@ class TripViewModel(private val app: Application, val account: Account, val trip
         load()
     }
 
-    suspend fun comment(step: Step, text: String) {
-        model.withClient(account) { it.comment(step.id, text.trim()) }
+    suspend fun comment(step: Step, text: String, replyTo: Comment?) {
+        model.withClient(account) { it.comment(step.id, text.trim(), replyTo?.id) }
         load()
     }
 

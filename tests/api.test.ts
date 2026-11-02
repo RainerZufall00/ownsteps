@@ -202,6 +202,52 @@ describe("authors", () => {
     expect(json.code).toBe("credentials_invalid");
   });
 
+  it("threads answers one level deep and marks what authors wrote", async () => {
+    const token = await signIn();
+    const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Threads" } });
+    await call("PATCH", "/api/v1/trips/{id}", { token, params: { id: trip.json.id }, body: { shareEnabled: true } });
+    const step = await call("POST", "/api/v1/trips/{id}/steps", {
+      token,
+      params: { id: trip.json.id },
+      body: { body: "Hello" },
+    });
+    const other = await call("POST", "/api/v1/trips/{id}/steps", {
+      token,
+      params: { id: trip.json.id },
+      body: { body: "Elsewhere" },
+    });
+    const write = (body: string, parentId?: number, as = token, stepId = step.json.id) =>
+      call("POST", "/api/v1/steps/{id}/comments", {
+        token: as,
+        params: { id: stepId },
+        body: { body, parentId },
+      });
+
+    const detail = await call("GET", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } });
+    const { json: reader } = await call("POST", "/api/v1/viewers/redeem", {
+      body: { shareLink: detail.json.share.url, name: "Grandma" },
+    });
+
+    const first = await write("First", undefined, reader.token);
+    expect(first.json).toMatchObject({ parentId: null, fromAuthor: false });
+
+    const answer = await write("An answer", first.json.id);
+    expect(answer.json).toMatchObject({ parentId: first.json.id, fromAuthor: true });
+
+    // An answer to an answer joins the thread.
+    const nested = await write("Another", answer.json.id, reader.token);
+    expect(nested.json.parentId).toBe(first.json.id);
+
+    const elsewhere = await write("Wrong step", first.json.id, token, other.json.id);
+    expect(elsewhere.status).toBe(404);
+    expect(elsewhere.json.code).toBe("comment_not_found");
+
+    // Deleting a comment leaves the answers standing.
+    await call("DELETE", "/api/v1/comments/{id}", { token, params: { id: first.json.id } });
+    const after = await call("GET", "/api/v1/trips/{id}", { token, params: { id: trip.json.id } });
+    expect(after.json.steps[0].comments.map((c: { parentId: number | null }) => c.parentId)).toEqual([null, null]);
+  });
+
   it("renames an author, also on their comments, and tells the change feed", async () => {
     const token = await signIn();
     const trip = await call("POST", "/api/v1/trips", { token, body: { title: "Names" } });

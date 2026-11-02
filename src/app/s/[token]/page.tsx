@@ -6,6 +6,7 @@ import Logo from "@/components/Logo";
 import TripHeading from "@/components/TripHeading";
 import TripView from "@/components/TripView";
 import { appJoinLink } from "@/lib/app-link";
+import { getCurrentUser } from "@/lib/auth";
 import { APP_STORE_ID, SITE_NAME } from "@/lib/env";
 import { getI18n } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/text";
@@ -97,6 +98,7 @@ export default async function SharedTripPage({
 
   const steps = await getSteps(trip.id);
   const link = shareUrl(await pageOrigin(), token);
+  const user = await getCurrentUser();
 
   const header = (
     <header className="mb-5">
@@ -130,6 +132,7 @@ export default async function SharedTripPage({
       mapStyle={getMapStyle()}
       mediaBase={`/api/share-media/${token}`}
       shareToken={token}
+      accountName={user?.name}
       header={header}
     />
   );

@@ -66,6 +66,8 @@ export function commentDto(comment: Comment, reader: Principal): CommentDto {
     authorName: comment.authorName,
     body: comment.body,
     createdAt: toIso(comment.createdAt)!,
+    parentId: comment.parentId,
+    fromAuthor: comment.userId !== null,
     isOwn: isOwnComment(comment, reader),
   };
 }

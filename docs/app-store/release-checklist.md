@@ -70,5 +70,5 @@
 
 - [ ] Set `APP_STORE_ID` on your instances so shared trips offer to open in
       the app (Smart App Banner).
-- [ ] Put the App Store link into the README (two places marked `TODO`).
+- [ ] Put the App Store badge into the README (the comment marked `TODO`).
 - [ ] Tick the release off in `docs/ROADMAP.md`, phase 6.

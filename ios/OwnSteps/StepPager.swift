@@ -582,6 +582,7 @@ struct StepStoryPage: View {
                 index = shown
             }
             .onChange(of: index, initial: true) { old, index in
+                if scale > 1 { resetZoom() }
                 guard step.photos.indices.contains(index) else { return }
                 let id = step.photos[index].id
                 guard position.viewID(type: Int.self) != id else { return }
@@ -997,8 +998,25 @@ struct StepCommentsSheet: View {
     @State private var text = ""
     @State private var sending = false
     @State private var error: String?
+    @State private var replyingTo: Components.Schemas.Comment?
+    @FocusState private var writing: Bool
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// Each comment followed by its answers. An answer whose comment is gone
+    /// stands alone.
+    private var threads: [(comment: Components.Schemas.Comment, isAnswer: Bool)] {
+        let ids = Set(step.comments.map(\.id))
+        let roots = step.comments.filter { comment in comment.parentId.map { !ids.contains($0) } ?? true }
+        return roots.flatMap { root in
+            [(root, false)] + step.comments.filter { $0.parentId == root.id }.map { ($0, true) }
+        }
+    }
+
+    private func reply(to comment: Components.Schemas.Comment) {
+        replyingTo = comment
+        writing = true
+    }
 
     var body: some View {
         NavigationStack {
@@ -1009,15 +1027,20 @@ struct StepCommentsSheet: View {
                             .foregroundStyle(.secondary)
                             .listRowBackground(Color.clear)
                     }
-                    ForEach(step.comments, id: \.id) { comment in
-                        CommentRow(comment: comment)
+                    ForEach(threads, id: \.comment.id) { comment, isAnswer in
+                        CommentRow(comment: comment) { reply(to: comment) }
+                            .padding(.leading, isAnswer ? 24 : 0)
                             .id(comment.id)
+                            .swipeActions(edge: .leading) {
+                                Button("Reply", systemImage: "arrowshape.turn.up.left") { reply(to: comment) }
+                            }
                             .swipeActions {
                                 if isAuthor {
                                     Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
                                 }
                             }
                             .contextMenu {
+                                Button("Reply", systemImage: "arrowshape.turn.up.left") { reply(to: comment) }
                                 Button("Copy", systemImage: "doc.on.doc") { UIPasteboard.general.string = comment.body }
                                 if isAuthor {
                                     Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
@@ -1044,9 +1067,25 @@ struct StepCommentsSheet: View {
                     .foregroundStyle(.red)
                     .padding(.horizontal, 6)
             }
+            if let replyingTo {
+                HStack {
+                    Text("Replying to \(replyingTo.authorName)")
+                        .lineLimit(1)
+                    Spacer()
+                    Button { self.replyingTo = nil } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Cancel"))
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+            }
             HStack(alignment: .bottom, spacing: 8) {
                 TextField("Comment as \(account.displayName)", text: $text, axis: .vertical)
                     .lineLimit(1...5)
+                    .focused($writing)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
@@ -1077,8 +1116,9 @@ struct StepCommentsSheet: View {
         Task {
             defer { sending = false }
             do {
-                _ = try await model.client(for: account).comment(stepID: step.id, body: trimmed)
+                _ = try await model.client(for: account).comment(stepID: step.id, body: trimmed, replyTo: replyingTo?.id)
                 text = ""
+                replyingTo = nil
                 await refresh()
             } catch {
                 self.error = ErrorText.message(for: error)
@@ -1090,12 +1130,20 @@ struct StepCommentsSheet: View {
 /// A comment as a list row: name and when, then the text.
 struct CommentRow: View {
     let comment: Components.Schemas.Comment
+    let reply: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(comment.authorName)
                     .font(.subheadline.weight(.semibold))
+                if comment.fromAuthor == true {
+                    // Like a verified mark: someone writing this trip.
+                    Image(systemName: "figure.walk.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.white, .green)
+                        .accessibilityLabel(Text("On the trip"))
+                }
                 Spacer()
                 Text(comment.createdAt.formatted(.relative(presentation: .named)))
                     .font(.caption)
@@ -1103,6 +1151,11 @@ struct CommentRow: View {
             }
             Text(comment.body)
                 .font(.subheadline)
+            Button("Reply", action: reply)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .buttonStyle(.borderless)
+                .padding(.top, 2)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)

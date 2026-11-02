@@ -139,8 +139,8 @@ class ServerClient(val baseUrl: HttpUrl, private val token: String?, private val
     suspend fun deletePhoto(id: Long) = send("DELETE", "photos/$id")
 
     /** Authors comment under their account name, readers under theirs. */
-    suspend fun comment(stepId: Long, body: String) =
-        call("POST", "steps/$stepId/comments", Comment.serializer(), json(CommentCreate(body)))
+    suspend fun comment(stepId: Long, body: String, parentId: Long? = null) =
+        call("POST", "steps/$stepId/comments", Comment.serializer(), json(CommentCreate(body, parentId)))
 
     suspend fun deleteComment(id: Long) = send("DELETE", "comments/$id")
 

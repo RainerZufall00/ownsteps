@@ -33,6 +33,7 @@ type Props = {
   startStepId: number;
   editable: boolean;
   shareToken?: string;
+  accountName?: string;
   viewCounts?: Record<number, number>;
   /** The step in view changed – the page keeps the URL and the cards in step. */
   onStepChange: (stepId: number) => void;
@@ -59,6 +60,7 @@ export default function StepStory({
   startStepId,
   editable,
   shareToken,
+  accountName,
   viewCounts,
   onStepChange,
   onClose,
@@ -190,7 +192,7 @@ export default function StepStory({
       <div
         ref={pager}
         onScroll={onPagerScroll}
-        className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-full snap-y snap-mandatory overflow-y-auto overscroll-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {steps.map((step, index) => (
           <section
@@ -275,6 +277,7 @@ export default function StepStory({
               tripId={tripId}
               stepId={sheetStep.id}
               shareToken={shareToken}
+              accountName={accountName}
               comments={sheetStep.comments}
               canDelete={editable}
             />
@@ -361,6 +364,8 @@ function StoryPage({
   }, []);
 
   function tapPhoto(event: React.MouseEvent<HTMLElement>) {
+    // Pinched in with the browser's zoom: the next photo would open zoomed too.
+    if ((window.visualViewport?.scale ?? 1) > 1) return;
     const box = event.currentTarget.getBoundingClientRect();
     goToPhoto(event.clientX - box.left < box.width / 3 ? photo - 1 : photo + 1);
   }

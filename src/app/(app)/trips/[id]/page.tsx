@@ -5,6 +5,7 @@ import BackLink from "@/components/BackLink";
 import { PlusIcon } from "@/components/icons";
 import TripHeading from "@/components/TripHeading";
 import TripView from "@/components/TripView";
+import { getCurrentUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n/server";
 import { getMapStyle } from "@/lib/map";
 import { getSteps, getTrip, summarizeSteps } from "@/lib/trips";
@@ -34,6 +35,7 @@ export default async function TripPage({ params }: PageProps<"/trips/[id]">) {
   const steps = await getSteps(tripId);
   const { t } = await getI18n();
   const views = await countStepViews(steps.map((step) => step.id));
+  const user = await getCurrentUser();
 
   const header = (
     <header className="mb-5">
@@ -86,6 +88,7 @@ export default async function TripPage({ params }: PageProps<"/trips/[id]">) {
       editable
       // A private trip that never had readers would only say "0 views".
       viewCounts={trip.shareEnabled || views.size > 0 ? Object.fromEntries(views) : undefined}
+      accountName={user?.name}
       header={header}
       mobileActions={newStep}
     />

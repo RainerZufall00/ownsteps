@@ -24,6 +24,7 @@ export async function POST(request: Request, context: RouteContext<"/api/v1/step
       raw: {
         authorName: principal.kind === "author" ? principal.user.name : principal.device.name,
         body: input.body,
+        parentId: input.parentId,
       },
       clientKey:
         principal.kind === "author"

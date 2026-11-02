@@ -147,3 +147,17 @@ export function LocateIcon({ className = "h-4 w-4" }: IconProps) {
     </svg>
   );
 }
+
+/** A walker on a disc, marking comments written by the people on the trip. */
+export function TeamIcon({ className = "h-4 w-4 text-team" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill="currentColor" />
+      <path
+        transform="translate(4.2 4) scale(0.66)"
+        fill="white"
+        d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"
+      />
+    </svg>
+  );
+}

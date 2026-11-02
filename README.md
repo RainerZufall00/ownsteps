@@ -1,19 +1,11 @@
 <p align="center">
-  <img src="ios/OwnSteps/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="112" alt="OwnSteps icon">
+  <img src="ios/OwnSteps/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="96" alt="OwnSteps icon">
 </p>
 
 <h1 align="center">OwnSteps</h1>
 
 <p align="center">
-  <b>A travel journal for your own server – photos, map and stories for the people back home.</b><br>
-  Web · iPhone &amp; iPad · Android · English &amp; German · one Docker container · no tracking
-</p>
-
-<p align="center">
-  <!-- TODO: replace with the real App Store link once the app is live -->
-  <a href="https://apps.apple.com/app/idXXXXXXXXXX">
-    <img src="docs/images/app-store-badge.svg" height="54" alt="Download on the App Store">
-  </a>
+  <b>A travel journal on your own server – photos, map and stories for the people back home.</b>
 </p>
 
 <p align="center">
@@ -22,67 +14,61 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0"></a>
 </p>
 
-## 💡 Why I built this
+<!-- TODO: once the app is live, add the App Store badge here:
+<p align="center">
+  <a href="https://apps.apple.com/app/idXXXXXXXXXX">
+    <img src="docs/images/app-store-badge.svg" height="54" alt="Download on the App Store">
+  </a>
+</p>
+-->
 
-I love how [Polarsteps](https://www.polarsteps.com) keeps family and friends
-up to date on a trip: a few photos and lines a day, a route growing across the
-map, and everyone at home following along. What I didn't want was to hand all
-those photos straight to a company.
+<p align="center">
+  <a href="https://rainerzufall00.github.io/ownsteps/support"><b>Get started &amp; support</b></a> ·
+  <a href="docs/USER-GUIDE.md">User guide</a> ·
+  <a href="docs/SELF-HOSTING.md">Self-hosting</a> ·
+  <a href="https://github.com/RainerZufall00/ownsteps/releases">Releases</a>
+</p>
 
-So OwnSteps does the same on a server you run yourself. Upload photos, write a
-few lines, and everything lands on a map and in a timeline automatically.
-Whoever should follow along gets a secret link – no account, no sign-up.
+<p align="center">
+  <img src="docs/images/web-trip.webp" width="100%" alt="A trip on the web: timeline next to the route on the map">
+</p>
+
+<p align="center">
+  <img src="docs/images/iphone-trips.webp" width="24%" alt="The trip list on iPhone">
+  <img src="docs/images/iphone-map.webp" width="24%" alt="The route on the map on iPhone">
+  <img src="docs/images/iphone-story.webp" width="24%" alt="A step as a story on iPhone">
+  <img src="docs/images/iphone-readers.webp" width="24%" alt="Inviting readers with a QR code on iPhone">
+</p>
+
+## 💡 What it is
+
+I love how [Polarsteps](https://www.polarsteps.com) keeps family and friends up
+to date on a trip. I just didn't want to hand all those photos to a company. So
+OwnSteps does the same on a server you run yourself: upload photos, write a few
+lines, and everything lands on a map and in a timeline. Whoever should follow
+along gets a secret link – no account, no sign-up.
 
 > **Unofficial project.** OwnSteps is independent and not affiliated with or
 > endorsed by Polarsteps.
 
-<p align="center">
-  <img src="docs/images/iphone-map.webp" width="19%" alt="The route on the map">
-  <img src="docs/images/iphone-story.webp" width="19%" alt="A step as a story">
-  <img src="docs/images/iphone-trips.webp" width="19%" alt="The trip list">
-  <img src="docs/images/iphone-new-step.webp" width="19%" alt="A new step with place and date from the photos">
-  <img src="docs/images/iphone-readers.webp" width="19%" alt="Inviting readers with a QR code">
-</p>
-
 ## ✨ Features
 
-- 📸 **Place and time automatically** – taken from the photos' EXIF data; a step is saved from the first photo on
-- 🗺️ **Route on the map** – every step a stop, every trip a line; flip through the steps as stories
-- 👨‍👩‍👧 **Readers without accounts** – a secret link or QR code is enough, in the browser or the app, optionally with a password
-- 💬 **Comments and reach** – readers comment, authors see how many have seen each step
-- 🔔 **News in the apps** – new comments and new steps, without a push service in between
-- ✈️ **Made for the road** – mobile first, offline reading in the apps, uploads that wait for a connection, videos up to 400 MB
-- 👥 **Several authors** – everyone with an account writes on every trip together
-- 💾 **Keep it** – download a trip as an offline album (one page with all photos, texts and a map, no server needed), or send it to your Immich with the text in each photo's description
-- 🔒 **Your photos stay with you** – images are only served to signed-in users or holders of a valid share link; nothing goes to third parties
-- 📦 **One container, one file** – SQLite plus a folder of images, that's it
+- 📸 **Place and time from the photos** – a step is saved from the first photo on
+- 🗺️ **Route on the map** – flip through the steps as stories
+- 👨‍👩‍👧 **Readers without accounts** – a link or QR code, optionally with a password
+- 💬 **Comments and view counts** – and news in the apps, without a push service
+- ✈️ **Made for the road** – offline reading, uploads that wait for a connection, videos up to 400 MB
+- 💾 **Keep it** – export a trip as an offline album or send it to Immich
+- 📱 **Everywhere** – web, native iPhone, iPad and Android apps, English and German
+- 📦 **One container** – SQLite plus a folder of images, no tracking, nothing goes to third parties
 
 <p align="center">
-  <img src="docs/images/ipad-map.webp" width="80%" alt="OwnSteps on the iPad: the whole trip on the map">
+  <img src="docs/images/web-trips.webp" width="80%" alt="The trip overview on the web">
 </p>
-
-The web interface and the apps speak English and German. They follow the
-device's language; a switch in the settings, on the sign-in page and on
-shared trips overrides it.
-
-## 📱 The apps
-
-The **iOS app** ([ios/](ios/README.md)) and the **Android app**
-([android/](android/README.md)) are native and do the same: write steps on the
-road (also straight from the share sheet), read trips offline, get news, and
-follow other people's trips as a reader. Both can be signed in to several
-servers at once.
-
-[Download OwnSteps on the App Store](https://apps.apple.com/app/idXXXXXXXXXX) <!-- TODO: real App Store link -->
-
-Readers don't need a server of their own: *Follow a trip with a link* on the
-welcome screen, or simply open the link on the phone.
 
 ## 🚀 Quick start
 
-OwnSteps runs as a ready-made Docker image; all you need is Docker with the
-compose plugin. Fetch the compose file and the configuration template into
-a folder of their own:
+All you need is Docker with the compose plugin (amd64 or arm64):
 
 ```bash
 mkdir ownsteps && cd ownsteps
@@ -90,338 +76,36 @@ curl -fsSLO https://raw.githubusercontent.com/RainerZufall00/ownsteps/main/docke
 curl -fsSL -o .env https://raw.githubusercontent.com/RainerZufall00/ownsteps/main/.env.example
 ```
 
-Edit `.env` – at least `PUBLIC_URL`. Then:
+Set at least `PUBLIC_URL` in `.env`, then:
 
 ```bash
 docker compose up -d
 ```
 
-The image is published for amd64 and arm64 (e.g. a Raspberry Pi 4/5). The
-app runs on port 2555. On the first visit, `/setup` walks you through
-creating the first account (skipped if `ADMIN_EMAIL` and `ADMIN_PASSWORD` are
-set in `.env` or sign-in runs through OIDC).
-
-When the iOS app is in the App Store, set `APP_STORE_ID` so shared trips
-offer to open in the app.
-
-## 🧭 How it works
-
-1. **Create a trip** – only a name is required. The date range is optional and
-   can be changed at any time.
-2. **Add a step** – pick photos, done. Place and time come from the images;
-   the step is saved from the first photo on, even if the text comes later.
-3. **Share** – flip the switch in the share settings and send the link.
-   Optionally with a password on top. A new link invalidates the old one, so
-   OwnSteps asks before creating one.
-
-<details>
-<summary><b>More details</b> – dates, videos, comments, views, the map view</summary>
-
-If a **date range** is set, it shows in the header and on the trip card – even
-before the first step exists. It also determines the first trip day: whoever
-leaves on July 1 and writes the first step on July 4 reads "day 4" there.
-Without a date range, both follow the steps as before.
-
-Besides photos, **videos** can be uploaded too (up to 400 MB). The poster
-frame is created in the browser; the file itself is stored unchanged, nothing
-is transcoded.
-
-Uploads are streamed to disk, so even a 400 MB video doesn't need much RAM
-on the server. The editor rejects larger files right when they're picked
-instead of uploading them first. If a reverse proxy sits in front, it
-must let large uploads through – for nginx e.g. `client_max_body_size 400m;`;
-if an upload aborts without an entry in the container log, it's almost always
-the proxy.
-
-Whoever has the link can **comment** – type a name, write a text, no account.
-Only signed-in authors can delete comments.
-
-Authors see on every step **how many readers have seen it** – each reader
-counted once, whether they follow in the app or read the share link.
-Readers don't see the numbers, and authors aren't counted. To tell browsers
-apart, the share page sets a random cookie (`ownsteps_visitor`); the server
-stores only its hash and which steps it saw, no IP addresses.
-
-The timeline shows the **newest step on top**. Day counting ("day 6") still
-counts from the start of the trip, and the map naturally draws the route in
-the direction traveled.
-
-The **place** serves as the heading; there is no separate title. Each photo
-**and each video** can carry a **caption**, shown below the medium in the
-fullscreen view. There, tapping the right or left side pages onwards, a double
-tap or two fingers zoom.
-
-For a **video**, a tap belongs to playback. Moving on works by swiping across
-the image or via the arrows left and right, which are shown for videos on
-every device. Gestures on the video's control bar are reserved for scrubbing.
-**Videos can't be zoomed** – they get big via the browser's fullscreen button.
-Pinching and double-tapping deliberately do nothing there: otherwise the
-browser zooms the whole page, and the only way out of that state is reloading.
-
-Once the video is handed to the browser's own view via the fullscreen button,
-the browser only shows the video – caption and arrows are back only after
-leaving it.
-
-The **map view** has a strip at the bottom for paging through the steps – the
-map follows along. A second tap jumps to the step. It keeps its distance from
-the bottom edge of the screen, because that's where the system's swipe area
-sits on iPhone and iPad.
-
-Timeline and map sit **side by side from 1280 pixels**. Below that – including
-tablets in landscape – you switch between them; that way each view gets the
-full width instead of two cramped columns.
-
-Photos without GPS data don't get an automatic place. The editor offers three
-ways: the **device location** button takes the position from the device, the
-**place field searches** as you type (tapping a suggestion sets place and map
-section), and as a last resort tapping the map sets the point.
-
-A trip can only be deleted after typing its name as confirmation – photos and
-steps are gone afterwards.
-
-All accounts work together on all trips; there is deliberately no permission
-system.
-
-</details>
-
-## ⚙️ Configuration
-
-### Map and place names
-
-The map and place names work out of the box, without an account anywhere:
-
-- **Map:** [OpenFreeMap](https://openfreemap.org) – free vector maps. Pick a
-  style with `MAP_STYLE=liberty` (default), `bright` or `positron`.
-- **Place names and place search:** OpenStreetMap's
-  [Nominatim](https://nominatim.org) and [Photon](https://photon.komoot.io),
-  at most one request per second each, as their usage policies ask.
-
-With a [MapTiler](https://cloud.maptiler.com/account/keys/) key
-(`MAPTILER_KEY=...` in `.env`, free tier is plenty) both come from MapTiler
-instead, and `MAP_STYLE` takes MapTiler's styles – `hybrid` (satellite with
-labels, the default then), `satellite`, `streets-v2`, `outdoor-v2` … The key
-stays on the server: all map requests go through `/api/map`, so it never
-shows up in shared links.
-
-`GEOCODING=off` keeps every place lookup on your server; place names are then
-typed by hand.
-
-### Sign-in via OIDC (e.g. Pocket ID)
-
-Create an OIDC client with your provider using the callback URL:
-
-```
-https://your-domain.com/api/auth/oidc/callback
-```
-
-Then set `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` in `.env`.
-The sign-in page then shows a button for the provider (label configurable via
-`OIDC_BUTTON_LABEL`).
-
-Whoever signs in via OIDC with the same email address as an existing account
-ends up in that account automatically. Password sign-in stays active as a
-fallback in case the provider is unreachable.
-
-If not everyone on your identity provider should get access, use
-`OIDC_ALLOWED_EMAILS=you@example.com,partner@example.com`.
-
-Accounts are only matched or created by an email address the provider marks
-as verified (`email_verified`). If yours checks addresses but doesn't send that
-claim, set `OIDC_TRUST_EMAIL=true`.
-
-Once OIDC works, `PASSWORD_LOGIN=false` switches password sign-in off in the
-web UI and the app alike.
-
-### Reverse proxy
-
-Behind Caddy, Traefik or nginx, restrict the port in `docker-compose.yml` to
-`127.0.0.1:${HOST_PORT:-2555}:2555` so the container isn't directly reachable
-from the network. Example for Caddy:
-
-```
-trips.example.com {
-    reverse_proxy 127.0.0.1:2555
-}
-```
-
-Inside the container the app always runs on 2555; `HOST_PORT` in `.env` only
-changes the outside port. `PORT` does **not** belong there – it would change
-the container port while the mapping stays the same.
-
-**Set `PUBLIC_URL` to the public address.** Share links, preview images and
-the OIDC callback URL are built from it. Without it, OwnSteps derives the
-address from the `Host` header – behind a proxy an internal address can then
-easily end up in a link you send out.
-
-<details>
-<summary><b>Proxy target, forwarded headers and upload limits</b></summary>
-
-**Never use the container IP** from `docker inspect` as the proxy target: it
-changes on every restart, and forwarding is dead afterwards. Depending on how
-the proxy is set up, there are two clean ways:
-
-**Proxy or tunnel client in the host network** (e.g. Pangolin's `newt`, or
-Caddy and nginx directly on the server): the target is `127.0.0.1:2555`, i.e.
-the port mapped on the host. Then additionally set
-
-```
-BIND_ADDRESS=127.0.0.1
-```
-
-in `.env` so the port is only reachable locally and not open to the network.
-This matters even behind a firewall: Docker publishes ports past ufw. If the
-proxy runs on another server, allow the port only from it in your provider's
-firewall instead.
-
-**Proxy as a container in a bridge network** (Traefik, nginx-proxy-manager):
-attach both containers to the same network and use the container name
-`http://ownsteps:2555` as the target. The scaffolding for that is commented
-out in `docker-compose.yml`. Container names only resolve inside bridge
-networks – this doesn't work for a proxy in the host network.
-
-Important: `X-Forwarded-Proto` must be passed through (Caddy and Traefik do
-this by default) so share links are created with `https://`. Alternatively set
-`PUBLIC_URL` explicitly – it always takes precedence.
-
-**`TRUSTED_PROXIES`** (default `1`) tells OwnSteps how many proxies append to
-`X-Forwarded-For` – the brakes against password guessing count per client
-address. One proxy (Caddy, nginx, Traefik, Pangolin): leave it. Two, e.g.
-Cloudflare in front of Caddy: `2`. Reachable directly without a proxy: `0`.
-
-The proxy must let large uploads through: 25 MB is enough for photos, videos
-can be up to 400 MB (nginx: `client_max_body_size 400m;`). Its timeout should
-be generous too – a video over a mobile connection takes a while.
-
-</details>
-
-### API
-
-The apps talk to `/api/v1`, a versioned REST API with bearer tokens. The
-description is served at `/api/v1/openapi.json`; `/api/v1/info` tells clients
-which sign-in methods and features the server offers. Signed-in app devices
-show up under *Settings* and can be signed out there; readers who follow a
-trip in the app are listed in the trip's settings. Details in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), section 5.
-
-## 💾 Backups
-
-Everything important lives in the `data/` folder:
-
-```
-data/
-├── ownsteps.db      # trips, steps, accounts
-├── .secret          # signing secret for share links
-└── uploads/         # photos in all sizes
-```
-
-A backup is a copy of this folder – ideally with the container stopped, so the
-database is at rest:
-
-```bash
-docker compose stop
-tar czf ownsteps-backup-$(date +%F).tar.gz data/
-docker compose start
-```
-
-Every photo is stored as `thumb` (480px), `medium` (1280px) and `large`
-(2400px) in WebP format, plus the unchanged original. The app always shows the
-web sizes; the original is only kept as a safeguard under
-`data/uploads/<id>/original` and can be copied from there. To save space, set
-`KEEP_ORIGINALS=false` – then only the web sizes remain.
-
-## 🔄 Updating
-
-```bash
-docker compose pull && docker compose up -d
-```
-
-This fetches the newest image and restarts the container with it. Schema
-changes are applied automatically on startup; `.env` and `data/` stay
-untouched. Making a backup first (see above) doesn't hurt.
-
-`docker-compose.yml` follows `latest`, i.e. every release. To decide yourself
-when to move on, pin a version there instead – `:1` takes every 1.x release,
-`:1.2.3` exactly that one. The releases and what changed are listed on the
-[releases page](https://github.com/RainerZufall00/ownsteps/releases).
-
-## 🧩 Known quirks
-
-- **HEIC from iPhones:** Safari usually converts photos to JPEG on upload. If
-  that doesn't happen, set *Settings → Camera → Formats* to "Most Compatible"
-  on the iPhone. The iOS app converts by itself.
-- **Place names come from OpenStreetMap or MapTiler:** coordinates from your
-  photos are sent to one of them to name the place, unless `GEOCODING=off`.
-
-## 🛠️ Development
-
-```bash
-git clone https://github.com/RainerZufall00/ownsteps.git && cd ownsteps
-npm install
-cp .env.example .env
-npm run dev
-```
-
-Without `DATA_DIR`, database and photos go into the `./data` folder.
-`npm test` runs the tests. To try your own Docker image, build it with
-`docker build -t ownsteps .` and put `image: ownsteps` into
-`docker-compose.yml`. `node scripts/seed-demo.mjs` fills an empty instance
-with three demo trips.
-
-A new release is a version tag: `git tag v1.2.3 && git push --tags` builds the
-image for both architectures, publishes it to the GitHub Container Registry
-and creates the GitHub release from that version's section in `CHANGELOG.md`
-(`.github/workflows/docker.yml`) – so the section has to exist before tagging.
-
-**Tech:** Next.js 16 (App Router) · SQLite via Drizzle · sharp for the image
-sizes · exifr for GPS and capture time · MapLibre GL for the map · Tailwind
-CSS v4 · SwiftUI and Jetpack Compose for the apps.
-
-If you work on the code, **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** has
-the data model, the flows behind upload, access control and sign-in, and the
-reasoning behind every decision made.
-
-## 💬 Feedback & contributing
-
-[Support page](https://rainerzufall00.github.io/ownsteps/support) ·
-[Open an issue](https://github.com/RainerZufall00/ownsteps/issues) · Pull
-requests are welcome – see [CONTRIBUTING.md](CONTRIBUTING.md). Security
-problems please report privately, as described in [SECURITY.md](SECURITY.md).
-What changed between versions is in [CHANGELOG.md](CHANGELOG.md).
-
-Privacy: the apps talk only to the servers you enter.
-[Privacy Policy](https://rainerzufall00.github.io/ownsteps/privacy)
+OwnSteps runs on port 2555, and `/setup` creates the first account. To update:
+`docker compose pull && docker compose up -d`.
+
+## 📚 Docs
+
+- **[User guide](docs/USER-GUIDE.md)** – trips, steps, sharing, videos, the map, the apps
+- **[Self-hosting](docs/SELF-HOSTING.md)** – maps, OIDC, reverse proxy, API, backups, updating
+- **[Architecture](docs/ARCHITECTURE.md)** – data model, flows and the reasoning behind every decision
+- **[Contributing](CONTRIBUTING.md)** – development setup, releases, pull requests
+- **[iOS](ios/README.md)** and **[Android](android/README.md)** – building the apps
+- **[Changelog](CHANGELOG.md)** · **[Issues](https://github.com/RainerZufall00/ownsteps/issues)** · **[Security](SECURITY.md)** · **[Privacy policy](https://rainerzufall00.github.io/ownsteps/privacy)**
+
+## License
+
+Server and web UI: [AGPL-3.0](LICENSE) – if you run a modified version for
+others, you have to offer them its source code. Apps in `ios/` and `android/`:
+[MPL-2.0](ios/LICENSE). Demo photos: see [credits](docs/CREDITS.md).
+*Polarsteps* is a trademark of its respective owner.
 
 ## ☕ Support
 
-OwnSteps is free, without ads or subscriptions. If it keeps your family
-posted on your next trip, you can buy me a coffee:
+OwnSteps is free, without ads or subscriptions. If it keeps your family posted
+on your next trip, you can buy me a coffee:
 
 <a href="https://buymeacoffee.com/rainerzufall00">
   <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="50" alt="Buy Me a Coffee">
 </a>
-
-## License
-
-The server and web UI are free software under the
-[GNU Affero General Public License v3.0](LICENSE): if you run a modified
-version for others, you have to offer them its source code. The iOS app in
-`ios/` and the Android app in `android/` are under the
-[Mozilla Public License 2.0](ios/LICENSE). *Polarsteps* is a trademark of its
-respective owner.
-
-<details>
-<summary>Demo photos</summary>
-
-The screenshots and `scripts/seed-demo.mjs` use photos from
-[Unsplash](https://unsplash.com), covered by the
-[Unsplash License](https://unsplash.com/license), not by the licenses above.
-Photos by Paulo Evangelista, Lisha Riabinina, Polina Kocheva, Magdalena
-Raczka, Dmitry Voronov, Pedro Souto, Benjamin Voros, Josè Maria Sava, Andrey
-Masiero, Hasmik Ghazaryan Olson, Helio Dilolwa, Daniel Seßler, Nick
-Karvounis, Ekin-Fidel Tanriverdi, Thimo van Leeuwen, Bruno Ferreira, Sokmean
-Nou, Tobias Pfeifer, Shreyas Nair, Einar H. Reynis, Tom Podmore, Pavol
-Svantner, Robert Lukeman, Shadman Sakib, With Paul, Ankit Sood, Lisa Hanly,
-Yves Alarie, Joshua Earle, Pietro De Grandi, Luca Bravo, Neil Rosenstech,
-Luca, Reiseuhu and David Xeli.
-
-</details>

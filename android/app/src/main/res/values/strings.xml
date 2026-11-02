@@ -96,6 +96,9 @@
     <string name="more_inline">more</string>
     <string name="comments">Comments</string>
     <string name="no_comments">No comments yet</string>
+    <string name="reply">Reply</string>
+    <string name="replying_to">Replying to %1$s</string>
+    <string name="author_badge">On the trip</string>
     <string name="delete_comment">Delete comment</string>
     <string name="your_comment">Your comment</string>
     <string name="invite">Invite</string>

@@ -23,6 +23,7 @@ type Props = {
   mapStyle: MapStyleConfig;
   editable: boolean;
   shareToken?: string;
+  accountName?: string;
   viewCounts?: Record<number, number>;
   firstDay: number | null;
   /** The page's header – shown in the "about this trip" sheet. */
@@ -50,6 +51,7 @@ export default function MobileTripView({
   mapStyle,
   editable,
   shareToken,
+  accountName,
   viewCounts,
   firstDay,
   header,
@@ -400,6 +402,7 @@ export default function MobileTripView({
           startStepId={storyAt}
           editable={editable}
           shareToken={shareToken}
+          accountName={accountName}
           viewCounts={viewCounts}
           onStepChange={(id) => {
             setStoryStepId(id);

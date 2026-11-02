@@ -1337,6 +1337,16 @@
         }
       }
     },
+    "On the trip": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit auf der Reise"
+          }
+        }
+      }
+    },
     "Open": {
       "localizations": {
         "de": {
@@ -1696,6 +1706,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wer entfernt wird, verliert auf diesem Gerät den Zugriff. Leser im Browser brauchen nur den Link."
+          }
+        }
+      }
+    },
+    "Reply": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antworten"
+          }
+        }
+      }
+    },
+    "Replying to %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antwort an %@"
           }
         }
       }

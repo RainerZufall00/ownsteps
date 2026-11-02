@@ -45,6 +45,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Close
@@ -135,7 +136,7 @@ class StepActions(
     val addPhotos: (Step) -> Unit,
     val share: (Step) -> Unit,
     val showOnMap: (Step) -> Unit,
-    val comment: suspend (Step, String) -> Unit,
+    val comment: suspend (Step, String, Comment?) -> Unit,
     val deleteComment: (Comment) -> Unit,
 )
 
@@ -462,34 +463,75 @@ private fun TextSheet(step: Step, day: Int?, calendar: TripCalendar, onDismiss: 
     }
 }
 
-/** The comments of a step, with a field to write one. Authors can delete comments. */
+private val TeamGreen = Color(0xFF2E9A55)
+
+/** Each comment followed by its answers. An answer whose comment is gone stands alone. */
+private fun threaded(comments: List<Comment>): List<Pair<Comment, Boolean>> {
+    val ids = comments.mapTo(HashSet()) { it.id }
+    val isAnswer = { comment: Comment -> comment.parentId != null && comment.parentId in ids }
+    return comments.filterNot(isAnswer).flatMap { root ->
+        listOf(root to false) + comments.filter { it.parentId == root.id }.map { it to true }
+    }
+}
+
+/** The comments of a step, with a field to write or answer one. Authors can delete comments. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CommentsSheet(step: Step, actions: StepActions, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf("") }
+    var replyTo by remember { mutableStateOf<Comment?>(null) }
     val action = rememberAction()
     ModalBottomSheet(onDismiss) {
         Column(Modifier.imePadding().padding(bottom = 16.dp)) {
             Text(stringResource(R.string.comments), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
             LazyColumn(Modifier.weight(1f, fill = false)) {
                 if (step.comments.isEmpty()) item { Hint(stringResource(R.string.no_comments), Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) }
-                items(step.comments, key = { it.id }) { comment ->
+                items(threaded(step.comments), key = { it.first.id }) { (comment, isAnswer) ->
                     ListItem(
-                        overlineContent = { Text("${comment.authorName} · ${Dates.relative(comment.createdAt)}") },
+                        overlineContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("${comment.authorName} · ${Dates.relative(comment.createdAt)}")
+                                if (comment.fromAuthor) {
+                                    // Like a verified mark: someone writing this trip.
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.DirectionsWalk,
+                                        stringResource(R.string.author_badge),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp).background(TeamGreen, CircleShape).padding(2.dp),
+                                    )
+                                }
+                            }
+                        },
                         headlineContent = { Text(comment.body) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.reply),
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.clickable { replyTo = comment },
+                            )
+                        },
                         trailingContent = if (actions.isAuthor) {
                             { IconButton(onClick = { actions.deleteComment(comment) }) { Icon(Icons.Outlined.Delete, stringResource(R.string.delete_comment)) } }
                         } else null,
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.padding(start = if (isAnswer) 24.dp else 0.dp),
                     )
                 }
             }
             HorizontalDivider()
             action.error?.let { Box(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) { ErrorMessage(it) } }
+            replyTo?.let { comment ->
+                Row(Modifier.padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.replying_to, comment.authorName), Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+                    IconButton(onClick = { replyTo = null }) { Icon(Icons.Filled.Close, stringResource(R.string.cancel)) }
+                }
+            }
             Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(text, { text = it }, Modifier.weight(1f), placeholder = { Text(stringResource(R.string.your_comment)) }, maxLines = 5)
                 IconButton(
-                    onClick = { action.run(onSuccess = { text = "" }) { actions.comment(step, text) } },
+                    onClick = {
+                        action.run(onSuccess = { text = ""; replyTo = null }) { actions.comment(step, text, replyTo) }
+                    },
                     enabled = text.isNotBlank() && !action.busy,
                 ) { Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send)) }
             }

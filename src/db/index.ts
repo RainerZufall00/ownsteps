@@ -196,6 +196,13 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       ALTER TABLE comments ADD COLUMN viewer_device_id INTEGER REFERENCES viewer_devices(id) ON DELETE SET NULL;
     `,
   },
+  {
+    name: "0008_comment_replies",
+    sql: `
+      ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id) ON DELETE SET NULL;
+      CREATE INDEX comments_parent_idx ON comments(parent_id);
+    `,
+  },
 ];
 
 function isBusyError(error: unknown) {

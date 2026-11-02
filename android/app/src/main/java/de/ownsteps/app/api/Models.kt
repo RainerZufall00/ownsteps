@@ -180,6 +180,10 @@ data class Comment(
     val createdAt: Timestamp,
     /** Written by this account or reader device; null from servers before 0.6. */
     val isOwn: Boolean? = null,
+    /** The comment this one answers. Threads are one level deep. */
+    val parentId: Long? = null,
+    /** Written with an author's account, for the badge. */
+    val fromAuthor: Boolean = false,
 )
 
 @Serializable
@@ -274,7 +278,7 @@ data class StepPatch(
 )
 
 @Serializable
-internal data class CommentCreate(val body: String)
+internal data class CommentCreate(val body: String, val parentId: Long? = null)
 
 @Serializable
 internal data class PhotoPatch(val caption: String)

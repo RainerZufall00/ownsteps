@@ -56,10 +56,10 @@ extension ServerClient {
     // MARK: Comments
 
     /// Authors comment under their account name, readers under theirs.
-    public func comment(stepID: Int, body: String) async throws -> Components.Schemas.Comment {
+    public func comment(stepID: Int, body: String, replyTo parentID: Int? = nil) async throws -> Components.Schemas.Comment {
         let output = try await client.createComment(
             path: .init(stepId: String(stepID)),
-            body: .json(.init(body: body))
+            body: .json(.init(body: body, parentId: parentID))
         )
         switch output {
         case .created(let response): return try response.body.json

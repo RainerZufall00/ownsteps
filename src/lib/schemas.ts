@@ -118,6 +118,8 @@ export const commentInput = z.object({
     .trim()
     .min(1, { error: "comment_empty" })
     .max(COMMENT_MAX_LENGTH, { error: "comment_too_long" }),
+  /** The comment being answered. */
+  parentId: z.number().int().positive().nullish(),
 });
 
 

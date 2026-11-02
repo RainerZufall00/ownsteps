@@ -95,6 +95,9 @@
     <string name="more_inline">mehr</string>
     <string name="comments">Kommentare</string>
     <string name="no_comments">Noch keine Kommentare</string>
+    <string name="reply">Antworten</string>
+    <string name="replying_to">Antwort an %1$s</string>
+    <string name="author_badge">Mit auf der Reise</string>
     <string name="delete_comment">Kommentar löschen</string>
     <string name="your_comment">Dein Kommentar</string>
     <string name="invite">Einladen</string>
