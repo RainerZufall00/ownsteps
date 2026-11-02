@@ -10,6 +10,10 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Fixed
+
+- iOS: deleting a comment no longer crashes the app.
+
 ## [0.7.1] – 2026-11-02
 
 ### Added

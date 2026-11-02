@@ -999,18 +999,29 @@ struct StepCommentsSheet: View {
     @State private var sending = false
     @State private var error: String?
     @State private var replyingTo: Components.Schemas.Comment?
+    /// Deleted here, before the server confirms it: the list must lose the
+    /// row in the same update that removes it, or UIKit aborts the app.
+    @State private var deleted: Set<Int> = []
     @FocusState private var writing: Bool
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var comments: [Components.Schemas.Comment] { step.comments.filter { !deleted.contains($0.id) } }
 
     /// Each comment followed by its answers. An answer whose comment is gone
     /// stands alone.
     private var threads: [(comment: Components.Schemas.Comment, isAnswer: Bool)] {
-        let ids = Set(step.comments.map(\.id))
-        let roots = step.comments.filter { comment in comment.parentId.map { !ids.contains($0) } ?? true }
+        let comments = comments
+        let ids = Set(comments.map(\.id))
+        let roots = comments.filter { comment in comment.parentId.map { !ids.contains($0) } ?? true }
         return roots.flatMap { root in
-            [(root, false)] + step.comments.filter { $0.parentId == root.id }.map { ($0, true) }
+            [(root, false)] + comments.filter { $0.parentId == root.id }.map { ($0, true) }
         }
+    }
+
+    private func remove(_ comment: Components.Schemas.Comment) {
+        withAnimation { _ = deleted.insert(comment.id) }
+        if replyingTo?.id == comment.id { replyingTo = nil }
+        delete(comment)
     }
 
     private func reply(to comment: Components.Schemas.Comment) {
@@ -1021,31 +1032,32 @@ struct StepCommentsSheet: View {
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
+                // Only the comments in the list: an extra row for the empty
+                // case changed the row count behind UIKit's back.
                 List {
-                    if step.comments.isEmpty {
-                        Text("No comments yet")
-                            .foregroundStyle(.secondary)
-                            .listRowBackground(Color.clear)
-                    }
                     ForEach(threads, id: \.comment.id) { comment, isAnswer in
                         CommentRow(comment: comment) { reply(to: comment) }
                             .padding(.leading, isAnswer ? 24 : 0)
-                            .id(comment.id)
                             .swipeActions(edge: .leading) {
                                 Button("Reply", systemImage: "arrowshape.turn.up.left") { reply(to: comment) }
                             }
                             .swipeActions {
                                 if isAuthor {
-                                    Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
+                                    Button("Delete comment", systemImage: "trash", role: .destructive) { remove(comment) }
                                 }
                             }
                             .contextMenu {
                                 Button("Reply", systemImage: "arrowshape.turn.up.left") { reply(to: comment) }
                                 Button("Copy", systemImage: "doc.on.doc") { UIPasteboard.general.string = comment.body }
                                 if isAuthor {
-                                    Button("Delete comment", systemImage: "trash", role: .destructive) { delete(comment) }
+                                    Button("Delete comment", systemImage: "trash", role: .destructive) { remove(comment) }
                                 }
                             }
+                    }
+                }
+                .overlay {
+                    if comments.isEmpty {
+                        Text("No comments yet").foregroundStyle(.secondary)
                     }
                 }
                 .scrollDismissesKeyboard(.interactively)
