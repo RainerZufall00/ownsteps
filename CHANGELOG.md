@@ -10,6 +10,15 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.7.3] – 2026-11-13
+
+### Changed
+
+- Server: updated dependencies – Next.js 16.4.5, jose 6.2.15 and Tailwind CSS
+  4.3.4. Nothing to do when updating.
+- Apps: updated build dependencies (GRDB 7.12 and the Swift OpenAPI packages
+  on iOS, AGP 9.5.1 and KSP on Android). No new app version needed.
+
 ## [0.7.2] – 2026-11-02
 
 ### Fixed
@@ -287,7 +296,8 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/RainerZufall00/ownsteps/compare/v0.6.0...v0.7.0
