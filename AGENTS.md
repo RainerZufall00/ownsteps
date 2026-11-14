@@ -95,3 +95,10 @@ English (default) and German.
 Map tiles, the Docker image and the OIDC flow against a real instance –
 details in section 13 of `docs/ARCHITECTURE.md`. Whoever works on these
 should actually look at the result and not trust the build.
+
+## Building without a Mac
+
+Cloud sessions run on Linux and can't build the iOS app. CI (`ci.yml`) compiles it on every pull request
+(`ios` job, Xcode 27.2): open a PR and fix a red `ios` job before calling the work done. TestFlight and App Store
+builds come from Xcode Cloud, started by hand in App Store Connect; `ios/ci_scripts/ci_post_clone.sh` writes
+`ios/Config/Secrets.xcconfig` with the team ID, and Xcode Cloud sets the build number.

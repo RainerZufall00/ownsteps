@@ -4,7 +4,7 @@
 
 - [x] Repository public.
 - [x] Settings → Pages → *Deploy from a branch* → `main` / `docs`.
-- [ ] Merge `docs/privacy.md` and `docs/support.md` to `main`. Privacy policy
+- [x] Merge `docs/privacy.md` and `docs/support.md` to `main`. Privacy policy
       and support page are then at
       `https://rainerzufall00.github.io/ownsteps/privacy` and `…/support`;
       App Store Connect needs both to answer.
