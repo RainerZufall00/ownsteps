@@ -100,5 +100,9 @@ should actually look at the result and not trust the build.
 
 Cloud sessions run on Linux and can't build the iOS app. CI (`ci.yml`) compiles it on every pull request
 (`ios` job, Xcode 27.2): open a PR and fix a red `ios` job before calling the work done. TestFlight and App Store
-builds come from Xcode Cloud, started by hand in App Store Connect; `ios/ci_scripts/ci_post_clone.sh` writes
-`ios/Config/Secrets.xcconfig` with the team ID, and Xcode Cloud sets the build number.
+builds come from GitHub Actions: `.github/workflows/testflight.yml`, started by hand (Actions → TestFlight → Run
+workflow; `gh workflow run testflight.yml -f version=1.0.1`). It runs `ios/ci_scripts/testflight.sh`: archive,
+sign with the developer's own certificates (repository secrets), check the signature, upload. Build number = UTC
+time `yyMMddHHmm`; enter a new version when the project's version has already been released. Not Xcode Cloud:
+its cloud-managed certificate breaks on the umlaut in the account name (ITMS-90035).
+`ios/ci_scripts/ci_post_clone.sh` still writes `ios/Config/Secrets.xcconfig` with the team ID.
