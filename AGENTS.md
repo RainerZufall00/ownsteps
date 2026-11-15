@@ -95,3 +95,14 @@ English (default) and German.
 Map tiles, the Docker image and the OIDC flow against a real instance –
 details in section 13 of `docs/ARCHITECTURE.md`. Whoever works on these
 should actually look at the result and not trust the build.
+
+## Building without a Mac
+
+Cloud sessions run on Linux and can't build the iOS app. CI (`ci.yml`) compiles it on every pull request
+(`ios` job, Xcode 27.2): open a PR and fix a red `ios` job before calling the work done. TestFlight and App Store
+builds come from GitHub Actions: `.github/workflows/testflight.yml`, started by hand (Actions → TestFlight → Run
+workflow; `gh workflow run testflight.yml -f version=1.0.1`). It runs `ios/ci_scripts/testflight.sh`: archive,
+sign with the developer's own certificates (repository secrets), check the signature, upload. Build number = UTC
+time `yyMMddHHmm`; enter a new version when the project's version has already been released. Not Xcode Cloud:
+its cloud-managed certificate breaks on the umlaut in the account name (ITMS-90035).
+`ios/ci_scripts/ci_post_clone.sh` still writes `ios/Config/Secrets.xcconfig` with the team ID.

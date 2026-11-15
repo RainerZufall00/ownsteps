@@ -80,7 +80,7 @@ jobs:
     env:
       # Pinned, so a new Xcode on the runner doesn't turn PRs red overnight.
       # Raise it together with the Xcode used for development.
-      XCODE_APP: /Applications/Xcode_27.0.app
+      XCODE_APP: /Applications/Xcode_27.2.app
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo xcode-select -s "$XCODE_APP"
