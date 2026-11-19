@@ -36,6 +36,12 @@ struct TripListView: View {
     @State private var showingNews = false
     /// Chosen in the news list; opened once the sheet is gone.
     @State private var newsTarget: TripRoute?
+    /// Opened from outside the list – a notification, an invitation – so
+    /// there's no card on screen to zoom from. Pushed without the zoom: with
+    /// it, the card turning up later during a cold start got drawn outside
+    /// the view tree and crashed the app. Fixed for as long as it's open, so
+    /// the open trip isn't rebuilt.
+    @State private var openedWithoutCard: TripRoute?
     @State private var accountToUnfollow: Account?
     /// From a trip's menu in the list.
     @State private var editingTrip: TripTarget?
@@ -67,6 +73,9 @@ struct TripListView: View {
         }
         .onChange(of: sizeClass, initial: true) { updateLayout() }
         .onChange(of: tripIsOpen) { updateLayout() }
+        .onChange(of: path) {
+            if let route = openedWithoutCard, !path.contains(route) { openedWithoutCard = nil }
+        }
         .sheet(item: $newTripFor) { account in
             TripFormView(account: account, trip: nil, calendar: model.calendar(for: account)) { trip in
                 tripsByAccount[account.id, default: []].insert(trip, at: 0)
@@ -132,6 +141,7 @@ struct TripListView: View {
         .onChange(of: model.openTrip, initial: true) { _, route in
             guard let route else { return }
             model.openTrip = nil
+            openedWithoutCard = route
             open(route)
             Task { await refresh() }
         }
@@ -179,8 +189,12 @@ struct TripListView: View {
             }
             .navigationDestination(for: TripRoute.self) { route in
                 if let account = model.account(id: route.accountID) {
-                    TripView(account: account, tripID: route.tripID, focusStepID: route.stepID)
-                        .navigationTransition(.zoom(sourceID: route.trip, in: cardTransition))
+                    let trip = TripView(account: account, tripID: route.tripID, focusStepID: route.stepID)
+                    if route == openedWithoutCard {
+                        trip
+                    } else {
+                        trip.navigationTransition(.zoom(sourceID: route.trip, in: cardTransition))
+                    }
                 }
             }
         }

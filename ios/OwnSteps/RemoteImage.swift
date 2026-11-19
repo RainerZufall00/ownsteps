@@ -13,7 +13,12 @@ struct RemoteImage: View {
     /// loaded – e.g. fullscreen while offline.
     var fallbacks: [MediaVariant] = []
 
-    @Environment(AppModel.self) private var model
+    /// Optional on purpose: iOS draws some views outside the app's view
+    /// tree – the source card of a zoom transition, map annotations – where
+    /// the model may be missing. A required `@Environment` aborts the app
+    /// there (a tapped notification crashed 1.0); without the model the
+    /// placeholder stays until the view is drawn in its place again.
+    @Environment(AppModel.self) private var model: AppModel?
     @State private var image: UIImage?
 
     var body: some View {
@@ -31,7 +36,8 @@ struct RemoteImage: View {
                 Rectangle().fill(.quaternary)
             }
         }
-        .task(id: "\(photo.id)-\(photo.fileKey)-\(variant.rawValue)") {
+        .task(id: "\(photo.id)-\(photo.fileKey)-\(variant.rawValue)-\(model != nil)") {
+            guard let model else { return }
             let client = model.client(for: account)
             var data = try? await model.media.data(
                 accountID: account.id,

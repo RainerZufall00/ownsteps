@@ -10,6 +10,11 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Fixed
+
+- iOS: tapping a notification while the app was closed could crash it once
+  the trip list had loaded behind the opened trip.
+
 ## [0.7.3] – 2026-11-13
 
 ### Changed
