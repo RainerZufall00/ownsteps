@@ -4,8 +4,10 @@ import SwiftUI
 struct TripRoute: Hashable {
     let accountID: UUID
     let tripID: Int
-    /// Scrolled to on arrival, e.g. from a notification.
+    /// Opened on arrival, e.g. from a notification …
     var stepID: Int? = nil
+    /// … with its comments over it, for news about a comment.
+    var showComments = false
 
     /// The same trip without the step to scroll to – what a list selects.
     var trip: TripRoute { TripRoute(accountID: accountID, tripID: tripID) }
@@ -103,7 +105,14 @@ struct TripListView: View {
                 model.markAllNewsRead()
             }
         }) {
-            NewsView { entry in newsTarget = TripRoute(accountID: entry.accountID, tripID: entry.tripID, stepID: entry.stepID) }
+            NewsView { entry in
+                newsTarget = TripRoute(
+                    accountID: entry.accountID,
+                    tripID: entry.tripID,
+                    stepID: entry.stepID,
+                    showComments: entry.kind == .comment
+                )
+            }
         }
         // An alert, not a second confirmation dialog: SwiftUI shows only one of those per view.
         .alert(
@@ -189,7 +198,12 @@ struct TripListView: View {
             }
             .navigationDestination(for: TripRoute.self) { route in
                 if let account = model.account(id: route.accountID) {
-                    let trip = TripView(account: account, tripID: route.tripID, focusStepID: route.stepID)
+                    let trip = TripView(
+                        account: account,
+                        tripID: route.tripID,
+                        focusStepID: route.stepID,
+                        showComments: route.showComments
+                    )
                     if route == openedWithoutCard {
                         trip
                     } else {
@@ -299,7 +313,12 @@ struct TripListView: View {
         } detail: {
             NavigationStack {
                 if let selection, let account = model.account(id: selection.accountID) {
-                    TripView(account: account, tripID: selection.tripID, focusStepID: selection.stepID)
+                    TripView(
+                        account: account,
+                        tripID: selection.tripID,
+                        focusStepID: selection.stepID,
+                        showComments: selection.showComments
+                    )
                         .id(selection.trip)
                 } else {
                     ContentUnavailableView(

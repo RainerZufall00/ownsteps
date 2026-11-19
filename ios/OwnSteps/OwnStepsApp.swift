@@ -74,10 +74,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Plain values across the actor boundary; userInfo isn't Sendable.
         let info = response.notification.request.content.userInfo
         let (account, trip, step) = (info["accountID"] as? String, info["tripID"] as? Int, info["stepID"] as? Int)
+        let kind = info["kind"] as? String
         // UIKit's handler isn't marked Sendable; it's called on the main actor, where UIKit expects it.
         nonisolated(unsafe) let done = completionHandler
         Task { @MainActor in
-            model.openTrip = Notifications.route(accountID: account, tripID: trip, stepID: step)
+            model.openTrip = Notifications.route(accountID: account, tripID: trip, stepID: step, kind: kind)
             done()
         }
     }

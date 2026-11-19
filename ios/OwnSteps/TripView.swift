@@ -11,8 +11,10 @@ import SwiftUI
 struct TripView: View {
     let account: Account
     let tripID: Int
-    /// Opened at this step, e.g. from a notification.
+    /// Opened at this step's page, e.g. from a notification …
     var focusStepID: Int? = nil
+    /// … with its comments over it.
+    var showComments = false
 
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
@@ -55,6 +57,10 @@ struct TripView: View {
     /// Steps this reader's views were already reported for.
     @State private var reportedViews: Set<Int> = []
     @State private var showingTripSettings = false
+    /// The step page for `focusStepID` was pushed …
+    @State private var openedFocusedStep = false
+    /// … and is still to be finished once it's on screen.
+    @State private var arrivalPending = false
     @Namespace private var stepTransition
 
     /// Readers follow one trip and only read and comment ([D17]).
@@ -78,6 +84,7 @@ struct TripView: View {
                     // Follows the paging: going back lands on the card of the
                     // step that was read last.
                     .navigationTransition(.zoom(sourceID: openStepID ?? request.stepID, in: stepTransition))
+                    .task { await finishArrival(at: request.stepID) }
             }
             .onChange(of: focusedItem) { _, id in followPager(to: id) }
             // The first copy of the trip – cached or fresh – frames the route.
@@ -94,14 +101,10 @@ struct TripView: View {
                 if trip == nil, let cached = try? model.cache.trip(tripID, for: account.id) {
                     trip = cached.value
                 }
-                if let focusStepID {
-                    focusedItem = itemID(forStepID: focusStepID)
-                }
+                openFocusedStep()
                 await refresh()
-                // Without a cached copy the step's card is only known now.
-                if let focusStepID {
-                    focusedItem = itemID(forStepID: focusStepID)
-                }
+                // Without a cached copy the step is only known now.
+                openFocusedStep()
             }
             .task(id: tripID) { await watchQueue() }
     }
@@ -270,6 +273,33 @@ struct TripView: View {
         detail = nil
         focusedItem = TimelineItem.id(of: step)
         mapSelection = step.id
+    }
+
+    /// Opens the page of the step a notification or the news list points
+    /// at – once, as soon as a copy of the trip holds it. Only scrolling the
+    /// pager there didn't work: set before the cards were laid out, it was
+    /// lost and the trip opened at its newest step.
+    private func openFocusedStep() {
+        guard let focusStepID, !openedFocusedStep,
+              trip?.steps.contains(where: { $0.id == focusStepID }) == true
+        else { return }
+        openedFocusedStep = true
+        arrivalPending = true
+        openStepID = focusStepID
+        detail = StepDetailRequest(stepID: focusStepID)
+    }
+
+    /// The step page from `openFocusedStep` is on screen: the pager below
+    /// moves to its card, so going back lands there, and a comment's news
+    /// brings up the comments.
+    private func finishArrival(at stepID: Int) async {
+        guard arrivalPending, stepID == focusStepID else { return }
+        arrivalPending = false
+        // After the push: a sheet asked for during it doesn't show.
+        try? await Task.sleep(for: .milliseconds(500))
+        guard !Task.isCancelled else { return }
+        focusedItem = itemID(forStepID: stepID)
+        if showComments { commentsFor = CommentsRequest(stepID: stepID) }
     }
 
     /// The pager card of a server step.

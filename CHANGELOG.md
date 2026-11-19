@@ -10,6 +10,12 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Changed
+
+- iOS: a tapped notification or news entry opens the step's page, for a
+  comment with the comments over it. Before, it was meant to move the cards
+  to the step, which didn't work: the trip opened at its newest step.
+
 ### Fixed
 
 - iOS: tapping a notification while the app was closed could crash it once
