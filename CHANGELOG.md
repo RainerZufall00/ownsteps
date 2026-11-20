@@ -10,6 +10,11 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Added
+
+- Apps: the first screen points everyone who wants to write trips of their
+  own to the project on GitHub, to host OwnSteps themselves.
+
 ### Changed
 
 - iOS: a tapped notification or news entry opens the step's page, for a

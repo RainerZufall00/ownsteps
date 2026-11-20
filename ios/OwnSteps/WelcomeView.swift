@@ -13,6 +13,9 @@ struct WelcomeView: View {
     @State private var following = false
     @FocusState private var addressFocused: Bool
 
+    /// Where to get a server: the project and its setup guide.
+    static let projectURL = URL(string: "https://github.com/RainerZufall00/ownsteps")!
+
     private var canConnect: Bool {
         !address.trimmingCharacters(in: .whitespaces).isEmpty && !checking
     }
@@ -104,6 +107,21 @@ struct WelcomeView: View {
                     .foregroundStyle(.white.opacity(0.75))
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
+                    .padding(.horizontal)
+
+                // For everyone who'd like to write trips of their own: the
+                // app needs a server, and that's the project on GitHub.
+                Link(destination: Self.projectURL) {
+                    Label("Host OwnSteps yourself", systemImage: "server.rack")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .padding(.top, 24)
+
+                Text("Want to write your own trips? OwnSteps is free and open source – the setup guide is on GitHub.")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.75))
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 6)
                     .padding(.horizontal)
             }
             .padding(.horizontal, 20)
