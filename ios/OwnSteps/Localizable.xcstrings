@@ -937,6 +937,16 @@
         }
       }
     },
+    "Host OwnSteps yourself": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OwnSteps selbst hosten"
+          }
+        }
+      }
+    },
     "Immich": {
       "localizations": {
         "de": {
@@ -2876,6 +2886,16 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Want to write your own trips? OwnSteps is free and open source – the setup guide is on GitHub.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du möchtest eigene Reisen schreiben? OwnSteps ist kostenlos und Open Source – die Anleitung findest du auf GitHub."
           }
         }
       }

@@ -65,6 +65,9 @@ import de.ownsteps.app.ui.FormScreen
 import de.ownsteps.app.ui.Hint
 import de.ownsteps.app.ui.rememberAction
 
+/** Where to get a server: the project and its setup guide. */
+private const val PROJECT_URL = "https://github.com/RainerZufall00/ownsteps"
+
 /** First screen: where is your OwnSteps server? Or follow a trip with a link, without an account. */
 @Composable
 fun WelcomeScreen(onServer: () -> Unit, onFollow: () -> Unit) {
@@ -114,6 +117,14 @@ fun WelcomeScreen(onServer: () -> Unit, onFollow: () -> Unit) {
                 Text(stringResource(R.string.follow_with_link))
             }
             Text(stringResource(R.string.follow_hint), Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // For everyone who'd like to write trips of their own: the app
+            // needs a server, and that's the project on GitHub.
+            val context = LocalContext.current
+            TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, PROJECT_URL.toUri())) }) {
+                Icon(Icons.Filled.Dns, null, Modifier.padding(end = 8.dp))
+                Text(stringResource(R.string.host_yourself))
+            }
+            Text(stringResource(R.string.host_yourself_hint), Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

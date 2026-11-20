@@ -4,8 +4,10 @@ import SwiftUI
 struct TripRoute: Hashable {
     let accountID: UUID
     let tripID: Int
-    /// Scrolled to on arrival, e.g. from a notification.
+    /// Opened on arrival, e.g. from a notification …
     var stepID: Int? = nil
+    /// … with its comments over it, for news about a comment.
+    var showComments = false
 
     /// The same trip without the step to scroll to – what a list selects.
     var trip: TripRoute { TripRoute(accountID: accountID, tripID: tripID) }
@@ -36,6 +38,12 @@ struct TripListView: View {
     @State private var showingNews = false
     /// Chosen in the news list; opened once the sheet is gone.
     @State private var newsTarget: TripRoute?
+    /// Opened from outside the list – a notification, an invitation – so
+    /// there's no card on screen to zoom from. Pushed without the zoom: with
+    /// it, the card turning up later during a cold start got drawn outside
+    /// the view tree and crashed the app. Fixed for as long as it's open, so
+    /// the open trip isn't rebuilt.
+    @State private var openedWithoutCard: TripRoute?
     @State private var accountToUnfollow: Account?
     /// From a trip's menu in the list.
     @State private var editingTrip: TripTarget?
@@ -67,6 +75,9 @@ struct TripListView: View {
         }
         .onChange(of: sizeClass, initial: true) { updateLayout() }
         .onChange(of: tripIsOpen) { updateLayout() }
+        .onChange(of: path) {
+            if let route = openedWithoutCard, !path.contains(route) { openedWithoutCard = nil }
+        }
         .sheet(item: $newTripFor) { account in
             TripFormView(account: account, trip: nil, calendar: model.calendar(for: account)) { trip in
                 tripsByAccount[account.id, default: []].insert(trip, at: 0)
@@ -94,7 +105,14 @@ struct TripListView: View {
                 model.markAllNewsRead()
             }
         }) {
-            NewsView { entry in newsTarget = TripRoute(accountID: entry.accountID, tripID: entry.tripID, stepID: entry.stepID) }
+            NewsView { entry in
+                newsTarget = TripRoute(
+                    accountID: entry.accountID,
+                    tripID: entry.tripID,
+                    stepID: entry.stepID,
+                    showComments: entry.kind == .comment
+                )
+            }
         }
         // An alert, not a second confirmation dialog: SwiftUI shows only one of those per view.
         .alert(
@@ -132,6 +150,7 @@ struct TripListView: View {
         .onChange(of: model.openTrip, initial: true) { _, route in
             guard let route else { return }
             model.openTrip = nil
+            openedWithoutCard = route
             open(route)
             Task { await refresh() }
         }
@@ -179,8 +198,17 @@ struct TripListView: View {
             }
             .navigationDestination(for: TripRoute.self) { route in
                 if let account = model.account(id: route.accountID) {
-                    TripView(account: account, tripID: route.tripID, focusStepID: route.stepID)
-                        .navigationTransition(.zoom(sourceID: route.trip, in: cardTransition))
+                    let trip = TripView(
+                        account: account,
+                        tripID: route.tripID,
+                        focusStepID: route.stepID,
+                        showComments: route.showComments
+                    )
+                    if route == openedWithoutCard {
+                        trip
+                    } else {
+                        trip.navigationTransition(.zoom(sourceID: route.trip, in: cardTransition))
+                    }
                 }
             }
         }
@@ -285,7 +313,12 @@ struct TripListView: View {
         } detail: {
             NavigationStack {
                 if let selection, let account = model.account(id: selection.accountID) {
-                    TripView(account: account, tripID: selection.tripID, focusStepID: selection.stepID)
+                    TripView(
+                        account: account,
+                        tripID: selection.tripID,
+                        focusStepID: selection.stepID,
+                        showComments: selection.showComments
+                    )
                         .id(selection.trip)
                 } else {
                     ContentUnavailableView(

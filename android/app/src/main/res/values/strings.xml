@@ -9,6 +9,8 @@
     <string name="continue_">Continue</string>
     <string name="follow_with_link">Follow a trip with a link</string>
     <string name="follow_hint">Got a link from travellers? You can read along without an account.</string>
+    <string name="host_yourself">Host OwnSteps yourself</string>
+    <string name="host_yourself_hint">Want to write your own trips? OwnSteps is free and open source – the setup guide is on GitHub.</string>
     <string name="sign_in">Sign in</string>
     <string name="sign_in_with">Sign in with %1$s</string>
     <string name="or_with_password">Or with password</string>

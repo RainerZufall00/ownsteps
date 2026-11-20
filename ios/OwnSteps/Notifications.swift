@@ -37,16 +37,24 @@ enum Notifications {
                 "accountID": account.id.uuidString,
                 "tripID": item.tripID,
                 "stepID": item.stepID,
+                "kind": item.kind.rawValue,
             ]
             let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
             try? await center.add(request)
         }
     }
 
-    /// Where a tapped notification leads.
-    static func route(accountID: String?, tripID: Int?, stepID: Int?) -> TripRoute? {
+    /// Where a tapped notification leads: the step's page, and for a
+    /// comment its comments over it. Notifications from before 1.0.1 carry
+    /// no kind and open the step.
+    static func route(accountID: String?, tripID: Int?, stepID: Int?, kind: String?) -> TripRoute? {
         guard let account = accountID.flatMap(UUID.init(uuidString:)), let tripID else { return nil }
-        return TripRoute(accountID: account, tripID: tripID, stepID: stepID)
+        return TripRoute(
+            accountID: account,
+            tripID: tripID,
+            stepID: stepID,
+            showComments: kind == TripNews.Item.Kind.comment.rawValue
+        )
     }
 
     // MARK: Per trip

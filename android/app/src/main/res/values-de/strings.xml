@@ -8,6 +8,8 @@
     <string name="continue_">Weiter</string>
     <string name="follow_with_link">Einer Reise per Link folgen</string>
     <string name="follow_hint">Hast du einen Link von Reisenden bekommen? Du kannst ohne Konto mitlesen.</string>
+    <string name="host_yourself">OwnSteps selbst hosten</string>
+    <string name="host_yourself_hint">Du möchtest eigene Reisen schreiben? OwnSteps ist kostenlos und Open Source – die Anleitung findest du auf GitHub.</string>
     <string name="sign_in">Anmelden</string>
     <string name="sign_in_with">Mit %1$s anmelden</string>
     <string name="or_with_password">Oder mit Passwort</string>
