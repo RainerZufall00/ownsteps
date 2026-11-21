@@ -57,6 +57,8 @@ jobs:
           # Into the local Docker so the scan below can read it.
           load: true
           tags: ownsteps:ci
+          # Fresh Debian security updates in every build, see the Dockerfile.
+          build-args: APT_REFRESH=${{ github.run_id }}
           cache-from: type=gha,scope=ci
           cache-to: type=gha,scope=ci,mode=max
       # The tests above run outside the image, so this is the only check that

@@ -19,7 +19,9 @@ where it isn't obvious.
 
 - Server: the Docker image is based on Debian 13 (trixie) instead of
   Debian 12 (bookworm), whose regular security support has ended. It no
-  longer contains npm, corepack and yarn, which the server never used. The
+  longer contains npm, corepack and yarn, which the server never used, and
+  installs Debian's security updates while it is built – among them the fix
+  for a heap overflow in zlib (CVE-2026-85091). The
   base image is pinned, so Dependabot proposes every new build of it with
   security fixes. CI now starts each image and scans it for known
   vulnerabilities, and new builds of the base image merge by themselves once

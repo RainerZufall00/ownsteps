@@ -28,6 +28,18 @@ RUN npm run build
 FROM node:22-trixie-slim@sha256:68c76cfad89921b927eae28ba21407475e29d0ce450afcdbe70c1532db042b64 AS runner
 WORKDIR /app
 
+# Debian's fixes reach the node image only when Docker Hub rebuilds it, which
+# can lag days behind an advisory (zlib's CVE-2026-85091 did). So the runtime
+# stage applies them itself. Only here: deps and builder don't ship.
+# APT_REFRESH is set to the workflow run ID in CI and the release build. A
+# changed value misses the build cache, so the GitHub Actions cache can't hand
+# back an upgrade layer from weeks ago.
+ARG APT_REFRESH=
+RUN echo "apt refresh: ${APT_REFRESH:-none}" \
+ && apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+
 # The server only needs node. npm, npx, corepack and yarn come with the base
 # image, are never run here and bring their own bundled packages along –
 # the usual source of findings in image scans. Out with them.
