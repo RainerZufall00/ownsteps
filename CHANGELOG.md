@@ -10,6 +10,15 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.7.4] – 2026-11-21
+
+### Security
+
+- Server: the Docker image installs Debian's security updates while it is
+  built, without waiting for the base image to catch up. Among them is the
+  fix for a heap overflow in zlib (CVE-2026-85091). Update with
+  `docker compose pull && docker compose up -d`.
+
 ### Added
 
 - Apps: the first screen points everyone who wants to write trips of their
@@ -19,9 +28,7 @@ where it isn't obvious.
 
 - Server: the Docker image is based on Debian 13 (trixie) instead of
   Debian 12 (bookworm), whose regular security support has ended. It no
-  longer contains npm, corepack and yarn, which the server never used, and
-  installs Debian's security updates while it is built – among them the fix
-  for a heap overflow in zlib (CVE-2026-85091). The
+  longer contains npm, corepack and yarn, which the server never used. The
   base image is pinned, so Dependabot proposes every new build of it with
   security fixes. CI now starts each image and scans it for known
   vulnerabilities, and new builds of the base image merge by themselves once
@@ -321,7 +328,8 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.0...v0.7.1
