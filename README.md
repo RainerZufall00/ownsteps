@@ -14,13 +14,11 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License: AGPL-3.0"></a>
 </p>
 
-<!-- TODO: once the app is live, add the App Store badge here:
 <p align="center">
-  <a href="https://apps.apple.com/app/idXXXXXXXXXX">
+  <a href="https://apps.apple.com/app/id6822720757">
     <img src="docs/images/app-store-badge.svg" height="54" alt="Download on the App Store">
   </a>
 </p>
--->
 
 <p align="center">
   <a href="https://rainerzufall00.github.io/ownsteps/support"><b>Get started &amp; support</b></a> ·

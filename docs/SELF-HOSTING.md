@@ -27,8 +27,9 @@ app runs on port 2555. On the first visit, `/setup` walks you through
 creating the first account (skipped if `ADMIN_EMAIL` and `ADMIN_PASSWORD` are
 set in `.env` or sign-in runs through OIDC).
 
-When the iOS app is in the App Store, set `APP_STORE_ID` so shared trips
-offer to open in the app.
+Set `APP_STORE_ID=6822720757` – the ID of the
+[iOS app in the App Store](https://apps.apple.com/app/id6822720757) – so
+shared trips offer to open in the app. The `.env.example` already has it.
 
 ## Map and place names
 
