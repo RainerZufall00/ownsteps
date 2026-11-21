@@ -54,8 +54,54 @@ jobs:
           context: .
           platforms: linux/amd64
           push: false
+          # Into the local Docker so the scan below can read it.
+          load: true
+          tags: ownsteps:ci
+          # Fresh Debian security updates in every build, see the Dockerfile.
+          build-args: APT_REFRESH=${{ github.run_id }}
           cache-from: type=gha,scope=ci
           cache-to: type=gha,scope=ci,mode=max
+      # The tests above run outside the image, so this is the only check that
+      # the image itself works: the entrypoint takes over an empty data
+      # directory as root and drops to the node user, the server runs the
+      # migrations and answers /api/health (which queries the database), and
+      # the native modules better-sqlite3 and sharp load on this base image.
+      # Dependabot's base image updates merge by themselves once this is green.
+      - name: Start the image
+        run: |
+          mkdir -p "$RUNNER_TEMP/data"
+          docker run -d --name ownsteps -p 127.0.0.1:2555:2555 \
+            -v "$RUNNER_TEMP/data:/data" ownsteps:ci
+          for _ in $(seq 60); do
+            if curl -fsS http://127.0.0.1:2555/api/health; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:2555/api/health | grep -q '"ok"'
+          # Not root: the entrypoint must have switched to the node user.
+          docker exec ownsteps grep -qE '^Uid:\s+1000\s+1000\s+1000\s+1000$' /proc/1/status
+          docker exec --user node ownsteps node -e "
+            require('sharp')({ create: { width: 8, height: 8, channels: 3, background: '#fff' } })
+              .jpeg().toBuffer().then((b) => console.log('sharp ok', b.length));
+            new (require('better-sqlite3'))(':memory:').prepare('SELECT 1').get();
+            console.log('better-sqlite3 ok');"
+          # npm and friends were removed from the runtime stage.
+          if docker exec ownsteps sh -c 'command -v npm || command -v npx || command -v corepack || command -v yarn'; then
+            echo "::error::npm or yarn is still in the image"; exit 1
+          fi
+      - name: Server log
+        if: always()
+        run: docker logs ownsteps || true
+      # Fails on high and critical vulnerabilities in the image (Debian
+      # packages and node modules) that already have a fix – those go away
+      # with a newer base image or dependency. Unfixed ones are only listed:
+      # nothing here could do anything about them.
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ownsteps:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
 
   android:
     runs-on: ubuntu-latest

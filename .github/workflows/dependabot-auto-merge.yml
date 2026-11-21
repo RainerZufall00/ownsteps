@@ -4,7 +4,13 @@
 # repository settings and the required check on main – without the latter,
 # auto-merge would merge at once, untested.
 #
-# Stays manual: major updates, the Docker base image, GitHub Actions, the
+# Also merges new builds of the Docker base image – but only when the PR
+# changes nothing but the digest after an unchanged tag (node:22-trixie-slim
+# stays node:22-trixie-slim). Those carry Debian and Node 22 security and bug
+# fixes; CI starts the image and scans it before the merge (ci.yml, docker).
+# Merging only changes main: installations get it with the next release.
+#
+# Stays manual: major updates, a changed base image tag, GitHub Actions, the
 # Swift packages (see dependabot.yml), and next, react and maplibre-gl, whose
 # breakage the tests don't catch.
 name: Dependabot auto-merge
@@ -31,6 +37,21 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ "$ECOSYSTEM" = docker ]; then
+            # Every changed line must be a FROM line, and with the digests
+            # removed the old and the new lines must be the same.
+            diff=$(gh pr diff "$PR_URL")
+            changed=$(grep -E '^[-+]' <<<"$diff" | grep -vE '^(\+\+\+|---) ' || true)
+            if grep -qvE '^[-+]FROM [^ ]+@sha256:[0-9a-f]{64}( |$)' <<<"$changed"; then
+              echo "Not a digest-only update, merged by hand."; exit 0
+            fi
+            strip() { grep -E "^$1" <<<"$changed" | cut -c2- | sed -E 's/@sha256:[0-9a-f]{64}//' | sort; }
+            if [ -z "$changed" ] || [ "$(strip -)" != "$(strip '\+')" ]; then
+              echo "The base image tag changed, merged by hand."; exit 0
+            fi
+            gh pr merge --auto --squash "$PR_URL"
+            exit 0
+          fi
           case "$ECOSYSTEM" in
             npm_and_yarn|gradle) ;;
             *) echo "Ecosystem $ECOSYSTEM is merged by hand."; exit 0 ;;
