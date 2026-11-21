@@ -1318,9 +1318,16 @@ only by tag. The tag is rebuilt whenever Debian or Node ship fixes, but
 Dependabot only notices that for a pinned digest – with the bare tag the image
 only got the fixes when a release happened to be built. The runtime stage
 removes npm, corepack and yarn: the server never runs them, and their bundled
-packages are where image scanners find most of their vulnerabilities. CI
-scans every image with Trivy and fails on high or critical findings that
-already have a fix.
+packages are where image scanners find most of their vulnerabilities.
+
+CI starts every image once – empty data directory, entrypoint as root,
+`/api/health`, sharp and better-sqlite3 loaded inside – and scans it with
+Trivy, failing on high or critical findings that already have a fix. That
+start is what lets Dependabot's digest updates **merge by themselves**: a
+digest change behind an unchanged tag (`node:22-trixie-slim`) only carries
+Debian stable and Node 22 maintenance fixes, and a broken native module
+would turn the check red. A changed tag still needs a human. Merging only
+changes `main`; installations get the new base image with the next release.
 
 ### [E11] German as project language – superseded by [E15]
 Originally UI, comments, commit messages and error messages were German.

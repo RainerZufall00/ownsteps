@@ -21,8 +21,9 @@ where it isn't obvious.
   Debian 12 (bookworm), whose regular security support has ended. It no
   longer contains npm, corepack and yarn, which the server never used. The
   base image is pinned, so Dependabot proposes every new build of it with
-  security fixes, and CI scans each image for known vulnerabilities. Nothing
-  to do when updating.
+  security fixes. CI now starts each image and scans it for known
+  vulnerabilities, and new builds of the base image merge by themselves once
+  that passes. Nothing to do when updating.
 - iOS: a tapped notification or news entry opens the step's page, for a
   comment with the comments over it. Before, it was meant to move the cards
   to the step, which didn't work: the trip opened at its newest step.
