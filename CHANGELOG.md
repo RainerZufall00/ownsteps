@@ -17,6 +17,12 @@ where it isn't obvious.
 
 ### Changed
 
+- Server: the Docker image is based on Debian 13 (trixie) instead of
+  Debian 12 (bookworm), whose regular security support has ended. It no
+  longer contains npm, corepack and yarn, which the server never used. The
+  base image is pinned, so Dependabot proposes every new build of it with
+  security fixes, and CI scans each image for known vulnerabilities. Nothing
+  to do when updating.
 - iOS: a tapped notification or news entry opens the step's page, for a
   comment with the comments over it. Before, it was meant to move the cards
   to the step, which didn't work: the trip opened at its newest step.

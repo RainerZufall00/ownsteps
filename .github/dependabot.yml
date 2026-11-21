@@ -43,7 +43,8 @@ updates:
       minor-and-patch:
         update-types: ["minor", "patch"]
 
-  # Base image of the Dockerfile
+  # Base image of the Dockerfile. It is pinned by digest, so this also
+  # catches rebuilds of the same tag that bring Debian and Node patches.
   - package-ecosystem: docker
     directory: /
     schedule:

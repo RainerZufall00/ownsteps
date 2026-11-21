@@ -1313,6 +1313,15 @@ scripts). If a package that really needs an install script is added later,
 install `python3 make g++` in the deps stage – but please only there, so the
 runtime image stays slim.
 
+The base image is pinned by **digest** (`node:22-trixie-slim@sha256:…`), not
+only by tag. The tag is rebuilt whenever Debian or Node ship fixes, but
+Dependabot only notices that for a pinned digest – with the bare tag the image
+only got the fixes when a release happened to be built. The runtime stage
+removes npm, corepack and yarn: the server never runs them, and their bundled
+packages are where image scanners find most of their vulnerabilities. CI
+scans every image with Trivy and fails on high or critical findings that
+already have a fix.
+
 ### [E11] German as project language – superseded by [E15]
 Originally UI, comments, commit messages and error messages were German.
 Replaced when the project was prepared for open source.

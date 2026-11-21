@@ -54,8 +54,22 @@ jobs:
           context: .
           platforms: linux/amd64
           push: false
+          # Into the local Docker so the scan below can read it.
+          load: true
+          tags: ownsteps:ci
           cache-from: type=gha,scope=ci
           cache-to: type=gha,scope=ci,mode=max
+      # Fails on high and critical vulnerabilities in the image (Debian
+      # packages and node modules) that already have a fix – those go away
+      # with a newer base image or dependency. Unfixed ones are only listed:
+      # nothing here could do anything about them.
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ownsteps:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
 
   android:
     runs-on: ubuntu-latest
