@@ -10,6 +10,19 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+## [0.7.5] – 2026-11-25
+
+### Security
+
+- Server: rebuilt Docker image with Debian's fix for the zstd compression
+  library (libzstd1 1.5.7+dfsg-1+deb13u1), published after 0.7.4 was built.
+  Update with `docker compose pull && docker compose up -d`.
+
+### Changed
+
+- Android: updated build dependencies (kotlinx-serialization 1.13, AGP 9.5.2
+  and KSP). No new app version needed.
+
 ## [0.7.4] – 2026-11-21
 
 ### Security
@@ -328,7 +341,8 @@ The first public version.
 - Follow trips as a reader through an invitation link, with notifications
   about new steps; authors hear about new comments.
 
-[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.4...HEAD
+[Unreleased]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.5...HEAD
+[0.7.5]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/RainerZufall00/ownsteps/compare/v0.7.1...v0.7.2
