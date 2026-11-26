@@ -2,12 +2,23 @@
 # Container Registry when a version is tagged (git tag v1.2.3 && git push --tags),
 # then creates the GitHub release from that version's section in CHANGELOG.md.
 # Installations update with `docker compose pull && docker compose up -d`.
+#
+# Started by hand with a version (Actions → Docker image → Run workflow, or
+# `gh workflow run docker.yml -f version=1.2.3`), it does the same for the
+# chosen branch's commit and creates the tag along with the release. That is
+# for whoever can't push tags, such as cloud sessions. Started by hand without
+# a version on a tag, it only rebuilds that tag's image.
 name: Docker image
 
 on:
   push:
     tags: ["v*.*.*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release from this branch, e.g. 1.2.3 (empty: only rebuild the image)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -16,8 +27,34 @@ permissions:
 jobs:
   image:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Only for a manual run with a version: it must match package.json and
+      # must not be released yet. Empty otherwise, then the pushed tag counts.
+      - name: Version
+        id: version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          VERSION="${VERSION#v}"
+          [ -n "$VERSION" ] || exit 0
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like 1.2.3, got '$VERSION'"
+            exit 1
+          fi
+          PACKAGE=$(node -p 'require("./package.json").version')
+          if [ "$PACKAGE" != "$VERSION" ]; then
+            echo "::error::package.json says $PACKAGE, not $VERSION"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" > /dev/null; then
+            echo "::error::Tag v$VERSION already exists"
+            exit 1
+          fi
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
       # Registry names must be lowercase; the repository owner may not be.
       - name: Image name
@@ -38,9 +75,9 @@ jobs:
         with:
           images: ${{ env.IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=semver,pattern={{version}},value=${{ steps.version.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.tag }}
+            type=semver,pattern={{major}},value=${{ steps.version.outputs.tag }}
           flavor: latest=auto
 
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -56,10 +93,10 @@ jobs:
           cache-to: type=gha,mode=max
 
   # Only this job may write to the repository, the image build doesn't need to.
-  # A manual run of the workflow rebuilds the image and creates no release.
+  # A manual run without a version rebuilds the image and creates no release.
   release:
     needs: image
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || needs.image.outputs.tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -69,14 +106,23 @@ jobs:
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.image.outputs.tag || github.ref_name }}
+          NEW_TAG: ${{ needs.image.outputs.tag != '' }}
         run: |
           # Everything between "## [1.2.3] – date" and the next version heading.
-          awk -v heading="## [${GITHUB_REF_NAME#v}]" \
+          awk -v heading="## [${TAG#v}]" \
             'index($0, "## [") == 1 { found = index($0, heading) == 1; next } found' \
             CHANGELOG.md > notes.md
           if ! grep -q '[^[:space:]]' notes.md; then
-            echo "::error::CHANGELOG.md has no section for $GITHUB_REF_NAME"
+            echo "::error::CHANGELOG.md has no section for $TAG"
             exit 1
           fi
-          gh release create "$GITHUB_REF_NAME" --verify-tag \
-            --title "$GITHUB_REF_NAME" --notes-file notes.md
+          # A manual run creates the tag on the commit the image was built
+          # from. Tags made with GITHUB_TOKEN start no further workflow run.
+          if [ "$NEW_TAG" = true ]; then
+            gh release create "$TAG" --target "$GITHUB_SHA" \
+              --title "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" --verify-tag \
+              --title "$TAG" --notes-file notes.md
+          fi
