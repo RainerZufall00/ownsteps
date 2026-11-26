@@ -84,6 +84,9 @@ A new release is a version tag: `git tag v1.2.3 && git push --tags` builds the
 image for both architectures, publishes it to the GitHub Container Registry
 and creates the GitHub release from that version's section in `CHANGELOG.md`
 (`.github/workflows/docker.yml`) – so the section has to exist before tagging.
+Without the right to push tags, start that workflow by hand on `main` with the
+version (`gh workflow run docker.yml -f version=1.2.3`); it creates the tag
+along with the release.
 
 ## License
 
