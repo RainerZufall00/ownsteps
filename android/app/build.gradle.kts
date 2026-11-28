@@ -15,13 +15,31 @@ android {
         applicationId = providers.gradleProperty("appId").orNull ?: "de.ownsteps.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
+        // Release builds pass a growing number so each APK installs over the
+        // previous one (.github/workflows/docker.yml).
+        versionCode = providers.environmentVariable("VERSION_CODE").orNull?.toInt() ?: 1
         // Compared with the server's `minAppVersion`, like on iOS.
         versionName = "1.0.0"
     }
 
+    // Release signing comes from the environment (repository secrets, see
+    // .github/workflows/docker.yml). Without it the release APK is unsigned
+    // and only the debug build installs, with the local debug key.
+    val releaseKeystore = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").orNull
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

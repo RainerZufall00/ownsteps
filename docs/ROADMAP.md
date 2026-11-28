@@ -118,7 +118,8 @@ architecture doc and the phase is ticked off here.
 - [x] Run in the emulator against a local server (2026-10-08): sign-in, trip, story, comments, composer with GPS photos, upload, share target, place picker, German, dark mode.
 - [x] Story like the iOS app since 2026-10-08: day and place at the top, the photo between header and text, its caption right under it (2026-10-09).
 - [ ] Try OIDC against a real instance, uploads of large videos on a device, background refresh over a day.
-- [ ] Release signing and store listing (Play and/or F-Droid) – open.
+- [x] Release signing (2026-11-28): every GitHub release carries the signed APK, key from the repository secrets (`docker.yml`).
+- [ ] Store listing (Play and/or F-Droid) – open.
 
 ### Phase 5 – Code review ("strangers run this now")
 - [x] Security review of the whole server, with focus on `/api/v1`, tokens and viewer devices (2026-10-02). Fixed: brakes on every password check (per address from the right end of `X-Forwarded-For`, plus per account and per trip), share passwords ≥ 8 characters, OIDC only matches verified emails, security headers and a nonce CSP, readers signed out on a new link or password. Accepted: setup stays open until the first account exists.

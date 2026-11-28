@@ -10,6 +10,12 @@ where it isn't obvious.
 
 ## [Unreleased]
 
+### Added
+
+- Android: every release carries the signed app as `OwnSteps-<version>.apk`,
+  to install directly on phones; later releases install as updates. An app
+  installed from a build of your own has to be uninstalled first.
+
 ## [0.7.5] – 2026-11-25
 
 ### Security

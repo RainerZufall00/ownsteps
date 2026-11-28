@@ -62,6 +62,21 @@ You need JDK 17+ and the Android SDK (platform 37). Point Gradle at the SDK in
 Forks publishing their own build set their own application ID: `appId=…` in
 `gradle.properties` or with `-PappId=…`.
 
+## Installing a release
+
+Every GitHub release carries the signed app as `OwnSteps-<version>.apk`
+(`.github/workflows/docker.yml`). Open it on the phone and allow the browser
+or file manager to install apps. Later releases install as updates over it.
+An APK built with the debug key, or a release key of your own, doesn't: uninstall
+first, which deletes the app's offline copy and unsent steps.
+
+The release key comes from the repository secrets `ANDROID_KEYSTORE_BASE64`
+(the keystore file, base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`
+and `ANDROID_KEY_PASSWORD`. Keep a copy of the keystore outside GitHub:
+secrets can't be read back, and without the same key there are no more updates.
+To sign locally, set the same names as environment variables, with
+`ANDROID_KEYSTORE_PATH` pointing at the file, and run `./gradlew :app:assembleRelease`.
+
 ## Trying it against a local server
 
 Start the server with `npm run dev` (port 2555). The emulator reaches the
